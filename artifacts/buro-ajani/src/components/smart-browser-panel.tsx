@@ -11,7 +11,6 @@ usePageVisibility,
 usePerformanceMonitor,
 useSmartClipboard,
 useSmartShare,
-useSpeechRecognition,
 useTabSync,
 useWakeLock,
 } from "@/hooks/use-smart-browser";
@@ -33,7 +32,7 @@ Fingerprint,
 Keyboard,
 MapPin,
 Maximize,
-Mic,MicOff,
+Mic,
 Minimize,
 Monitor,
 Printer,
@@ -165,70 +164,6 @@ function BatteryAlert() {
   );
 }
 
-function VoiceCommandButton() {
-  const { t } = useTranslation();
-  const { isListening, transcript, interimTranscript, isSupported, startListening, stopListening, resetTranscript } = useSpeechRecognition();
-  const [, navigate] = useLocation();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!transcript) return;
-    const text = transcript.toLowerCase().trim();
-
-    const commands: [RegExp, () => void][] = [
-      [/tableau de bord|dashboard|accueil/, () => navigate("/")],
-      [/appels?|calls?/, () => navigate("/appels")],
-      [/contacts?/, () => navigate("/contacts")],
-      [/t[aâ]ches?|tasks?/, () => navigate("/taches")],
-      [/messages?/, () => navigate("/messages")],
-      [/calendrier|agenda|calendar/, () => navigate("/calendrier")],
-      [/rapports?|reports?/, () => navigate("/rapports")],
-      [/param[eè]tres?|settings?/, () => navigate("/parametres")],
-      [/agents?\s*ia|intelligence/, () => navigate("/agents-ia")],
-      [/utilisateurs?|users?/, () => navigate("/utilisateurs")],
-    ];
-
-    for (const [regex, action] of commands) {
-      if (regex.test(text)) {
-        action();
-        toast({ title: t("smartBrowserPanel.voiceCommand"), description: t("smartBrowserPanel.voiceNav", { text }) });
-        resetTranscript();
-        stopListening();
-        return;
-      }
-    }
-  }, [transcript, navigate, toast, resetTranscript, stopListening, t]);
-
-  if (!isSupported) return null;
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={isListening ? "default" : "ghost"}
-            size="icon"
-            className={`relative ${isListening ? "bg-red-500 hover:bg-red-600 text-white" : ""}`}
-            onClick={() => isListening ? stopListening() : startListening("fr-FR")}
-          >
-            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            {isListening && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-400 rounded-full animate-ping" />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {isListening ? (
-            <div>
-              <p className="font-medium">{t("smartBrowserPanel.listening")}</p>
-              {(transcript || interimTranscript) && (
-                <p className="text-xs opacity-80 mt-1 max-w-[200px]">{transcript}{interimTranscript}</p>
-              )}
-            </div>
-          ) : t("smartBrowserPanel.voiceCommandLang")}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
 
 function SmartQuickActions() {
   const { t } = useTranslation();
@@ -545,7 +480,9 @@ export function SmartBrowserToolbar() {
     <div className="flex items-center gap-1">
       <SmartStatusBar />
       <div className="w-px h-4 bg-border mx-0.5" />
-      <VoiceCommandButton />
+      {/* Le micro de navigation vocale d'ici faisait doublon avec le bouton
+          « Commande vocale » de l'en-tete (assistant complet, mot d'eveil,
+          confirmations) : deux micros cote a cote, deux comportements. */}
       <SmartQuickActions />
       <GeolocationButton />
       <DeviceCapabilitiesPanel />

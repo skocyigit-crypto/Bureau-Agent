@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { Bot,CalendarClock,Check,Copy,ExternalLink,FolderKanban,MessageSquare,Phone,PhoneCall,PhoneOff,Plus,Printer,RefreshCw,Send,Settings,Shield,Star,Trash2,Users,Zap } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
-import { useLocation } from "wouter";
+import { Link,useLocation } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -54,7 +54,25 @@ interface SmsLog {
   createdAt: string;
 }
 
-export default function TelephonyPage() {
+/**
+ * La page servait deux metiers : regler la ligne (fournisseurs, secretaire IA)
+ * et s'en servir (appeler, SMS, envois groupes, rappels programmes, journaux).
+ * Le menu les separe : l'usage est dans le Centre de communication, a cote des
+ * appels recus (`/telefon`) ; le reglage dans Reglages du bureau > Connexions
+ * (`/telephonie`). Meme composant, onglets filtres par espace.
+ */
+export type EspaceTelephonie = "reglage" | "usage";
+type OngletTelephonie = "providers" | "secretaire" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats";
+export const ONGLETS_TELEPHONIE: Record<EspaceTelephonie, readonly OngletTelephonie[]> = {
+  reglage: ["providers", "secretaire", "stats"],
+  usage: ["call", "sms", "bulk", "schedule", "logs"],
+};
+
+export function TelephonieUsagePage() {
+  return <TelephonyPage espace="usage" />;
+}
+
+export default function TelephonyPage({ espace = "reglage" }: { espace?: EspaceTelephonie } = {}) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [] = useLocation();
@@ -67,7 +85,7 @@ export default function TelephonyPage() {
     else toast({ title: t("telephony.toast.projectCreateError"), variant: "destructive" });
   }
 
-  const [tab, setTab] = useState<"providers" | "secretaire" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
+  const [tab, setTab] = useState<OngletTelephonie>(ONGLETS_TELEPHONIE[espace][0]);
   const [bulkNumbers, setBulkNumbers] = useState("");
   const [bulkBody, setBulkBody] = useState("");
   const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number } | null>(null);
@@ -346,9 +364,9 @@ export default function TelephonyPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Phone className="h-6 w-6 text-primary" />
-            {t("telephony.title")}
+            {t(espace === "usage" ? "telephony.titleUsage" : "telephony.titleSettings")}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("telephony.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t(espace === "usage" ? "telephony.subtitleUsage" : "telephony.subtitleSettings")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -358,6 +376,7 @@ export default function TelephonyPage() {
           >
             <Printer className="h-4 w-4" />
           </button>
+          {espace === "reglage" && (<>
           <button
             onClick={navigateToProjets}
             className="flex items-center gap-2 px-3 py-2 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50"
@@ -371,6 +390,7 @@ export default function TelephonyPage() {
           >
             <Plus className="h-4 w-4" /> {t("telephony.addProvider")}
           </button>
+          </>)}
         </div>
       </div>
 
@@ -380,6 +400,14 @@ export default function TelephonyPage() {
             <p className="text-sm">{actionResult.message}</p>
             <button onClick={() => setActionResult(null)} className="text-xs opacity-60 hover:opacity-100">{t("telephony.close")}</button>
           </div>
+        </div>
+      )}
+
+      {espace === "usage" && configuredProviders.filter((p) => p.isActive).length === 0 && (
+        <div role="status" className="p-4 rounded-lg border border-orange-300 bg-orange-50 text-orange-950 dark:bg-orange-950/30 dark:text-orange-100 dark:border-orange-800 text-sm" data-testid="ligne-absente">
+          <p className="font-medium">{t("telephony.noLineTitle")}</p>
+          <p className="mt-1">{t("telephony.noLineBody")}</p>
+          <Link href="/telephonie" className="inline-block mt-2 font-medium underline underline-offset-2">{t("telephony.noLineAction")}</Link>
         </div>
       )}
 
@@ -393,7 +421,7 @@ export default function TelephonyPage() {
           { key: "schedule" as const, label: t("telephony.tabs.schedule"), icon: CalendarClock },
           { key: "logs" as const, label: t("telephony.tabs.logs"), icon: RefreshCw },
           { key: "stats" as const, label: t("telephony.tabs.stats"), icon: Zap },
-        ].map(tabItem => (
+        ].filter(tabItem => ONGLETS_TELEPHONIE[espace].includes(tabItem.key)).map(tabItem => (
           <button
             key={tabItem.key}
             onClick={() => { setTab(tabItem.key); if (tabItem.key === "logs") fetchLogs(); }}

@@ -48,7 +48,7 @@ const VALID_ROUTES = [
   "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",
   "/rapports", "/rapport-executif", "/analyse", "/performance",
   "/agents-ia", "/agents-catalogue", "/bureau-taches", "/commandant-ia", "/document-ia", "/documents",
-  "/import", "/pointage", "/telephonie", "/google-workspace",
+  "/import", "/pointage", "/telephonie", "/telefon", "/google-workspace",
   "/logiciels", "/utilisateurs", "/audit", "/automatisations", "/studio-flux",
   "/organisations", "/abonnement", "/parametres", "/notifications",
   "/telecharger", "/gestion-licence", "/projets",

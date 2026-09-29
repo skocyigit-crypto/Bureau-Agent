@@ -136,79 +136,86 @@
   "sidebar": {
     "groups": {
       "today": "Heute",
-      "communication": "Kommunikation",
-      "addressBook": "Adressbuch",
-      "work": "Arbeitsorganisation",
-      "docsReports": "Dokumente & Berichte",
-      "aiAssistants": "KI-Assistenten",
-      "analysis": "Analyse",
-      "integrations": "Integrationen",
-      "administration": "Verwaltung",
-      "superAdmin": "Super-Admin",
-      "system": "System",
-      "sales": "Vertrieb"
+      "communication": "Kommunikationszentrale",
+      "work": "Baustellen & Aufträge",
+      "sales": "CRM & Vertrieb",
+      "planning": "Planung",
+      "finance": "Finanzen",
+      "agentBureau": "Agentenbüro",
+      "knowledge": "Wissen & Analyse",
+      "officeSettings": "Büro-Einstellungen",
+      "platformConsole": "Plattform-Konsole"
     },
     "items": {
       "dashboard": "Dashboard",
-      "proactiveAssistant": "Proaktiver Assistent",
+      "proactiveAssistant": "Proaktive Vorschläge",
       "aiLearned": "Was die KI gelernt hat",
       "calendar": "Kalender",
       "reminders": "Erinnerungen",
       "recentActivity": "Letzte Aktivität",
       "calls": "Anrufe",
       "messages": "Nachrichten",
-      "whatsapp": "WhatsApp Kunden",
-      "mailAgent": "KI-Mail-Agent",
-      "securityCenter": "Sicherheitszentrum",
-      "webSearch": "Websuche",
+      "whatsapp": "WhatsApp",
+      "mailAgent": "E-Mail",
+      "securityCenter": "Sicherheitszentrale",
+      "webSearch": "Sichere Websuche",
       "contacts": "Kontakte",
       "tasks": "Aufgaben",
-      "projects": "Projekte",
-      "treasury": "Finanzen & Risiko",
+      "projects": "Baustellen & Projekte",
+      "treasury": "Liquidität & Risiko",
       "expenses": "Ausgaben",
-      "siteVoice": "Sprachliche Baustellenerfassung",
+      "siteVoice": "Baustellen-Sprachbericht",
       "internalNotes": "Interne Notizen",
       "checkin": "Zeiterfassung",
       "documents": "Dokumente",
       "knowledgeBase": "Wissensdatenbank",
-      "documentAi": "Dokument-KI",
+      "documentAi": "Dokumentensortierung",
       "reports": "Berichte",
-      "aiTeam": "KI-Team",
-      "aiCommander": "KI-Kommandant",
-      "approvalQueue": "Freigabewarteschlange",
-      "universalAssistant": "Universeller Assistent",
-      "aiAgents": "KI-Agenten",
+      "aiTeam": "Agentenziele",
+      "aiCommander": "Analysebefehle",
+      "approvalQueue": "Offene Freigaben",
+      "universalAssistant": "Chat-Assistent",
+      "aiAgents": "Fachagenten",
       "statistics": "Statistiken",
       "googleWorkspace": "Google Workspace",
-      "telephony": "Telefonie",
-      "connectors": "Konnektoren",
+      "telephony": "Telefonleitung",
+      "connectors": "Verbundene Software",
       "users": "Benutzer",
-      "license": "Lizenz & Abrechnung",
+      "license": "Abo & Abrechnung",
       "dataProtection": "Datenschutz",
       "teamLocation": "Teamstandort",
       "executiveReport": "Führungsbericht",
       "teamPerformance": "Teamleistung",
-      "autoAudit": "Auto-Audit",
-      "automations": "Automatisierungen",
+      "autoAudit": "App-Selbstprüfung",
+      "automations": "Automatische Regeln",
       "saasBackoffice": "SaaS-Backoffice",
       "organisations": "Organisationen",
-      "prospects": "Interessenten",
+      "prospects": "Anfragen & Chancen",
       "globalAuditLog": "Globales Audit-Protokoll",
       "techHealth": "Technischer Zustand",
-      "guide": "Benutzerhandbuch",
+      "guide": "Hilfe & Anleitung",
       "settings": "Einstellungen",
-      "smartImport": "Intelligenter Import",
+      "smartImport": "Datenimport",
       "initialSetup": "Ersteinrichtung",
       "mobileApp": "Mobile App",
       "quotes": "Angebote",
       "clientInvoices": "Kundenrechnungen",
-      "trash": "Papierkorb",
-      "postDiagnostic": "Arbeitsplatz-Diagnose",
-      "encaissements": "Zahlungen",
-      "taskDesk": "Aufgabenpult",
-      "agentCatalog": "Agentenkatalog",
-      "flowStudio": "Flow-Studio"
-    }
+      "trash": "Gelöschte Einträge",
+      "postDiagnostic": "Rechner-Prüfung",
+      "encaissements": "Zahlungseingänge",
+      "taskDesk": "Agentenläufe",
+      "agentCatalog": "Agentenprofile",
+      "flowStudio": "Ablauf-Studio",
+      "phoneOps": "Anrufen & SMS",
+      "agents": "Agenten",
+      "flows": "Abläufe",
+      "runs": "Ausführungen",
+      "connections": "Verbindungen",
+      "security": "Sicherheit"
+    },
+    "mainNav": "Hauptmenü",
+    "sectionTabs": "Seiten von „{{name}}“",
+    "newItems": "neu: {{count}}"
   },
   "userMenu": {
     "level": "Stufe {{n}}",
@@ -263,7 +270,15 @@
     "device": "Gerät",
     "appMode": "App-Modus",
     "newBadgeAria": "{{count}} neu {{name}}",
-    "newBadgeAriaPlural": "{{count}} neue {{name}}"
+    "newBadgeAriaPlural": "{{count}} neue {{name}}",
+    "approvalsWaiting": "Warten auf Freigabe: {{count}}",
+    "approvalsNone": "Keine offenen Freigaben",
+    "voiceCommand": "Sprachbefehl",
+    "voiceWake": "wartet auf das Aktivierungswort",
+    "voiceListening": "hört zu",
+    "quickAction": "Schnellaktion",
+    "backToOffice": "Zurück zum Büro",
+    "tools": "Gerätewerkzeuge"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -675,7 +690,7 @@
     "projectNotes": "Erstellt aus Aufgabe #{{id}}"
   },
   "calls": {
-    "title": "Anrufprotokoll",
+    "title": "Anrufe",
     "subtitle": "Verwalten und verfolgen Sie alle Telefonkommunikationen.",
     "bannerTitle": "Kommunikationszentrale",
     "bannerSubtitle": "Echtzeitverfolgung aller ein- und ausgehenden Kommunikationen.",
@@ -905,7 +920,7 @@
     "projectNotes": "Aus einer Nachricht erstellt"
   },
   "prospects": {
-    "title": "Interessenten & CRM-Pipeline",
+    "title": "Anfragen & Chancen",
     "subtitle": "Verwaltung der Vertriebspipeline und Verfolgung von Chancen.",
     "csv": "CSV",
     "print": "Drucken",
@@ -1029,7 +1044,7 @@
     }
   },
   "projets": {
-    "title": "Projekte",
+    "title": "Baustellen & Projekte",
     "totalCount": "{{total}} Projekt(e) insgesamt",
     "loading": "Wird geladen...",
     "searchPlaceholder": "Projekt suchen...",
@@ -1331,7 +1346,7 @@
     }
   },
   "tresorerie": {
-    "title": "Liquidität & Risikoradar",
+    "title": "Liquidität & Risiko",
     "subtitle": "Schätzen Sie das Risiko eines Liquiditätsengpasses über 90 Tage auf Basis Ihrer realen Rechnungen und einer Monte-Carlo-Simulation. Keine automatische Aktion: nur Warnungen.",
     "risk": {
       "high": "Hohes Risiko",
@@ -3688,10 +3703,17 @@
       "callLaunched": "Anruf über {{provider}} gestartet (SID: {{sid}})",
       "smsSent": "SMS über {{provider}} gesendet",
       "failed": "Fehlgeschlagen: {{error}}"
-    }
+    },
+    "titleSettings": "Telefonleitung",
+    "subtitleSettings": "Anbieter, Nummern und KI-Empfang: die technischen Einstellungen der Leitung.",
+    "titleUsage": "Anrufen und SMS senden",
+    "subtitleUsage": "Ausgehende Anrufe, SMS, Massenversand, geplante Rückrufe und Protokolle.",
+    "noLineTitle": "Keine aktive Telefonleitung",
+    "noLineBody": "Ohne verbundene Leitung kann von hier kein Anruf und keine SMS ausgehen. Nichts wird simuliert.",
+    "noLineAction": "Leitung verbinden (Büro-Einstellungen › Verbindungen)"
   },
   "securitePage": {
-    "title": "Sicherheitszentrum",
+    "title": "Sicherheitszentrale",
     "subtitle": "Ihr digitaler Concierge: Analysieren Sie Links, Dateien, Anrufe und Nachrichten an einem Ort.",
     "rating": {
       "excellent": "Ausgezeichnet",
@@ -4294,7 +4316,7 @@
     }
   },
   "checkins": {
-    "title": "Zeiterfassung & Anwesenheit",
+    "title": "Zeiterfassung",
     "subtitle": "Verwalten Sie Ihre Ankunfts-, Abfahrtszeiten und Ihre Arbeitszeit.",
     "csv": "CSV",
     "print": "Drucken",
@@ -4773,7 +4795,7 @@
     }
   },
   "equipeIa": {
-    "title": "KI-Team",
+    "title": "Agentenziele",
     "description": "Ihr Team aus intelligenten Agenten. Geben Sie jedem ein Ziel, starten Sie ihn wann Sie wollen und genehmigen Sie alle Vorschläge an einem Ort — nichts läuft ohne Sie.",
     "councilBadge": "KI-Rat · Gemini + GPT + Claude",
     "councilNote": "Jeder Agent konsultiert mehrere führende KIs und lernt dann aus Ihren Entscheidungen.",
@@ -4852,7 +4874,7 @@
     }
   },
   "auditDenetim": {
-    "title": "Selbstaudit",
+    "title": "App-Selbstprüfung",
     "description": "Ein Agent prüft Ihre Anwendung kontinuierlich: Er erkennt Lücken (eksik) und schlägt Verbesserungen (yenilik) vor. Umsetzbare Aktionen landen in Ihrer Genehmigungs-Warteschlange — nichts wird ohne Ihre Zustimmung angewendet.",
     "auditRunning": "Audit läuft…",
     "runAudit": "Audit starten",
@@ -4900,7 +4922,7 @@
     }
   },
   "voiceSiteOps": {
-    "title": "Sprachaufnahme Baustelle",
+    "title": "Baustellen-Sprachbericht",
     "subtitle": "Diktieren Sie eine Baustellennotiz — die KI bereitet Lagerabgänge, Aufgaben und Fortschritt vor. Nichts wird ohne Ihre Bestätigung gespeichert.",
     "noteTitle": "Notiz des Bauleiters",
     "noteExample": "Beispiel: « Auf der Baustelle Rivoli, Abgang von 20 Sack Zement, die Schalung der 2. Etage ist fertig, Fortschritt bei 60 %. »",
@@ -5104,7 +5126,7 @@
     }
   },
   "assistantProactif": {
-    "title": "Proaktiver Assistent",
+    "title": "Proaktive Vorschläge",
     "subtitle": "Ihr Agent überwacht laufend Aufgaben, Anrufe und Kalender und schlägt dann die zu ergreifenden Maßnahmen vor.",
     "analyzeNow": "Jetzt analysieren",
     "autoMonitoring": "Automatische Überwachung {{state}}",
@@ -5311,7 +5333,7 @@
     }
   },
   "documentImport": {
-    "title": "Intelligenter Import",
+    "title": "Datenimport",
     "subtitle": "Legen Sie eine Datei ab — die KI analysiert sie, zeigt Ihnen, was sie verstanden hat, und schreibt die Daten in das richtige Modul",
     "restart": "Neu starten",
     "steps": {
@@ -5390,7 +5412,7 @@
     }
   },
   "software": {
-    "title": "Software & Integrationen",
+    "title": "Verbundene Software",
     "subtitle": "Verbinden Sie Ihre professionellen Tools, damit der Agent in Ihrem Ökosystem arbeitet.",
     "available": "{{count}} Software verfügbar",
     "createProject": "Projekt erstellen",
@@ -5622,7 +5644,7 @@
     }
   },
   "documentAi": {
-    "title": "Dokument-KI",
+    "title": "Dokumentensortierung",
     "subtitle": "Legen Sie ein beliebiges Dokument ab — die KI analysiert, identifiziert und ordnet es automatisch dem richtigen Modul zu.",
     "expensesTitle": "Ausgabenregister",
     "expenses": "Ausgaben",
@@ -6134,7 +6156,7 @@
     "checkConnection": "Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
   },
   "fileApprobation": {
-    "title": "Freigabewarteschlange",
+    "title": "Offene Freigaben",
     "subtitle": "Ihre digitale Sekretärin analysiert die Aktivität kontinuierlich und schlägt Aktionen vor. Nichts wird ohne Ihre Zustimmung ausgeführt — mit einem Klick genehmigen oder ablehnen.",
     "analyzing": "Analyse läuft…",
     "runAnalysis": "Analyse starten",
@@ -6276,7 +6298,7 @@
     }
   },
   "automationsPage": {
-    "title": "Automatisierungen",
+    "title": "Automatische Regeln",
     "subtitle": "Intelligente Automatisierungs-Engine - Überwachung und automatische Aktionen",
     "refresh": "Aktualisieren",
     "exportCsv": "CSV exportieren",
@@ -6836,7 +6858,7 @@
     "chargementEchoue": "Laden fehlgeschlagen. Schließen Sie dieses Fenster und öffnen Sie es erneut."
   },
   "aiAgents": {
-    "title": "KI-Agenten",
+    "title": "Fachagenten",
     "subtitle": "10 spezialisierte Agenten + Super-KI, die jeden Aspekt Ihres Büros verwalten, analysieren und verbessern.",
     "autoFix": "Auto-Korrektur",
     "print": "Drucken",
@@ -7054,7 +7076,7 @@
     }
   },
   "gmailAgent": {
-    "title": "KI-Mail-Agent",
+    "title": "E-Mail",
     "connected": "Verbunden",
     "refresh": "Aktualisieren",
     "print": "Drucken",
@@ -7252,7 +7274,7 @@
     }
   },
   "commandantIa": {
-    "title": "KI-Kommandant",
+    "title": "Analysebefehle",
     "subtitle": "Intelligente Kommandozentrale — 18 Superfähigkeiten unterstützt von Gemini, OpenAI und Anthropic",
     "print": "Drucken",
     "tabs": {
@@ -7576,7 +7598,7 @@
       "success": "Erfolg"
     },
     "header": {
-      "title": "Lizenz- & Abrechnungsverwaltung",
+      "title": "Abo & Abrechnung",
       "subtitle": "{{org}} — Sicherheit, Zahlungen und Rechnungen",
       "refresh": "Aktualisieren",
       "print": "Drucken"
@@ -7865,7 +7887,7 @@
     "print": "Drucken"
   },
   "whatsappPage": {
-    "title": "WhatsApp-Kundenpostfach",
+    "title": "WhatsApp",
     "subtitle": "Die Nachrichten Ihrer Kunden landen hier. Die KI bereitet eine Antwort vor — Sie bestätigen vor dem Senden.",
     "searchPlaceholder": "Nach einem Kunden suchen…",
     "tabOpen": "Offen",
@@ -8672,7 +8694,10 @@
       "settings": "Einstellungen",
       "notifications": "Benachrichtigungen",
       "projets": "Projekte",
-      "google-workspace": "Google Workspace"
+      "google-workspace": "Google Workspace",
+      "approvals": "Offene Freigaben",
+      "quotes": "Angebote",
+      "invoices": "Kundenrechnungen"
     }
   },
   "centralIntelligence": {
@@ -9414,7 +9439,7 @@
     }
   },
   "corbeille": {
-    "title": "Papierkorb",
+    "title": "Gelöschte Einträge",
     "subtitle": "Gelöschtes bleibt {{days}} Tage lang wiederherstellbar.",
     "subtitleGeneric": "Gelöschtes bleibt eine Zeit lang wiederherstellbar.",
     "empty": "Der Papierkorb ist leer",
@@ -9434,7 +9459,7 @@
     }
   },
   "diagnosticPoste": {
-    "titre": "Arbeitsplatz-Diagnose",
+    "titre": "Rechner-Prüfung",
     "sousTitre": "Sehen, was auf einem Rechner fehlt und was zu tun ist.",
     "commentTitre": "So funktioniert es",
     "etape1": "Skript herunterladen und auf dem zu prufenden Rechner speichern.",
@@ -9462,7 +9487,7 @@
     "aLaMainDesc": "Diese Punkte sind bewusst nicht automatisiert: sie loschen Daten, erfordern einen selbst gewahlten Neustart oder erzeugen einen Schlussel, der sicher verwahrt werden muss."
   },
   "encaissements": {
-    "titre": "Zahlungsjournal",
+    "titre": "Zahlungseingänge",
     "sousTitre": "Zahlungen erfassen und nachweisen koennen.",
     "etat": {
       "titre": "Konformitaetsstatus",
@@ -9562,7 +9587,7 @@
     }
   },
   "agentsCatalogue": {
-    "title": "Agentenkatalog",
+    "title": "Agentenprofile",
     "subtitle": "Was jeder Agent lesen und tun darf, seine Grenzen und seine Aktivität der letzten 30 Tage.",
     "loading": "Katalog wird geladen…",
     "error": "Der Katalog konnte nicht geladen werden.",
@@ -9630,7 +9655,7 @@
     }
   },
   "bureauTaches": {
-    "title": "Aufgabenpult",
+    "title": "Agentenläufe",
     "subtitle": "Was die Agenten tun: laufend, wartet auf Freigabe, erledigt, fehlgeschlagen — und was es gekostet hat.",
     "newRequest": "Neue Anfrage",
     "form": {
@@ -9717,7 +9742,7 @@
     }
   },
   "studioFlux": {
-    "title": "Flow-Studio",
+    "title": "Ablauf-Studio",
     "subtitle": "Zeichnen Sie, was eine Automatisierung tut: Auslöser, Agent, Bedingung, Freigabe, Aktion. Die Schrittliste ist derselbe Ablauf und vollständig per Tastatur bearbeitbar.",
     "regle": "Automatisierung",
     "choisir": "Automatisierung wählen",

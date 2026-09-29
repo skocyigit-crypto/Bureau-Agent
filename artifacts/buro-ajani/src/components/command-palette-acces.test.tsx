@@ -19,12 +19,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({ role: "agent" }));
+const navigate = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/workspace-user", () => ({
   useWorkspaceUser: () => ({ user: { role: state.role } }),
 }));
 vi.mock("wouter", () => ({
-  useLocation: () => ["/", vi.fn()],
+  useLocation: () => ["/", navigate],
 }));
 vi.mock("@/i18n", () => ({
   // Les libelles passent par i18n; on rend la cle elle-meme, ce qui donne un
@@ -81,6 +82,29 @@ describe("la palette de commandes", () => {
         `« ${id} » devrait etre ouvert a l'administrateur`,
       ).toBe(minimum === "administrateur");
     }
+  });
+
+  it("ne propose plus « Automatisations » ni « Performance » a un agent : leurs routes sont reservees", () => {
+    state.role = "agent";
+    ouvrirLaPalette();
+    expect(visible("dashboard"), "la palette ne s'est pas ouverte").toBe(true);
+    expect(visible("automations")).toBe(false);
+    expect(visible("performance")).toBe(false);
+  });
+
+  it("n'offre pas les agents ni les approbations au role en lecture seule", () => {
+    state.role = "lecture_seule";
+    ouvrirLaPalette();
+    expect(visible("dashboard"), "la palette ne s'est pas ouverte").toBe(true);
+    expect(visible("ai")).toBe(false);
+    expect(visible("approvals")).toBe(false);
+  });
+
+  it("ouvre le journal d'audit sur son onglet, pas sur l'apercu de la licence", () => {
+    state.role = "administrateur";
+    ouvrirLaPalette();
+    fireEvent.click(screen.getByText("commandPalette.cmd.audit"));
+    expect(navigate).toHaveBeenCalledWith("/gestion-licence?tab=audit-systeme");
   });
 
   it("reserve « organisations » au super-administrateur", () => {

@@ -136,79 +136,86 @@
   "sidebar": {
     "groups": {
       "today": "Hoy",
-      "communication": "Comunicación",
-      "addressBook": "Agenda de contactos",
-      "work": "Organización del trabajo",
-      "docsReports": "Documentos e informes",
-      "aiAssistants": "Asistentes IA",
-      "analysis": "Análisis",
-      "integrations": "Integraciones",
-      "administration": "Administración",
-      "superAdmin": "Súper Admin",
-      "system": "Sistema",
-      "sales": "Ventas"
+      "communication": "Centro de comunicación",
+      "work": "Obras y trabajos",
+      "sales": "CRM y ventas",
+      "planning": "Planificación",
+      "finance": "Finanzas",
+      "agentBureau": "Oficina de agentes",
+      "knowledge": "Conocimiento y análisis",
+      "officeSettings": "Ajustes de la oficina",
+      "platformConsole": "Consola de la plataforma"
     },
     "items": {
       "dashboard": "Panel de control",
-      "proactiveAssistant": "Asistente proactivo",
-      "aiLearned": "Lo que la IA ha aprendido",
+      "proactiveAssistant": "Sugerencias proactivas",
+      "aiLearned": "Lo que aprendió la IA",
       "calendar": "Calendario",
       "reminders": "Recordatorios",
       "recentActivity": "Actividad reciente",
       "calls": "Llamadas",
       "messages": "Mensajes",
-      "whatsapp": "WhatsApp clientes",
-      "mailAgent": "Agente de correo IA",
+      "whatsapp": "WhatsApp",
+      "mailAgent": "Correo",
       "securityCenter": "Centro de seguridad",
-      "webSearch": "Búsqueda web",
+      "webSearch": "Búsqueda web segura",
       "contacts": "Contactos",
       "tasks": "Tareas",
-      "projects": "Proyectos",
+      "projects": "Obras y proyectos",
       "treasury": "Tesorería y riesgo",
       "expenses": "Gastos",
-      "siteVoice": "Entrada de voz en obra",
+      "siteVoice": "Informe de obra por voz",
       "internalNotes": "Notas internas",
-      "checkin": "Fichaje",
+      "checkin": "Registro de jornada",
       "documents": "Documentos",
       "knowledgeBase": "Base de conocimiento",
-      "documentAi": "Documento IA",
+      "documentAi": "Clasificación de documentos",
       "reports": "Informes",
-      "aiTeam": "Equipo IA",
-      "aiCommander": "Comandante IA",
-      "approvalQueue": "Cola de aprobación",
-      "universalAssistant": "Asistente Universal",
-      "aiAgents": "Agentes IA",
+      "aiTeam": "Objetivos de los agentes",
+      "aiCommander": "Comandos de análisis",
+      "approvalQueue": "Aprobaciones pendientes",
+      "universalAssistant": "Asistente de chat",
+      "aiAgents": "Agentes especializados",
       "statistics": "Estadísticas",
       "googleWorkspace": "Google Workspace",
-      "telephony": "Telefonía",
-      "connectors": "Conectores",
+      "telephony": "Línea telefónica",
+      "connectors": "Software conectado",
       "users": "Usuarios",
-      "license": "Licencia y facturación",
+      "license": "Suscripción y facturación",
       "dataProtection": "Protección de datos",
       "teamLocation": "Ubicación del equipo",
       "executiveReport": "Informe ejecutivo",
       "teamPerformance": "Rendimiento del equipo",
-      "autoAudit": "Autoauditoría",
-      "automations": "Automatizaciones",
+      "autoAudit": "Auditoría de la aplicación",
+      "automations": "Reglas automáticas",
       "saasBackoffice": "Backoffice SaaS",
       "organisations": "Organizaciones",
-      "prospects": "Prospectos",
+      "prospects": "Solicitudes y oportunidades",
       "globalAuditLog": "Registro de auditoría global",
       "techHealth": "Estado técnico",
-      "guide": "Guía de uso",
+      "guide": "Ayuda y guía",
       "settings": "Ajustes",
-      "smartImport": "Importación inteligente",
+      "smartImport": "Importación de datos",
       "initialSetup": "Configuración inicial",
       "mobileApp": "Aplicación móvil",
       "quotes": "Presupuestos",
       "clientInvoices": "Facturas de clientes",
-      "trash": "Papelera",
-      "postDiagnostic": "Diagnostico del equipo",
-      "encaissements": "Cobros",
-      "taskDesk": "Mesa de tareas",
-      "agentCatalog": "Catálogo de agentes",
-      "flowStudio": "Estudio de flujos"
-    }
+      "trash": "Elementos eliminados",
+      "postDiagnostic": "Revisión del equipo",
+      "encaissements": "Registro de cobros",
+      "taskDesk": "Trabajos de los agentes",
+      "agentCatalog": "Perfiles de los agentes",
+      "flowStudio": "Estudio de flujos",
+      "phoneOps": "Llamar y SMS",
+      "agents": "Agentes",
+      "flows": "Flujos",
+      "runs": "Ejecuciones",
+      "connections": "Conexiones",
+      "security": "Seguridad"
+    },
+    "mainNav": "Menú principal",
+    "sectionTabs": "Páginas de «{{name}}»",
+    "newItems": "nuevos: {{count}}"
   },
   "userMenu": {
     "level": "Nivel {{n}}",
@@ -263,7 +270,15 @@
     "device": "Dispositivo",
     "appMode": "Modo aplicación",
     "newBadgeAria": "{{count}} nuevo {{name}}",
-    "newBadgeAriaPlural": "{{count}} nuevos {{name}}"
+    "newBadgeAriaPlural": "{{count}} nuevos {{name}}",
+    "approvalsWaiting": "Pendientes de aprobación: {{count}}",
+    "approvalsNone": "No hay aprobaciones pendientes",
+    "voiceCommand": "Comando de voz",
+    "voiceWake": "espera la palabra de activación",
+    "voiceListening": "escuchando",
+    "quickAction": "Acción rápida",
+    "backToOffice": "Volver a la oficina",
+    "tools": "Herramientas del dispositivo"
   },
   "dashboard": {
     "title": "Panel de control",
@@ -675,7 +690,7 @@
     "projectNotes": "Creado desde la tarea n.º {{id}}"
   },
   "calls": {
-    "title": "Registro de Llamadas",
+    "title": "Llamadas",
     "subtitle": "Gestione y haga seguimiento de todas las comunicaciones telefónicas.",
     "bannerTitle": "Centro de comunicación",
     "bannerSubtitle": "Seguimiento en tiempo real de todas las comunicaciones entrantes y salientes.",
@@ -905,7 +920,7 @@
     "projectNotes": "Creado desde un mensaje"
   },
   "prospects": {
-    "title": "Prospectos y Pipeline CRM",
+    "title": "Solicitudes y oportunidades",
     "subtitle": "Gestión del pipeline comercial y seguimiento de oportunidades.",
     "csv": "CSV",
     "print": "Imprimir",
@@ -1029,7 +1044,7 @@
     }
   },
   "projets": {
-    "title": "Proyectos",
+    "title": "Obras y proyectos",
     "totalCount": "{{total}} proyecto(s) en total",
     "loading": "Cargando...",
     "searchPlaceholder": "Buscar un proyecto...",
@@ -1331,7 +1346,7 @@
     }
   },
   "tresorerie": {
-    "title": "Tesorería y Radar de riesgo",
+    "title": "Tesorería y riesgo",
     "subtitle": "Estime el riesgo de tensión de tesorería a 90 días a partir de sus facturas reales y de una simulación Monte Carlo. Ninguna acción automática: solo alertas.",
     "risk": {
       "high": "Riesgo alto",
@@ -3688,7 +3703,14 @@
       "callLaunched": "Llamada iniciada vía {{provider}} (SID: {{sid}})",
       "smsSent": "SMS enviado vía {{provider}}",
       "failed": "Fallo: {{error}}"
-    }
+    },
+    "titleSettings": "Línea telefónica",
+    "subtitleSettings": "Proveedores, números y recepcionista IA: los ajustes técnicos de la línea.",
+    "titleUsage": "Llamar y enviar SMS",
+    "subtitleUsage": "Llamadas salientes, SMS, envíos masivos, devoluciones programadas y registros.",
+    "noLineTitle": "Ninguna línea telefónica activa",
+    "noLineBody": "Sin una línea conectada, no se puede enviar ninguna llamada ni SMS desde aquí. Nada se simula.",
+    "noLineAction": "Conectar una línea (Ajustes de la oficina › Conexiones)"
   },
   "securitePage": {
     "title": "Centro de seguridad",
@@ -4294,7 +4316,7 @@
     }
   },
   "checkins": {
-    "title": "Fichaje & Asistencia",
+    "title": "Registro de jornada",
     "subtitle": "Gestiona tus horas de entrada, salida y tu tiempo de trabajo.",
     "csv": "CSV",
     "print": "Imprimir",
@@ -4773,7 +4795,7 @@
     }
   },
   "equipeIa": {
-    "title": "Equipo IA",
+    "title": "Objetivos de los agentes",
     "description": "Su equipo de agentes inteligentes. Dé un objetivo a cada uno, ejecútelo cuando quiera y valide todas sus propuestas en un mismo lugar — nada se ejecuta sin usted.",
     "councilBadge": "Consejo IA · Gemini + GPT + Claude",
     "councilNote": "Cada agente consulta varias IA de vanguardia y luego aprende de sus decisiones.",
@@ -4852,7 +4874,7 @@
     }
   },
   "auditDenetim": {
-    "title": "Autoauditoría",
+    "title": "Auditoría de la aplicación",
     "description": "Un agente inspecciona su aplicación de forma continua: detecta las carencias (eksik) y propone mejoras (yenilik). Las acciones tratables llegan a su cola de aprobación — nada se aplica sin su consentimiento.",
     "auditRunning": "Auditoría en curso…",
     "runAudit": "Iniciar una auditoría",
@@ -4900,7 +4922,7 @@
     }
   },
   "voiceSiteOps": {
-    "title": "Entrada de voz en obra",
+    "title": "Informe de obra por voz",
     "subtitle": "Dicte una nota de obra — la IA prepara las salidas de stock, las tareas y el avance. Nada se guarda sin su confirmación.",
     "noteTitle": "Nota del jefe de obra",
     "noteExample": "Ejemplo: « En la obra Rivoli, salida de 20 sacos de cemento, el encofrado de la 2.ª planta está terminado, avance al 60 %. »",
@@ -5104,7 +5126,7 @@
     }
   },
   "assistantProactif": {
-    "title": "Asistente proactivo",
+    "title": "Sugerencias proactivas",
     "subtitle": "Su agente supervisa continuamente tareas, llamadas y agenda, y luego propone las acciones a realizar.",
     "analyzeNow": "Analizar ahora",
     "autoMonitoring": "Supervisión automática {{state}}",
@@ -5207,7 +5229,7 @@
     }
   },
   "iaApprentissage": {
-    "title": "Lo que la IA ha aprendido",
+    "title": "Lo que aprendió la IA",
     "subtitle": "A partir de sus comentarios (👍/👎) y de sus hábitos, el asistente adapta sus respuestas a su organización.",
     "reanalyze": "Reanalizar",
     "emptyTitle": "La IA aún no ha aprendido nada",
@@ -5311,7 +5333,7 @@
     }
   },
   "documentImport": {
-    "title": "Importación Inteligente",
+    "title": "Importación de datos",
     "subtitle": "Suelte un archivo — la IA lo analizará, le mostrará lo que ha entendido y escribirá los datos en el módulo correcto",
     "restart": "Empezar de nuevo",
     "steps": {
@@ -5390,7 +5412,7 @@
     }
   },
   "software": {
-    "title": "Software e Integraciones",
+    "title": "Software conectado",
     "subtitle": "Conecte sus herramientas profesionales para que el agente trabaje en su ecosistema.",
     "available": "{{count}} software disponibles",
     "createProject": "Crear un proyecto",
@@ -5622,7 +5644,7 @@
     }
   },
   "documentAi": {
-    "title": "Documento IA",
+    "title": "Clasificación de documentos",
     "subtitle": "Suelte cualquier documento — la IA lo analizará, lo identificará y lo clasificará automáticamente en el módulo correcto.",
     "expensesTitle": "Registro de gastos",
     "expenses": "Gastos",
@@ -6134,7 +6156,7 @@
     "checkConnection": "Compruebe su conexión e inténtelo de nuevo."
   },
   "fileApprobation": {
-    "title": "Cola de aprobación",
+    "title": "Aprobaciones pendientes",
     "subtitle": "Su secretaria digital analiza la actividad de forma continua y le propone acciones. Nada se ejecuta sin su consentimiento: apruebe o rechace con un clic.",
     "analyzing": "Analizando…",
     "runAnalysis": "Iniciar análisis",
@@ -6276,7 +6298,7 @@
     }
   },
   "automationsPage": {
-    "title": "Automatizaciones",
+    "title": "Reglas automáticas",
     "subtitle": "Motor de automatización inteligente - supervisión y acciones automáticas",
     "refresh": "Actualizar",
     "exportCsv": "Exportar CSV",
@@ -6836,7 +6858,7 @@
     "chargementEchoue": "Error al cargar. Cierre y vuelva a abrir esta ventana."
   },
   "aiAgents": {
-    "title": "Agentes IA",
+    "title": "Agentes especializados",
     "subtitle": "10 agentes especializados + Súper IA que gestionan, analizan y mejoran cada aspecto de su oficina.",
     "autoFix": "Autocorrección",
     "print": "Imprimir",
@@ -7054,7 +7076,7 @@
     }
   },
   "gmailAgent": {
-    "title": "Agente de Correo IA",
+    "title": "Correo",
     "connected": "Conectado",
     "refresh": "Actualizar",
     "print": "Imprimir",
@@ -7252,7 +7274,7 @@
     }
   },
   "commandantIa": {
-    "title": "Comandante IA",
+    "title": "Comandos de análisis",
     "subtitle": "Centro de mando inteligente — 18 supercapacidades impulsadas por Gemini, OpenAI y Anthropic",
     "print": "Imprimir",
     "tabs": {
@@ -7576,7 +7598,7 @@
       "success": "Éxito"
     },
     "header": {
-      "title": "Gestión de Licencia y Facturación",
+      "title": "Suscripción y facturación",
       "subtitle": "{{org}} — Seguridad, pagos y facturas",
       "refresh": "Actualizar",
       "print": "Imprimir"
@@ -7865,7 +7887,7 @@
     "print": "Imprimir"
   },
   "whatsappPage": {
-    "title": "Bandeja de clientes WhatsApp",
+    "title": "WhatsApp",
     "subtitle": "Los mensajes de tus clientes llegan aquí. La IA prepara una respuesta — tú validas antes de enviar.",
     "searchPlaceholder": "Buscar un cliente…",
     "tabOpen": "Abiertas",
@@ -8672,7 +8694,10 @@
       "settings": "Ajustes",
       "notifications": "Notificaciones",
       "projets": "Proyectos",
-      "google-workspace": "Google Workspace"
+      "google-workspace": "Google Workspace",
+      "approvals": "Aprobaciones pendientes",
+      "quotes": "Presupuestos",
+      "invoices": "Facturas de clientes"
     }
   },
   "centralIntelligence": {
@@ -9414,7 +9439,7 @@
     }
   },
   "corbeille": {
-    "title": "Papelera",
+    "title": "Elementos eliminados",
     "subtitle": "Lo eliminado se puede recuperar durante {{days}} días.",
     "subtitleGeneric": "Lo eliminado se puede recuperar durante un tiempo.",
     "empty": "La papelera está vacía",
@@ -9434,7 +9459,7 @@
     }
   },
   "diagnosticPoste": {
-    "titre": "Diagnostico del equipo",
+    "titre": "Revisión del equipo",
     "sousTitre": "Saber que falta en un equipo y que hacer.",
     "commentTitre": "Como funciona",
     "etape1": "Descargue el script y guardelo en el equipo a examinar.",
@@ -9462,7 +9487,7 @@
     "aLaMainDesc": "Estos puntos no se automatizan a proposito: borran datos, requieren un reinicio elegido por usted, o generan una clave que debe guardarse a salvo."
   },
   "encaissements": {
-    "titre": "Libro de cobros",
+    "titre": "Registro de cobros",
     "sousTitre": "Registrar los cobros y poder demostrarlo.",
     "etat": {
       "titre": "Estado de conformidad",
@@ -9562,7 +9587,7 @@
     }
   },
   "agentsCatalogue": {
-    "title": "Catálogo de agentes",
+    "title": "Perfiles de los agentes",
     "subtitle": "Lo que cada agente puede leer y hacer, sus límites y su actividad de los últimos 30 días.",
     "loading": "Cargando el catálogo…",
     "error": "No se pudo cargar el catálogo.",
@@ -9630,7 +9655,7 @@
     }
   },
   "bureauTaches": {
-    "title": "Mesa de tareas",
+    "title": "Trabajos de los agentes",
     "subtitle": "Lo que hacen los agentes: en curso, pendiente de aprobación, terminado, con error — y lo que ha costado.",
     "newRequest": "Nueva solicitud",
     "form": {

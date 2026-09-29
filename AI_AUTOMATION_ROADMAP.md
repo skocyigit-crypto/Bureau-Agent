@@ -4,7 +4,7 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-09-28 (beş eksenli tasarım denetimi — son bölüm; önceki güncelleme 2026-09-03: silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
+> Son güncelleme: 2026-09-29 (ürün yapısı: iki katman, sekiz bölüm, altı aşama — menü aşaması; önceki güncelleme 2026-09-28: beş eksenli tasarım denetimi — son bölüm; önceki güncelleme 2026-09-03: silinen veri artık geri gelebiliyor — çöp kutusu 24 silme
 > noktasını kapsıyor ve kapsam testi bütçe değil kural — altı haftadır bağlanmamış
 > güvenlik taraması purge'ü cron'a bağlandı ve beyan edildi, eksik tek tablonun bütün
 > müşterilerin yedeğini yok ettiği hata düzeltildi; **üretim şeması aynı gün 17:11'de
@@ -18,6 +18,177 @@
 > tenant kapsamında güvenli biçimde geri açıldı; önceki güncelleme 2026-07-14: fatura hatırlatmaları
 > gerçek cron'a bağlandı VE AI destekli müşteri desteği e-posta triyajı uçtan uca canlıda
 > doğrulandı — kalan tek adım kullanıcının Cloudflare Worker'ı kurması)
+
+## 2026-09-29 — Ürün yapısı: iki katman, sekiz bölüm, altı aşama
+
+Kaynak: kullanıcının 29/09 tarihli 14 bölümlük tasarım notu. İki katman var:
+- **Ortak Ajan Bureau**: telefon, mesaj, kişiler, randevu, görev, ajan, bilgi tabanı, onay, otomasyon, izleme, SaaS.
+- **BTP çalışma alanı**: CRM, affaire, devis, chantier, ekip, planning, gider, fatura, tahsilat.
+
+Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire açar. Ardından keşif randevusu oluşur. Teklif kabul edilince chantier açılır. Saha notu planning'i etkiler. Ek iş ve finans etkisi onaya gelir. Kullanıcı bu zinciri **tek dosyanın zaman çizelgesinden** anlayabiliyorsa bütünleşme tamamdır.
+
+### Aşamalar ve "bitti" ölçütü
+
+| # | İş | Bitti sayılması için | Durum |
+|---|---|---|---|
+| 1 | Menüyü düzenle, işlevleri doğru yere taşı | Eski özelliklerin hepsine yeni yerinden erişilir | `feat/navigation-bureau` (aşağıda) |
+| 2 | İletişim Merkezi + CRM bağı | Bir çağrı doğru kişi ve affaire ile ilişkilendirilir | açık |
+| 3 | Randevu ve aktarım | Onaylı randevu takvimde görünür; aktarım sonucu kaydedilir | kısmen (#288/#289) |
+| 4 | Şantiye + planning bağı | Saha notu doğru chantier'ye gider, gecikme önerisi çıkar | açık |
+| 5 | Finans + onay | Sapmanın kaynağı görülür; kesin işlem yetkili onayından geçer | açık |
+| 6 | SaaS ve ajan izleme | İki organizasyonun verisi ayrıdır; ajan işlemleri denetlenebilir | kısmen |
+
+### BTP zinciri kodda nerede kopuk (29/09 ölçümü)
+
+- **"Affaire" diye bir kayıt yok.** Fırsat `prospects` tablosunda duruyor, chantier `projets` tablosunda. Bir işi baştan sona izlemek müşteri adı eşleşmesine kalıyor. Dosya görünümü ya da zaman çizelgesi de yok.
+- **Talep → prospect: bağ yok.**
+  - WhatsApp, çağrı, telefon sekreteri ve Gmail prospect açmıyor.
+  - `/public/contact-request` prospect'i müşterinin değil satıcının organizasyonuna yazıyor.
+- **Prospect → devis: var** (`devis.prospect_id` FK). Ancak devis kabul edilince prospect güncellenmiyor.
+- **Devis kabul → chantier: yok.** `projets` tablosunda `devis_id` alanı yok, bu geçiş için bir endpoint de yok. Prospect'ten "proje oluştur" kısayolu bağsız bir proje açıyor.
+- **`convert-to-facture` kabul kurallarını atlıyor.**
+  - Rol kontrolü yok.
+  - "refusé" ya da "envoyé" durumundaki devis'i de dönüştürüyor.
+  - `acceptedBy` alanını yazmıyor, denetim kaydı bırakmıyor.
+  - "Facture" düğmesi devis hangi durumda olursa olsun görünüyor.
+- **Chantier → gider: bağ yok.**
+  - `depenses`, `checkins` ve `commandes_fournisseur` tablolarında `projet_id` yok.
+  - `POST /depenses`, `projetId` değerini sessizce atıyor. `scripts/verif-parcours.mjs` bunu fark etmiyor, çünkü yalnız HTTP durumunun 400'ün altında olduğuna bakıyor.
+- **Facture → chantier: yok.**
+  - `factures_client.projet_id` yok; acompte ve situation faturası da yok.
+  - Bu yüzden PDF'teki garanti kesintisinin serbest kalma tarihi hiç hesaplanamıyor.
+- **Tahsilat: yalnız elle.** `payment-matching-cron` müşterinin faturalarıyla değil, platformun kendi abonelik faturalarıyla eşleştirme yapıyor.
+- **Pazarlama sitesi kodla uyuşmuyor.** Site "contacts, devis et factures'ı projeye bağlayın" diyor (`artifacts/tanitim/src/pages/home.tsx:434`), ama kod bu bağı kurmuyor.
+
+### Bölüm bölüm istenenler (3–13)
+
+- **3 Bugün.** Uygulama modüllerinin vitrini değil, bir karar masası. Gösterecekleri:
+  - şimdi ilgilenilmesi gerekenler: canlı çağrı, geri arama, acil saha sorunu, süresi yaklaşan onay;
+  - bugünün planı;
+  - iş dosyaları;
+  - finansal dikkat;
+  - ajan durumu.
+  
+  Kaynağı ve sorumlusu olmayan "AI uyarısı" gösterilmez. Ayrıca Kontrol Paneli'ndeki saat kartı tarihi Türkçe arayüzde de Fransızca yazıyor ("Mardi 29 Septembre").
+- **4 İletişim Merkezi.** Canlı çağrı ekranı üç sütundan oluşur:
+  - kuyruk;
+  - konuşma akışı ve ajanın o anki adımı;
+  - arayanın kimliği, dosyası, geçmişi ve takvimi.
+  
+  Ekrandaki işlemler: devral, aktar, keşif randevusu aç, görev oluştur, not kaydet. Telefon ajanı için kesin kurallar:
+  - takvime bakmadan randevu vermez;
+  - CRM eşleşmesinden emin olmadan özel bilgi açıklamaz;
+  - fiyat uydurmaz;
+  - başarısız aktarımı "aktarıldı" diye göstermez;
+  - simülasyonu canlı çağrı gibi sunmaz.
+- **5 CRM.** Akış talep → affaire → devis sırasıyla ilerler. Ekranın üstünde aşama, sorumlu, müşteri ve sonraki hareket görünür. İstenenler:
+  - bütün kanallar tek bir müşteri zaman çizelgesinde birleşir;
+  - mükerrer kişi ve şirket kayıtları işaretlenir;
+  - keşifte toplanacak eksik bilgiler gösterilir;
+  - teklifin dayandığı ölçü, keşif notu ve belge görünür;
+  - teklif kabul edilince chantier açmak açık bir geçiştir.
+  
+  Olmaması gerekenler: her talebe otomatik chantier açılması; ajanın çıkardığı fiyatın onaylı teklif gibi görünmesi.
+- **6 Şantiye dosyası.** Sekmeler: Özet · Planning · Ekip · Saha Günlüğü · Belgeler · Giderler · Faturalar · Görüşmeler. Ajan önerileri sağ sütunda durur. İstenenler:
+  - sahadan gelen sesli not ve fotoğraf doğru chantier'ye bağlanır;
+  - ajan günlük rapor taslağı hazırlar;
+  - ek iş ayrı bir durum olarak izlenir.
+  
+  Olmaması gerekenler: bir sesli nottan otomatik "tamamlandı" ya da "faturalanabilir" kararı çıkması; ek işin teklif ve onay olmadan ana sözleşmeye eklenmesi.
+- **7 Planning.** Üç ilişkili görünüm:
+  - randevular;
+  - ekip planı;
+  - iş planı: işler arası bağımlılık ve gecikmenin etkisi.
+  
+  Keşif randevusu ile şantiye programı aynı tür takvim olayı sayılmaz. Kesin değişiklik ancak yetkili onayından sonra yapılır.
+- **8 Finans.** Her iş için karşılaştırma:
+  - teklif edilen tutar;
+  - onaylı ek işler;
+  - gerçekleşen gider;
+  - faturalanan;
+  - tahsil edilen.
+  
+  Her rakamdan kaynak kayda gidilebilir. Ajanın tahmini, kesin tutarla aynı görünümde sunulmaz.
+- **9 Ajan Bureau.** Sekmeler: Ajanlar · Akışlar · Çalışmalar · Test ve Yayın. Her ajan profilinde şunlar yazar:
+  - görevi;
+  - bilgi kaynakları;
+  - okuyabildiği ve değiştirebildiği kayıtlar;
+  - insana aktarma durumu;
+  - onay gerektiren işlemler.
+  
+  Evrensel Asistan her yetkiye sahip bir süper ajan olmaz. Bugün 36 aracı var; daraltılması zaten açık iş olarak duruyor.
+- **10 Onay kuyruğu.** Her satırda şunlar görünür:
+  - ne yapılacak;
+  - hangi dosya;
+  - kim istedi;
+  - ajan neye dayanıyor;
+  - sonuç ne olacak;
+  - son karar zamanı.
+  
+  Önizleme olmadan "Onayla" düğmesi gösterilmez. Farklı müşterilere giden finansal ya da dış iletişim işlemleri körlemesine toplu onaylanamaz.
+- **11 SaaS.**
+  - Kota dolduğunda ajan sessizce başarısız olmaz; kullanıcıya neden durduğu ve ne yapabileceği gösterilir.
+  - Aktif organizasyonun üst çubukta görünmesi yalnız bir kullanıcı birden çok organizasyona üye olabildiğinde gerekir. Bugün her kullanıcının tek organizasyonu var.
+- **12 Görsel kurallar.**
+  - Lacivert kimlik korunur.
+  - Renkler: mavi aktif bölüm, turuncu onay ya da insan müdahalesi bekliyor, kırmızı hata ya da acil, yeşil gerçekten tamamlandı.
+  - Menü ikonları sade ve aynı görsel ağırlıkta.
+  - Masaüstünde menü daraltılabilir; mobilde ana görevler alt gezinmede durur.
+  - Çağrı sürerken arama durumu her ekranda görünür.
+  - Yükleniyor, bağlantı yok, yetki yok ve kayıt bulunamadı durumlarının her biri için anlaşılır bir ekran vardır.
+- **13 İlk sürümde olmamalı:**
+  - aynı iş için birden çok müşteri ya da şantiye kaydı;
+  - işlevi anlaşılmayan AI menü öğeleri;
+  - onlarca hazır ajan;
+  - kaynağı ve yetkisi görünmeyen proaktif öneri;
+  - onaysız fiyat, iş tarihi, fatura ya da müşteriye gönderim;
+  - sonuç kaydı olmayan "çalışıyor" etiketi;
+  - gerçek çağrı ve iş dosyasıyla bağlantısız gösterge panosu;
+  - günlük kullanıcının ekranında süper yönetici araçları.
+
+### Aşama 1'de yapılanlar (`feat/navigation-bureau`)
+
+- **Tek plan.** `lib/gezinti.ts` yan menüyü, sekmeleri, sayfa başlığını ve komut paletini besliyor. İçerik:
+  - 8 çalışma bölümü;
+  - altta sabit ve katlanır "Büro Ayarları";
+  - ayrı bir **Platform konsolu**. Süper yönetici konsola üst çubuktan girer ve konsoldayken yalnız konsol menüsünü görür. Müşteri rolleri konsolu hiç görmez.
+- **Erişim testi.** Eski menünün 59 adresinin ve App.tsx'teki her sayfa rotasının menüde bir yeri olduğu test ediliyor.
+- **Menü görünürlüğü route korumalarıyla aynı.** Test ediliyor; tek bilinçli istisna `/gestion-licence`.
+- **Yanlış yerdeki öğeler taşındı.**
+  - Règlements, yani tahsilat defteri: Finans'a.
+  - Güvenlik merkezi ve Bilgisayar kontrolü: Büro Ayarları > Güvenlik'e.
+  - Web araması: Bilgi ve Analiz'e.
+- **Adlar.** Ekran görüntüsündeki "Sepet", "Puanlama", "Tahmin Etmek", "Beklentiler", "Yönetmelikler" ve "Yayın Stüdyosu" uygulamanın kendi Türkçesi değil. Bunlar tarayıcının Fransızca arayüzü otomatik çevirmesinden çıkıyor: Corbeille, Pointage, Devis, Prospects, Règlements, Studio de flux.
+  - **Satış tahmini sayfası yok.** "Tahmin Etmek" aslında Teklifler (devis) sayfası.
+  - Adlar altı dilde açıklaştırıldı.
+  - Yeniden adlandırılan sayfaların başlığı artık menüdeki adla aynı (test ediliyor).
+- **Telefon ikiye ayrıldı.**
+  - Arama, SMS, toplu gönderim, planlı geri arama ve kayıtlar: Çağrılar > "Arama ve SMS" (`/telefon`).
+  - Sağlayıcı ve sekreter ayarı: Büro Ayarları > Bağlantılar > Telefon hattı (`/telephonie`).
+  - Hat bağlı değilse ekran "hiçbir şey taklit edilmez" diye açıkça yazıyor.
+- **Ajan Bureau** üç menü girişinden oluşuyor; diğer sayfalar bunların sekmesi:
+  - Ajanlar: profiller, uzman ajanlar, hedefler, sohbet asistanı, analiz komutları, öğrendikleri;
+  - Akışlar: stüdyo, otomatik kurallar;
+  - Çalışmalar: ajan çalışmaları, uygulama denetimi.
+  
+  **"Test ve Yayın" sekmesi açılmadı**, çünkü kodda karşılığı yok. Boş bir sekme koymak yerine aşama 6'ya bırakıldı.
+- **Üst çubuk.**
+  - Eklenenler: onay sayacı (turuncu), "Sesli komut" (dinleme durumu görünür), "Hızlı işlem".
+  - Kaldırılanlar: bu iki düğmenin sol alt köşede yüzen, menünün üstüne binen eski halleri.
+  - Onlarca cihaz aracı tek bir "Cihaz araçları" menüsünde toplandı.
+  - Sesli komutla çakışan ikinci mikrofon kaldırıldı.
+  - Kontrol Paneli'ndeki "Büro asistanı" artık içerik alanının dışına çıkmıyor.
+  - Gerçek tarayıcıda 1366 px ve 390 px genişlikte taşma 0.
+- **Komut paleti.**
+  - Erişim kuralları menü planından okunuyor. Otomasyonlar ve Performans artık yalnız yöneticiye görünüyor.
+  - "Denetim günlüğü" komutu doğrudan kendi sekmesini açıyor.
+
+### Aşama 1'den kalanlar
+
+- Bugün ekranında onaylar için bir iş listesi. Bu, sıradaki partide bölüm 3 ve 10 ile birlikte yapılacak.
+- Web'de mobil alt gezinme (bölüm 12). Telefonda yan menü şimdilik açılır menü olarak çalışıyor.
+- `/gestion-licence` rotası herkese açık, çünkü lisans bitince her kullanıcı oraya yönlendiriliyor. Veriler ise yalnız yöneticiye veriliyor. Yönetici olmayan kullanıcı için "yetki yok" ekranı gerekiyor.
+- `/asistan` sayfasında `<h1>` yok. Expo uygulamasındaki "Daha fazla" ekranı yeni yapıya göre düzenlenmedi.
 
 ## ⚠️ 2026-07-14 — Kritik altyapı incidenti (çözüldü)
 

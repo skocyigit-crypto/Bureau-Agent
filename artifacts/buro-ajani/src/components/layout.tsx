@@ -5,7 +5,7 @@ import { DataExportPanel } from "@/components/data-export-panel";
 import { ExportMenu } from "@/components/export-menu";
 import { GlobalSearch } from "@/components/global-search";
 import { HelpCenter } from "@/components/help-center";
-import { Icon3D,SidebarIcon3D } from "@/components/icon-3d";
+import { Icon3D } from "@/components/icon-3d";
 import { IncomingCallOverlay,useIncomingCall } from "@/components/incoming-call-overlay";
 import { IntegrationDiscovery } from "@/components/integration-discovery";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -17,19 +17,21 @@ import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TrialBanner } from "@/components/trial-banner";
 import { Button } from "@/components/ui/button";
-import { Sidebar,SidebarContent,SidebarFooter,SidebarGroup,SidebarGroupContent,SidebarGroupLabel,SidebarHeader,SidebarMenu,SidebarMenuBadge,SidebarMenuButton,SidebarMenuItem,SidebarProvider,SidebarTrigger } from "@/components/ui/sidebar";
+import { Sidebar,SidebarContent,SidebarFooter,SidebarGroup,SidebarGroupContent,SidebarGroupLabel,SidebarHeader,SidebarMenu,SidebarProvider,SidebarTrigger } from "@/components/ui/sidebar";
 import { Tooltip,TooltipContent,TooltipTrigger } from "@/components/ui/tooltip";
 import { UserProfileButton,useWorkspaceUser,WorkspaceUserSidebarInfo } from "@/components/workspace-user";
 import { triggerHaptic,useDeviceEnvContext } from "@/hooks/use-device-environment";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useTranslation } from "@/i18n";
 import { getGetMyPreferencesQueryKey,useGetMyPreferences,type BadgeMuteFlags } from "@workspace/api-client-react";
-import { motion } from "framer-motion";
-import { Activity,BarChart,BarChart3,Bell,BookOpen,Bot,Brain,Briefcase,Building2,Calendar,CheckSquare,ClipboardCheck,ClipboardList,Clock,CreditCard,Crown,Download,FileSignature,FileText,Globe,GraduationCap,HardHat,Inbox,KeyRound,LayoutDashboard,Mail,MapPin,MessageCircle,MessageSquare,Monitor,Phone,PhoneCall,PhoneIncoming,Plug,Plus,Puzzle,Radar,Receipt,ReceiptText,Rocket,ScanSearch,Search,Settings,Shield,ShieldCheck,Smartphone,Sparkles,StickyNote,Tablet,Trophy,UserCog,Users,Wallet,Wifi,WifiOff,Zap,Trash2,Stethoscope,Workflow} from "lucide-react";
+import { BookOpen,Monitor,Phone,PhoneIncoming,Smartphone,Tablet,Wifi,WifiOff } from "lucide-react";
 import { createContext,useContext,useEffect,useMemo,useRef,useState } from "react";
 import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link,useLocation } from "wouter";
 import { titreDePage } from "@/lib/titre-page";
+import { EntreeMenu,OngletsDeSection,ReglagesBureau,RetourAuBureau } from "@/components/menu-bureau";
+import { BoutonActionRapide,BoutonCommandeVocale,CompteurApprobations,MenuOutils,PassageConsole } from "@/components/ust-cubuk";
+import { CONSOLE_PLATEFORME,entreesVisibles,estDansLaConsole,pageDe,pagesDe,REGLAGES_BUREAU,sectionsVisibles,type Rozet,type Section } from "@/lib/gezinti";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -279,165 +281,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Sidebar organisée selon le flux de travail réel d'une secrétaire :
-  //   1. ce qu'elle ouvre en arrivant (Aujourd'hui)
-  //   2. son activité principale toute la journée (Communication)
-  //   3. ses contacts (Carnet d'adresses)
-  //   4. son organisation personnelle (Tâches, agenda, pointage)
-  //   5. la paperasse (Documents & Rapports)
-  //   6. ses assistants IA
-  //   7. les indicateurs (Analyse, plutôt côté management)
-  //   8. les plateformes connectées (Intégrations)
-  //   9. l'administration (admin/super_admin)
-  //  10. la configuration / l'installation (rare, donc en bas)
-  const navGroups = useMemo(() => {
-    const isAdmin = user.role === "super_admin" || user.role === "administrateur";
-    const canUseAi = user.role !== "lecture_seule";
+  // Le plan du menu vient de `lib/gezinti.ts` : huit sections de travail,
+  // reglages du bureau en bas, console plateforme a part. Ici on ne fait que
+  // le filtrer par role et y brancher les compteurs.
+  const role = user.role;
+  const canUseAi = role !== "lecture_seule";
+  // Le super-administrateur est dans la console quand il est sur l'une de ses
+  // pages ; un autre role n'y entre jamais (les routes le refusent).
+  const enConsole = isSuperAdmin && estDansLaConsole(location);
+  const sections = useMemo<Section[]>(
+    () => (enConsole ? [{ cle: "platformConsole", entrees: entreesVisibles(CONSOLE_PLATEFORME, role) }] : sectionsVisibles(role)),
+    [enConsole, role],
+  );
+  const reglages = useMemo(() => (enConsole ? [] : entreesVisibles(REGLAGES_BUREAU, role)), [enConsole, role]);
+  const toutesLesEntrees = useMemo(() => [...sections.flatMap((s) => s.entrees), ...reglages], [sections, reglages]);
+  const ici = useMemo(() => pageDe(location, toutesLesEntrees), [location, toutesLesEntrees]);
+  const compteurs = useMemo<Record<Rozet, number>>(() => ({
+    call: mutedBadges.call ? 0 : badges.call,
+    message: mutedBadges.message ? 0 : badges.message,
+    prospect: mutedBadges.prospect ? 0 : badges.prospect,
+    task: mutedBadges.task ? 0 : badges.task,
+    note: mutedBadges.note ? 0 : badges.note,
+    rappel: mutedBadges.rappel ? 0 : badges.rappel,
+    approbation: mutedBadges.agentQueue ? 0 : agentQueueCount,
+  }), [badges, agentQueueCount, mutedBadges]);
 
-    return [
-      {
-        label: t("sidebar.groups.today"),
-        items: [
-          { name: t("sidebar.items.dashboard"), href: "/", icon: LayoutDashboard },
-          ...(canUseAi ? [{ name: t("sidebar.items.proactiveAssistant"), href: "/assistant-proactif", icon: Radar }] : []),
-          ...(canUseAi ? [{ name: t("sidebar.items.aiLearned"), href: "/ia-apprentissage", icon: GraduationCap }] : []),
-          { name: t("sidebar.items.calendar"), href: "/calendrier", icon: Calendar },
-          { name: t("sidebar.items.reminders"), href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
-          { name: t("sidebar.items.recentActivity"), href: "/activite-recente", icon: Activity },
-          // Volontairement dans un groupe ouvert a tous, et non dans
-          // « Administration »: une corbeille que seul un administrateur voit
-          // ne sert pas celui qui vient de se tromper.
-          { name: t("sidebar.items.trash"), href: "/corbeille", icon: Trash2 },
-        ],
-      },
-      {
-        label: t("sidebar.groups.communication"),
-        items: [
-          { name: t("sidebar.items.calls"), href: "/appels", icon: Phone, badge: mutedBadges.call ? 0 : badges.call },
-          { name: t("sidebar.items.messages"), href: "/messages", icon: MessageSquare, badge: mutedBadges.message ? 0 : badges.message },
-          { name: t("sidebar.items.whatsapp"), href: "/whatsapp", icon: MessageCircle },
-          ...(canUseAi ? [{ name: t("sidebar.items.mailAgent"), href: "/gmail-agent", icon: Mail }] : []),
-          { name: t("sidebar.items.securityCenter"), href: "/securite", icon: ShieldCheck },
-          { name: t("sidebar.items.postDiagnostic"), href: "/diagnostic-poste", icon: Stethoscope },
-          { name: t("sidebar.items.encaissements"), href: "/reglements", icon: Receipt },
-          ...(canUseAi ? [{ name: t("sidebar.items.webSearch"), href: "/recherche-web", icon: Search }] : []),
-        ],
-      },
-      {
-        label: t("sidebar.groups.addressBook"),
-        items: [
-          { name: t("sidebar.items.contacts"), href: "/contacts", icon: Users },
-        ],
-      },
-      // Chaine commerciale: prospect -> devis -> facture. Chaque page est
-      // bornee a l'organisation connectee cote serveur (`getOrgId`).
-      {
-        label: t("sidebar.groups.sales"),
-        items: [
-          { name: t("sidebar.items.prospects"), href: "/prospects", icon: Briefcase, badge: mutedBadges.prospect ? 0 : badges.prospect },
-          { name: t("sidebar.items.quotes"), href: "/devis", icon: FileSignature },
-          { name: t("sidebar.items.clientInvoices"), href: "/factures", icon: Receipt },
-        ],
-      },
-      {
-        label: t("sidebar.groups.work"),
-        items: [
-          { name: t("sidebar.items.tasks"), href: "/taches", icon: CheckSquare, badge: mutedBadges.task ? 0 : badges.task },
-          { name: t("sidebar.items.projects"), href: "/projets", icon: Puzzle },
-          { name: t("sidebar.items.treasury"), href: "/tresorerie", icon: Wallet },
-          { name: t("sidebar.items.expenses"), href: "/depenses", icon: ReceiptText },
-          ...(canUseAi ? [{ name: t("sidebar.items.siteVoice"), href: "/saisie-chantier", icon: HardHat }] : []),
-          { name: t("sidebar.items.internalNotes"), href: "/notes-internes", icon: StickyNote, badge: mutedBadges.note ? 0 : badges.note },
-          { name: t("sidebar.items.checkin"), href: "/pointage", icon: Clock },
-        ],
-      },
-      {
-        label: t("sidebar.groups.docsReports"),
-        items: [
-          { name: t("sidebar.items.documents"), href: "/documents", icon: FileText },
-          ...(canUseAi ? [{ name: t("sidebar.items.knowledgeBase"), href: "/base-connaissances", icon: BookOpen }] : []),
-          ...(canUseAi ? [{ name: t("sidebar.items.documentAi"), href: "/document-ia", icon: ScanSearch }] : []),
-          { name: t("sidebar.items.reports"), href: "/rapports", icon: ClipboardList },
-        ],
-      },
-      ...(canUseAi
-        ? [{
-            label: t("sidebar.groups.aiAssistants"),
-            items: [
-              { name: t("sidebar.items.aiTeam"), href: "/equipe-ia", icon: Brain },
-              { name: t("sidebar.items.aiCommander"), href: "/commandant-ia", icon: Crown },
-              { name: t("sidebar.items.approvalQueue"), href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
-              { name: t("sidebar.items.taskDesk"), href: "/bureau-taches", icon: ClipboardList },
-              { name: t("sidebar.items.agentCatalog"), href: "/agents-catalogue", icon: Bot },
-              { name: t("sidebar.items.universalAssistant"), href: "/asistan", icon: Sparkles },
-              { name: t("sidebar.items.aiAgents"), href: "/agents-ia", icon: Bot },
-            ],
-          }]
-        : []),
-      {
-        label: t("sidebar.groups.analysis"),
-        items: [
-          { name: t("sidebar.items.statistics"), href: "/analyse", icon: BarChart },
-        ],
-      },
-      {
-        label: t("sidebar.groups.integrations"),
-        items: [
-          { name: t("sidebar.items.googleWorkspace"), href: "/google-workspace", icon: Globe },
-          { name: t("sidebar.items.telephony"), href: "/telephonie", icon: PhoneCall },
-          { name: t("sidebar.items.connectors"), href: "/logiciels", icon: Plug },
-        ],
-      },
-      // Tout ce qui est reserve a l'administrateur (super-admin ou
-      // administrateur d'organisation) regroupe dans un seul onglet, meme
-      // logique que "Super Admin" ci-dessous — plutot qu'eparpille parmi
-      // les groupes thematiques (Organisation du travail, Rapports,
-      // Assistants IA, Analyse).
-      ...(isAdmin
-        ? [{
-            label: t("sidebar.groups.administration"),
-            items: [
-              { name: t("sidebar.items.users"), href: "/utilisateurs", icon: UserCog },
-              { name: t("sidebar.items.license"), href: "/gestion-licence", icon: CreditCard },
-              { name: t("sidebar.items.dataProtection"), href: "/protection-donnees", icon: Shield },
-              { name: t("sidebar.items.teamLocation"), href: "/equipe/localisation", icon: MapPin },
-              { name: t("sidebar.items.executiveReport"), href: "/rapport-executif", icon: BarChart3 },
-              { name: t("sidebar.items.teamPerformance"), href: "/performance", icon: Trophy },
-              ...(canUseAi ? [{ name: t("sidebar.items.autoAudit"), href: "/auto-audit", icon: ClipboardCheck }] : []),
-              ...(canUseAi ? [{ name: t("sidebar.items.automations"), href: "/automatisations", icon: Zap }] : []),
-              ...(canUseAi ? [{ name: t("sidebar.items.flowStudio"), href: "/studio-flux", icon: Workflow }] : []),
-            ],
-          }]
-        : []),
-      // Tout ce qui est reserve au super-admin (proprietaire SaaS) regroupe
-      // dans un seul onglet, plutot qu'eparpille entre plusieurs groupes
-      // (Carnet d'adresses, Administration, Backoffice SaaS separes).
-      ...(isSuperAdmin
-        ? [{
-            label: t("sidebar.groups.superAdmin"),
-            items: [
-              { name: t("sidebar.items.saasBackoffice"), href: "/admin", icon: Building2 },
-              { name: t("sidebar.items.organisations"), href: "/organisations", icon: KeyRound },
-              { name: t("sidebar.items.globalAuditLog"), href: "/admin/audit", icon: ClipboardList },
-              { name: t("sidebar.items.techHealth"), href: "/sante-technique", icon: Activity },
-            ],
-          }]
-        : []),
-      {
-        label: t("sidebar.groups.system"),
-        items: [
-          { name: t("sidebar.items.guide"), href: "/guide", icon: BookOpen },
-          { name: t("sidebar.items.settings"), href: "/parametres", icon: Settings },
-          { name: t("sidebar.items.smartImport"), href: "/import", icon: Download },
-          { name: t("sidebar.items.initialSetup"), href: "/onboarding", icon: Rocket },
-          { name: t("sidebar.items.mobileApp"), href: "/telecharger", icon: Smartphone },
-        ],
-      },
-    ].filter(g => g.items.length > 0);
-  }, [user.role, isSuperAdmin, badges, agentQueueCount, mutedBadges, t]);
-
-  // Chaque page a son titre (RGAA 8.6), tire de l'entree de menu courante.
-  const titrePage = useMemo(() => titreDePage(location, navGroups.flatMap((g) => g.items)), [location, navGroups]);
+  // Chaque page a son titre (RGAA 8.6), tire de la page de menu courante —
+  // onglets de section compris.
+  const pagesNommees = useMemo(
+    () => pagesDe(toutesLesEntrees).map((p) => ({ name: t(`sidebar.items.${p.cle}`), href: p.href })),
+    [toutesLesEntrees, t],
+  );
+  const titrePage = useMemo(() => titreDePage(location, pagesNommees), [location, pagesNommees]);
   useEffect(() => {
     document.title = titrePage;
   }, [titrePage]);
@@ -459,9 +334,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
           {t("common.skipToContent")}
         </a>
-        <Sidebar className="border-r border-sidebar-border">
-          <SidebarHeader className="p-4">
-            <div className="flex items-center gap-3 px-2 py-1">
+        <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+          <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+            <div className="flex items-center gap-3 px-2 py-1 group-data-[collapsible=icon]:px-0">
               {orgLogo ? (
                 <img
                   src={orgLogo}
@@ -472,52 +347,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Icon3D icon={Phone} variant="navy" size="sm" />
               )}
-              <div className="min-w-0">
-                <h1 className="text-sidebar-foreground font-semibold text-base leading-none truncate">
+              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                <p className="text-sidebar-foreground font-semibold text-base leading-none truncate">
                   {orgName || "Ajant Bureau"}
-                </h1>
-                <p className="text-sidebar-foreground/60 text-xs mt-1 truncate">{user.organisation || "Bureau"}</p>
+                </p>
+                <p className="text-sidebar-foreground/60 text-xs mt-1 truncate">
+                  {enConsole ? t("sidebar.groups.platformConsole") : user.organisation || "Bureau"}
+                </p>
               </div>
             </div>
           </SidebarHeader>
           <SidebarContent>
-            {navGroups.map((group) => (
-              <SidebarGroup key={group.label}>
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {group.items.map((item) => {
-                      const badgeCount = (item as { badge?: number }).badge ?? 0;
-                      return (
-                        <SidebarMenuItem key={item.name}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
-                            tooltip={item.name}
-                          >
-                            <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
-                              <SidebarIcon3D icon={item.icon} href={item.href} />
-                              <span>{item.name}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                          {badgeCount > 0 && (
-                            <SidebarMenuBadge
-                              className="bg-emerald-500 text-white"
-                              data-testid={`sidebar-badge-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-                              aria-label={t(badgeCount > 1 ? "header.newBadgeAriaPlural" : "header.newBadgeAria", { count: badgeCount, name: item.name.toLowerCase() })}
-                            >
-                              {badgeCount > 99 ? "99+" : badgeCount}
-                            </SidebarMenuBadge>
-                          )}
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))}
+            <nav aria-label={t(enConsole ? "sidebar.groups.platformConsole" : "sidebar.mainNav")}>
+              {sections.map((section) => (
+                <SidebarGroup key={section.cle}>
+                  <SidebarGroupLabel>{t(`sidebar.groups.${section.cle}`)}</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {section.entrees.map((entree) => (
+                        <EntreeMenu key={entree.cle} entree={entree} ici={ici} compteur={entree.rozet ? compteurs[entree.rozet] : 0} />
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              ))}
+            </nav>
           </SidebarContent>
-          <SidebarFooter className="p-0">
+          <SidebarFooter className="p-0 gap-0">
+            {enConsole ? <RetourAuBureau /> : <ReglagesBureau entrees={reglages} ici={ici} compteurs={compteurs} />}
             <WorkspaceUserSidebarInfo />
           </SidebarFooter>
         </Sidebar>
@@ -528,54 +385,58 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SidebarTrigger />
               <GlobalSearch />
             </div>
-            <div className="flex items-center gap-3">
-              {isSuperAdmin && (
+            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+              {isSuperAdmin && <PassageConsole enConsole={enConsole} />}
+              {/* Simulation d'appel entrant : outil de demonstration du
+                  proprietaire, sobre et marque « test » — jamais presente comme
+                  un appel reel. */}
+              {isSuperAdmin && !enConsole && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="relative text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                      className="hidden md:inline-flex"
                       onClick={() => incomingCall.simulateIncomingCall()}
                       aria-label={t("header.simulateCall")}
-                      title={t("header.simulateCall")}
                     >
-                      <PhoneIncoming className="w-5 h-5" />
-                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                      <PhoneIncoming className="w-5 h-5" aria-hidden="true" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t("header.simulateCall")}</TooltipContent>
                 </Tooltip>
               )}
-              <ConnectionIndicator />
-              <SmartBrowserToolbar />
               <AgentRunChip />
-              <div className="w-px h-4 bg-border" />
-              {/* Guide d'utilisation — icone permanente, presente sur chaque
-                  page via l'en-tete colle. Un clic ouvre le guide complet. */}
+              {canUseAi && !enConsole && <CompteurApprobations sayi={compteurs.approbation} />}
+              <BoutonCommandeVocale />
+              <BoutonActionRapide onOuvrir={() => { triggerHaptic("medium"); setQuickActionOpen(true); }} />
+              <div className="w-px h-4 bg-border hidden sm:block" />
+              {/* Guide d'utilisation — present sur chaque page (et dans
+                  Reglages du bureau > Aide sur telephone). */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon"
-                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                    aria-label={t("header.guide")}
-                  >
+                  <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex" aria-label={t("header.guide")}>
                     <Link href="/guide">
-                      <BookOpen className="w-5 h-5" />
+                      <BookOpen className="w-5 h-5" aria-hidden="true" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t("header.guide")}</TooltipContent>
               </Tooltip>
-              <LanguageSwitcher variant="compact" />
-              <ThemeToggle />
-              <ExportMenu />
-              <AiHealthBadge />
+              <div className="hidden sm:block">
+                <LanguageSwitcher variant="compact" />
+              </div>
+              <MenuOutils>
+                <div className="sm:hidden">
+                  <LanguageSwitcher variant="compact" />
+                </div>
+                <ConnectionIndicator />
+                <SmartBrowserToolbar />
+                <ThemeToggle />
+                <ExportMenu />
+                <AiHealthBadge />
+              </MenuOutils>
               <NotificationBell />
-
-
               <UserProfileButton />
             </div>
           </header>
@@ -589,20 +450,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               et la navigation clavier repart du haut. */}
           <main id="contenu" tabIndex={-1} className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="mx-auto max-w-6xl">
+              <OngletsDeSection ici={ici} />
               {children}
             </div>
           </main>
         </div>
         <AiAssistantButton />
-        <motion.button
-          onClick={() => { triggerHaptic("medium"); setQuickActionOpen(true); }}
-          className="fixed bottom-6 left-6 z-50 rounded-full w-12 h-12 p-0 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg safe-area-bottom"
-          whileHover={{ scale: 1.1, boxShadow: "0 10px 30px -5px rgba(16, 185, 129, 0.4)" }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 400, damping: 17 }}
-        >
-          <Plus className="h-5 w-5" />
-        </motion.button>
         <QuickActionHub open={quickActionOpen} onOpenChange={setQuickActionOpen} />
         <DataExportPanel open={exportOpen} onOpenChange={setExportOpen} />
         <PwaInstallPrompt />
