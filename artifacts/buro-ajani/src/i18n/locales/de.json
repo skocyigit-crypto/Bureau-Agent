@@ -7909,7 +7909,11 @@
       "contacts": "Kontakte",
       "callsThisMonth": "Anrufe diesen Monat"
     },
-    "print": "Drucken"
+    "print": "Drucken",
+    "nonAdmin": {
+      "title": "Abonnement wird von einem Administrator verwaltet",
+      "message": "Abonnement und Abrechnung des Büros verwalten die Administratoren. Ist der Zugang gesperrt, muss ein Administrator das Abonnement verlängern – informieren Sie ihn."
+    }
   },
   "whatsappPage": {
     "title": "WhatsApp",

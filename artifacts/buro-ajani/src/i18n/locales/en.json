@@ -7909,7 +7909,11 @@
       "contacts": "Contacts",
       "callsThisMonth": "Calls this month"
     },
-    "print": "Print"
+    "print": "Print",
+    "nonAdmin": {
+      "title": "Subscription managed by an administrator",
+      "message": "The office's subscription and billing are managed by its administrators. If access is suspended, an administrator must renew the subscription — let them know."
+    }
   },
   "whatsappPage": {
     "title": "WhatsApp",

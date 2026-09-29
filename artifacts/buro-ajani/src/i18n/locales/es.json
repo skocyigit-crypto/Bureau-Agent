@@ -7909,7 +7909,11 @@
       "contacts": "Contactos",
       "callsThisMonth": "Llamadas este mes"
     },
-    "print": "Imprimir"
+    "print": "Imprimir",
+    "nonAdmin": {
+      "title": "Suscripción gestionada por un administrador",
+      "message": "La suscripción y la facturación de la oficina las gestionan sus administradores. Si el acceso está suspendido, un administrador debe renovar la suscripción: avísele."
+    }
   },
   "whatsappPage": {
     "title": "WhatsApp",

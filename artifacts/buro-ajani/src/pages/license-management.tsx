@@ -70,9 +70,9 @@ function AccessDenied() {
       <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
         <Shield className="w-8 h-8 text-red-500" />
       </div>
-      <h2 className="text-xl font-bold">{t("licenseManagement.accessDenied.title")}</h2>
+      <h2 className="text-xl font-bold">{t("licenseManagement.nonAdmin.title")}</h2>
       <p className="text-muted-foreground max-w-md">
-        {t("licenseManagement.accessDenied.desc")}
+        {t("licenseManagement.nonAdmin.message")}
       </p>
     </div>
   );
@@ -114,7 +114,12 @@ export default function LicenseManagementPage() {
     reloadDeepLinkInvoice(id);
   }, [reloadDeepLinkInvoice]);
 
+  const estAdmin = isAtLeast("administrateur");
   const fetchData = useCallback(async () => {
+    // Le serveur reserve ces donnees aux responsables : un autre role
+    // recevait un 403, et un toast « chargement impossible » par-dessus
+    // l'ecran d'acces.
+    if (!estAdmin) { setLoading(false); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/license-management/dashboard`, { credentials: "include" });
@@ -124,11 +129,13 @@ export default function LicenseManagementPage() {
       toast({ title: t("licenseManagement.toast.error"), description: t("licenseManagement.cannotLoad"), variant: "destructive" });
     }
     setLoading(false);
-  }, []);
+  }, [estAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (!isAtLeast("administrateur")) return <AccessDenied />;
+  // Quand la licence expire, TOUT le monde est redirige ici (App.tsx) : le
+  // message dit qui gere l'abonnement, et quoi faire s'il est suspendu.
+  if (!estAdmin) return <AccessDenied />;
 
   if (loading) return (
     <div className="p-6 space-y-4">
