@@ -219,6 +219,22 @@ Son sınav tek senaryodur. Müşteri arar, ajan talebi alır ve CRM'de affaire a
   Gerçek sayılar "Göstergeler" başlığı altında duruyor. Yüzen avatar ilk açılışta küçültülmüş geliyor.
 - **Testler:** 15 veritabanı testi (kurumlar arası yalıtım ve route dahil) ve 13 ekran testi. 13 mutasyonun hepsi yakalandı. Gerçek tarayıcıda 15 satır görüldü ve her biri kendi kaydına gidiyor; 1366 px ve 390 px genişlikte taşma 0.
 
+### Teklif → fatura / teklif → şantiye (`feat/devis-chantier`, bölüm 5)
+
+- **Kural açığı kapandı.** `convert-to-facture` her süresi geçmemiş teklifi dönüştürüyordu. Taslak bir teklifi de kimin kabul ettiğini yazmadan "kabul edildi" yapıyordu. Böylece agent rolü, yalnız yöneticiye ayrılan kabul kuralını yan yoldan aşabiliyordu.
+  - Artık **yalnız kabul edilmiş teklif** faturaya dönüşüyor. Diğer durumlar 409 dönüyor: `devis_non_accepte` ya da `devis_refuse`.
+  - Dönüşüm kabulü bir daha yazmıyor.
+  - Denetim kaydı yanıttan önce yazılıyor.
+- **Açık geçiş:** `POST /devis/:id/chantier`.
+  - Yalnız kabul edilmiş teklif şantiye açabiliyor ve bir teklif yalnız **bir** şantiye açıyor.
+  - İkinci çağrı mevcut şantiyeyi döndürüyor. Kural veritabanında `projets_devis_unique_idx` ile de tutuluyor; 5 eşzamanlı istekte tek şantiye çıkıyor.
+  - Şantiye teklife, müşteriye ve fırsata bağlı: `projets.devis_id` ve `prospect_id` eklendi, ikisi de boş bırakılabilir ve geriye uyumlu.
+  - Teklif tutarı şantiye bütçesine **yazılmıyor**: satış fiyatı, harcama zarfı değildir.
+- Teklif kabul edilince ilgili fırsat "kazanıldı" (`gagne`) oluyor ve kazanma tarihi yazılıyor.
+- **Ekran:** "Fatura" ve "Şantiye aç" düğmeleri yalnız kabul edilmiş teklifte görünüyor.
+- **`scripts/verif-parcours.mjs`:** önce kabul ediyor, sonra faturalıyor, şantiyeyi de tekliften açıyor.
+- **Testler:** 13 veritabanı testi ve 3 ekran testi. Mevcut iki test bilinçli olarak güncellendi: artık geçerli teklifin de önce kabul edilmesi gerekiyor.
+
 ### Aşama 1'den kalanlar
 
 - Onay ekranının kendisi (bölüm 10) henüz yapılmadı: satır başına önizleme; müşteriye giden ve finansal işlemlerde kör toplu onay yasağı. Karar masası şimdilik yalnız listeliyor.

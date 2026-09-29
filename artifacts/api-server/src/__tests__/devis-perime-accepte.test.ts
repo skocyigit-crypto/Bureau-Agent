@@ -218,7 +218,8 @@ describe("les deux chemins disent la meme chose", () => {
   it("et cette meme route convertit bien un devis valable", async () => {
     // Le controle negatif du precedent : sans lui, une route qui refuserait
     // TOUT ferait passer le test ci-dessus pour une bonne raison apparente.
-    const d = await devis({ validUntil: dansUnAn(), totalAmount: "1000.00" });
+    // Seul un devis accepte se facture (29/09) : le devis valable est accepte.
+    const d = await devis({ status: "accepte", validUntil: dansUnAn(), totalAmount: "1000.00" });
     const r = await request(appli()).post(`/api/devis/${d.id}/convert-to-facture`).send({});
     expect(r.status, r.text).toBeLessThan(400);
   });

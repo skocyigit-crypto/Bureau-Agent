@@ -196,9 +196,11 @@ describe("un devis echu ne se convertit plus en facture", () => {
     expect(r.body.remediation).toMatch(/validite/i);
   });
 
-  it("un devis encore valable se convertit toujours", async () => {
+  it("un devis accepte se convertit toujours", async () => {
     // Garde-fou: un refus qui bloquerait TOUT serait pire que le defaut.
-    const d = await unDevis("envoye", new Date(Date.now() + 30 * JOUR));
+    // Depuis le 29/09, seul un devis ACCEPTE se facture (devis-chantier-db) :
+    // le chemin normal passe par l'acceptation.
+    const d = await unDevis("accepte", new Date(Date.now() + 30 * JOUR));
     const r = await request(appli()).post(`/api/devis/${d}/convert-to-facture`).send({});
     expect(r.status, "le chemin normal doit rester ouvert").toBe(201);
   });

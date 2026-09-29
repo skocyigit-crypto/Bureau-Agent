@@ -5858,8 +5858,13 @@
       "conversionFailed": "Conversion failed.",
       "deleteConfirmTitle": "Delete this quote?",
       "deleteConfirmLabel": "Delete",
-      "deleted": "Quote deleted"
-    }
+      "deleted": "Quote deleted",
+      "siteOpened": "Site opened",
+      "siteAlreadyOpen": "This quote's site is already open",
+      "siteFailed": "The site could not be opened"
+    },
+    "openSite": "Open the site",
+    "openSiteTitle": "Open the site for this accepted quote (one site per quote)"
   },
   "adminAudit": {
     "accessTitle": "Restricted access",

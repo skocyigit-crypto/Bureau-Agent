@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, pool, devisTable, facturesClientTable, organisationsTable } from "@workspace/db";
+import { eq, desc, or, sql, and, notInArray, type Column, type SQL } from "drizzle-orm";
+import { db, pool, devisTable, facturesClientTable, organisationsTable, projetsTable, prospectsTable } from "@workspace/db";
 import { devisExpire } from "../services/devis-expires";
 import { buildDevisDocument, devisFileName, renderDevisPdf } from "../services/devis-pdf";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
@@ -209,7 +209,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     const [existing] = await db
       .select({
         id: devisTable.id, status: devisTable.status, validUntil: devisTable.validUntil,
-        acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount,
+        acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount, prospectId: devisTable.prospectId,
       })
       .from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
@@ -329,6 +329,18 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     }
     if (b.status === "refuse") updates.rejectedAt = new Date();
     const [row] = await db.update(devisTable).set(updates).where(scoped).returning();
+    // Un devis accepte gagne l'opportunite dont il vient : la chaine
+    // demande -> opportunite -> devis ne s'arretait plus au devis, et le
+    // prospect restait « proposition » apres la commande.
+    if (b.status === "accepte" && existing.status !== "accepte" && existing.prospectId) {
+      await db.update(prospectsTable)
+        .set({ stage: "gagne", wonAt: new Date(), updatedAt: new Date() })
+        .where(and(
+          eq(prospectsTable.id, existing.prospectId),
+          eq(prospectsTable.organisationId, orgId),
+          notInArray(prospectsTable.stage, ["gagne"]),
+        ));
+    }
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour devis");
@@ -400,6 +412,19 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
       return;
     }
 
+    // Seul un devis ACCEPTE se facture. La conversion acceptait tout devis
+    // non echu : un devis refuse devenait une facture, et un brouillon etait
+    // marque « accepte » au passage, sans dire par qui — contournant la regle
+    // qui reserve l'acceptation a l'administration.
+    if (devis.status === "refuse") {
+      res.status(409).json({ error: "Un devis refuse ne se facture pas.", code: "devis_refuse", remediation: "Etablissez un nouveau devis si le client revient." });
+      return;
+    }
+    if (devis.status !== "accepte") {
+      res.status(409).json({ error: "Seul un devis accepte se facture.", code: "devis_non_accepte", statut: devis.status, remediation: "Faites accepter le devis par un administrateur, puis convertissez-le." });
+      return;
+    }
+
     // Deja converti: on renvoie la facture liee plutot que d'en creer une autre.
     if (devis.convertedToInvoice) {
       const [existing] = await db.select().from(facturesClientTable)
@@ -455,12 +480,15 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     }).returning();
 
     await tx.update(devisTable)
-      .set({ convertedToInvoice: creee.id, status: devis.status === "brouillon" ? "accepte" : devis.status, acceptedAt: devis.acceptedAt ?? new Date(), updatedAt: new Date() })
+      .set({ convertedToInvoice: creee.id, updatedAt: new Date() })
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
 
       return creee;
     });
 
+    // Trace ecrite AVANT la reponse : une trace « plus tard » peut ne jamais
+    // arriver si l'instance s'arrete (meme regle que tracerExtraction).
+    await logAudit(req.session?.userId, req.session?.userEmail, "devis.converti_facture", "devis", String(id), { factureId: facture.id, reference: facture.reference }, req.ip, req.get("user-agent"), orgId).catch(() => {});
     res.status(201).json({ facture });
   } catch (err: any) {
     req.log.error({ err }, "Erreur conversion devis->facture");
@@ -476,6 +504,83 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     } finally {
       client.release();
     }
+  }
+});
+
+
+/**
+ * Ouvre le chantier d'un devis ACCEPTE (plan du 29/09, section 5).
+ *
+ * Le chantier n'etait relie a rien : le raccourci « creer un projet » d'un
+ * prospect ouvrait une fiche sans devis ni client, et rien ne faisait passer
+ * un devis accepte a l'execution. Ici :
+ *  - seul un devis accepte ouvre un chantier — jamais une demande, jamais un
+ *    devis envoye : ce qui n'est pas commande ne se planifie pas ;
+ *  - le geste est explicite (cette route), pas un effet de bord de
+ *    l'acceptation ;
+ *  - un devis n'ouvre qu'UN chantier : un second appel rend le premier.
+ *    L'index unique partiel `projets_devis_unique_idx` tient la regle meme
+ *    sous deux clics simultanes.
+ * Le budget n'est PAS rempli avec le montant du devis : ce montant est le
+ * prix de vente ; le budget est l'enveloppe de depenses du chantier. Les
+ * confondre ferait passer toute depense pour de la marge consommee.
+ */
+router.post("/devis/:id/chantier", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [devis] = await db.select().from(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
+    if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+    if (devis.status !== "accepte") {
+      res.status(409).json({
+        error: "Seul un devis accepte ouvre un chantier.",
+        code: "devis_non_accepte",
+        statut: devis.status,
+        remediation: "Faites accepter le devis par un administrateur, puis ouvrez le chantier.",
+      });
+      return;
+    }
+    const existant = async () => (await db.select().from(projetsTable)
+      .where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.devisId, id))))[0];
+    const deja = await existant();
+    if (deja) { res.status(200).json({ projet: deja, dejaOuvert: true }); return; }
+
+    let projet;
+    try {
+      [projet] = await db.insert(projetsTable).values({
+        organisationId: orgId,
+        devisId: devis.id,
+        prospectId: devis.prospectId ?? null,
+        contactId: devis.contactId ?? null,
+        title: devis.title,
+        description: `Chantier du devis ${devis.reference}`,
+        status: "planifie",
+        clientName: devis.clientName,
+        clientCompany: devis.clientCompany ?? null,
+        address: devis.clientAddress ?? null,
+        currency: devis.currency ?? "EUR",
+      }).returning();
+    } catch (err: any) {
+      // Deux ouvertures simultanees : l'index unique a garde la premiere.
+      const code = err?.code ?? err?.cause?.code;
+      if (code !== "23505") throw err;
+      const gagnant = await existant();
+      if (!gagnant) throw err;
+      res.status(200).json({ projet: gagnant, dejaOuvert: true });
+      return;
+    }
+    await logAudit(
+      req.session?.userId, req.session?.userEmail,
+      "chantier.ouvert_depuis_devis", "projet", String(projet!.id),
+      { devisId: devis.id, reference: devis.reference },
+      req.ip, req.get("user-agent"), orgId,
+    ).catch(() => {});
+    res.status(201).json({ projet });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur ouverture du chantier depuis le devis");
+    res.status(500).json({ error: "Le chantier n'a pas pu etre ouvert." });
   }
 });
 

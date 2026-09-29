@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 705,
+    "runtimeOperations": 706,
     "documentedOperations": 96,
-    "undocumentedOperations": 609
+    "undocumentedOperations": 610
   },
   "operations": [
     {
@@ -2633,6 +2633,14 @@
     {
       "method": "patch",
       "path": "/devis/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/devis.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/devis/{id}/chantier",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/devis.ts"

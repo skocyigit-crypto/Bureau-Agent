@@ -121,18 +121,28 @@ const devis = await etape("etablir un devis", () =>
   }));
 const devisId = devis.donnees?.id ?? devis.donnees?.devis?.id;
 
+// Depuis le 29/09, seul un devis ACCEPTE se facture et ouvre un chantier :
+// le parcours passe par l'acceptation (reservee a l'administration), comme un
+// vrai bureau. Le compte de verification doit donc etre administrateur.
 if (devisId) {
+  await etape("accepter le devis", () =>
+    appel("PATCH", `/devis/${devisId}`, { status: "accepte" }));
   await etape("convertir le devis en facture", () =>
     appel("POST", `/devis/${devisId}/convert-to-facture`, {}));
 }
 
 // --- 8. Chantier, depenses, notes -------------------------------------------
-const projet = await etape("ouvrir un chantier", () =>
-  appel("POST", "/projets", {
-    title: `Chantier de verification ${suffixe}`,
-    description: "Cree par la verification de parcours",
-    status: "en_cours",
-  }));
+// Le chantier s'ouvre DEPUIS le devis accepte : il en garde le lien
+// (projets.devis_id). Sans devis, repli sur un chantier libre.
+const projet = devisId
+  ? await etape("ouvrir le chantier du devis", () => appel("POST", `/devis/${devisId}/chantier`, {}),
+    (r) => r.statut < 400 && r.donnees?.projet?.devisId === devisId)
+  : await etape("ouvrir un chantier", () =>
+    appel("POST", "/projets", {
+      title: `Chantier de verification ${suffixe}`,
+      description: "Cree par la verification de parcours",
+      status: "en_cours",
+    }));
 const projetId = projet.donnees?.id ?? projet.donnees?.projet?.id;
 
 await etape("saisir une depense", () =>

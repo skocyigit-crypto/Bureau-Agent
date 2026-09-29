@@ -5858,8 +5858,13 @@
       "conversionFailed": "Conversion échouée.",
       "deleteConfirmTitle": "Supprimer ce devis ?",
       "deleteConfirmLabel": "Supprimer",
-      "deleted": "Devis supprimé"
-    }
+      "deleted": "Devis supprimé",
+      "siteOpened": "Chantier ouvert",
+      "siteAlreadyOpen": "Le chantier de ce devis est déjà ouvert",
+      "siteFailed": "Le chantier n'a pas pu être ouvert"
+    },
+    "openSite": "Ouvrir le chantier",
+    "openSiteTitle": "Ouvrir le chantier de ce devis accepté (un seul chantier par devis)"
   },
   "adminAudit": {
     "accessTitle": "Accès réservé",
