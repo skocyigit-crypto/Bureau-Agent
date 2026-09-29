@@ -2807,8 +2807,10 @@ Beş eksen kodda ayrı ayrı tarandı; aşağıdakiler ölçülerek bulundu.
     (`audit_logs.user_id` SET NULL ve `license_audit_log` cascade reddediliyor).
 15. DPA "sözleşme bitiminden 30 gün sonra silme" ve "self-servis silme"
     vaat ediyor; kod yapmıyor. Anonimleştirme yalnız Stripe iptalinde.
+   **Kod tarafı kapandı 29/09 (Lot 4b) — canlıda SİMÜLASYON:** `purge-fin-contrat` her kiracı tablosuna yazılı bir kader veriyor (tip düzeyinde zorunlu: tablo eklenip kader yazılmazsa derlenmez). Fatura/muhasebe (10 yıl), denetim kayıtları, hesaplar, sözleşme kabulü ve ihlal kaydı tutuluyor; gerisi + organizasyonun yedekleri siliniyor. Ölçülen tuzak: `compte_client.contact_id → contacts` CASCADE — tutulan bir satırın gösterdiği satır silinmiyor (FK grafiği her geçişte katalogdan okunuyor). Tek işlem (transaction), organizasyon başına kilit (4317), fesih başına bir kez. **`PURGE_FIN_CONTRAT=effacer` verilene kadar hiçbir şey silinmez**: günlük iş, neyi sileceğini `license_audit_log`'a `purge_fin_contrat_simulee` olarak yazar. Üretimdeki adayları okuyup bayrağı açmak kullanıcıda (gcloud yetkisi gerekiyor). Self-servis silme: madde 14'e (tetikleyici) bağlı.
 16. Yedi beyan edilmiş süre uygulanmıyor (kişiler, aramalar, görevler...);
     `calls.notes` içindeki transkript 12 ay temizliğinden kaçıyor.
+   **Kısmen kapandı 29/09 (Lot 4b):** transkriptin üç kopyası (`calls.notes`, sesli mesaj `messages.content`, bildirim) artık 12 ayda siliniyor; özet ve müşterinin sonradan eklediği not kalıyor (yalnız konuşma satırları gidiyor). Sesli mesaj, telefon kaydındaki aynı transkriptle tanınıyor → kopyalar telefon kaydından ÖNCE temizleniyor (testli). Uygulama içi envanterdeki süreler (kişiler 5 yıl, aramalar 3 yıl...) hâlâ uygulanmıyor: bunlar müşterinin (sorumlu) kararı, işleyen olarak kendiliğinden silmek DPA'ya aykırı olur → Lot 4c'de Md. 30 kaydıyla birlikte "müşteri ayarı" olarak ele alınacak.
 17. Md. 30 kaydı yok; envanter ~15 kategori eksik, şemayla testle bağlı değil.
 18. Kişisel dışa aktarma kişi hakkındaki değerlendirmeleri içermiyor; iki
     dışa aktarma da denetim kaydına yazılmıyor.

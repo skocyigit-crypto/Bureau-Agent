@@ -18,6 +18,7 @@ import { startAiInsightsCron } from "./services/ai-insights";
 import { startTenantBackupCron } from "./services/tenant-backup-cron";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
 import { startAccountRetentionCron } from "./services/account-retention-cron";
+import { startPurgeFinContratCron } from "./services/purge-fin-contrat";
 import { startPaymentMatchingCron } from "./services/payment-matching-cron";
 import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
@@ -225,6 +226,9 @@ async function startServer(): Promise<void> {
       ["tenant-backup-cron", startTenantBackupCron],
       ["location-cleanup-cron", startLocationCleanupCron],
       ["account-retention-cron", startAccountRetentionCron],
+      // DPA art. 8 : effacement 30 jours apres la resiliation. Simulation
+      // tant que PURGE_FIN_CONTRAT n'est pas `effacer` (voir le service).
+      ["purge-fin-contrat-cron", startPurgeFinContratCron],
       ["payment-matching-cron", startPaymentMatchingCron],
       ["security-digest-cron", startSecurityDigestCron],
       ["proactive-engine", startProactiveEngine],

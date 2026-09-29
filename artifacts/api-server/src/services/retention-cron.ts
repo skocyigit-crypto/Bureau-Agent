@@ -57,6 +57,15 @@ export async function purgeExpiredCallRecordings(): Promise<number> {
     const { and, lt, isNotNull, or } = await import("drizzle-orm");
     const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000);
 
+    // AVANT le journal telephonique : sa transcription est ce qui permet de
+    // reconnaitre le message vocal correspondant (voir purge-transcriptions).
+    // La meme transcription vivait dans trois autres tables, jamais purgees.
+    const { purgerTranscriptionsExpirees } = await import("./purge-transcriptions");
+    const copies = await purgerTranscriptionsExpirees(cutoff);
+    if (copies.appels + copies.messagesVocaux + copies.notifications > 0) {
+      logger.info({ ...copies, retentionDays: RETENTION_DAYS }, "[retention] transcriptions expirees effacees");
+    }
+
     const res = await db
       .update(telephonyCallLogsTable)
       .set({ recordingUrl: null, transcription: null })

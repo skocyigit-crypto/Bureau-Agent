@@ -25,6 +25,7 @@ export const CRON_LOCK_NAMESPACE = {
   automationEngine: 4314,
   dataProtection: 4315,
   autonomousInbox: 4316,
+  purgeFinContrat: 4317,
 } as const;
 
 /**
