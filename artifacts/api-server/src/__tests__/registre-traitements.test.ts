@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
 import { and, eq } from "drizzle-orm";
-import { db, organisationsTable, contactsTable, auditLogsTable } from "@workspace/db";
+import { db, organisationsTable, contactsTable, auditLogsTable, usersTable } from "@workspace/db";
 import { TENANT_TABLES, EXCLUDED_TABLES } from "../services/tenant-backup";
 import { ACTIVITE_DES_TABLES, activites, registre } from "../services/registre-traitements";
 import { DESTIN_DES_TABLES } from "../services/purge-fin-contrat";
@@ -90,11 +90,16 @@ describe("appliquee = ce que la plateforme efface vraiment", () => {
 describe("routes (base reelle)", () => {
   const stamp = Date.now();
   let orgId = 0;
+  // Un vrai compte : `audit_logs.user_id` est une cle etrangere, et
+  // `logAudit` avale ses erreurs. Avec un identifiant fixe (1), la trace
+  // s'ecrivait sur une base de dev ou ce compte existait, et disparaissait
+  // en CI ou il n'existe pas.
+  let userId = 0;
   function app(role: string) {
     const a = express();
     a.use(express.json());
     a.use((req: Request, _res: Response, next: NextFunction) => {
-      (req as any).session = { userId: 1, organisationId: orgId, userRole: role, userEmail: "r@x.test" };
+      (req as any).session = { userId, organisationId: orgId, userRole: role, userEmail: "r@x.test" };
       (req as any).log = { info() {}, warn() {}, error() {} };
       next();
     });
@@ -104,6 +109,10 @@ describe("routes (base reelle)", () => {
   beforeAll(async () => {
     const [o] = await db.insert(organisationsTable).values({ name: `Registre ${stamp}`, slug: `registre-${stamp}`, maxUsers: 3, actif: true }).returning({ id: organisationsTable.id });
     orgId = o!.id;
+    const [u] = await db.insert(usersTable).values({
+      organisationId: orgId, email: `registre-${stamp}@exemple.test`, passwordHash: "x", prenom: "R", nom: "Egistre", role: "administrateur", actif: true,
+    }).returning({ id: usersTable.id });
+    userId = u!.id;
     await db.insert(contactsTable).values([
       { organisationId: orgId, firstName: "A", lastName: "Un", phone: "01" },
       { organisationId: orgId, firstName: "B", lastName: "Deux", phone: "02" },
