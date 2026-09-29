@@ -273,14 +273,17 @@ export function HelpCenter() {
   const topicTip = (topic: HelpTopic) => t(`helpCenter.topics.${topic.id}.tip`);
   const categoryLabel = (cat: string) => t(`helpCenter.categories.${cat}`);
 
-  // Reset selection when sheet closes
+  // Reset selection when sheet closes. Le minuteur est annule au demontage :
+  // il declenchait un setState apres la disparition du composant — et, dans
+  // la suite de tests, apres la destruction de l'environnement (« window is
+  // not defined »), ce qui a fait echouer la porte de deploiement du 29/09.
   useEffect(() => {
-    if (!open) {
-      setTimeout(() => {
-        setSelectedTopic(null);
-        setQuery("");
-      }, 200);
-    }
+    if (open) return;
+    const minuteur = setTimeout(() => {
+      setSelectedTopic(null);
+      setQuery("");
+    }, 200);
+    return () => clearTimeout(minuteur);
   }, [open]);
 
   // Keyboard shortcut: ? or Shift+/ opens help
