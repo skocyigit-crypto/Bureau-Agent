@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable, projetsTable } from "@workspace/db";
-import { sql, eq, gte, lt, lte, and, count, avg, desc, or } from "drizzle-orm";
+import { sql, eq, gte, lt, lte, and, count, avg, desc, or, inArray } from "drizzle-orm";
+
+/** Appels pris. « termine » : ancien statut ecrit par la secretaire IA (non conforme), lu encore. */
+const STATUTS_REPONDU = ["repondu", "termine"];
 import {
   activitesReelles, bornesJour, dateDuRapport, jourLocal, ligneRepondus, scoreBorne,
 } from "../services/rapport-journalier";
@@ -439,9 +442,9 @@ async function gatherDailyData(dateStr: string, orgId: number) {
     sentimentNeutral,
   ] = await Promise.all([
     db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), inArray(callsTable.status, STATUTS_REPONDU))),
     db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "manque"))),
-    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), inArray(callsTable.status, STATUTS_REPONDU))),
     db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.direction, "entrant"))),
     db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lt(callsTable.createdAt, dayEnd), eq(callsTable.direction, "sortant"))),
     db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.updatedAt, dayStart), lt(tasksTable.updatedAt, dayEnd), eq(tasksTable.status, "termine"))),

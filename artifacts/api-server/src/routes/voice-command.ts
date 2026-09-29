@@ -1140,22 +1140,30 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
         if (who) {
           const useUnaccent = await ensureUnaccentExtension();
           const namePattern = `%${who}%`;
-          const [c] = await db.select().from(contactsTable)
+          // Rattache seulement si UN contact correspond : sur « Martin », deux
+          // fiches possibles, et la premiere venue n'est pas la bonne. Sans
+          // certitude, l'appel garde le nom dit, sans fiche.
+          const trouves = await db.select().from(contactsTable)
             .where(and(eq(contactsTable.organisationId, orgId), or(
               accentInsensitiveIlike(contactsTable.firstName, namePattern, useUnaccent),
               accentInsensitiveIlike(contactsTable.lastName, namePattern, useUnaccent)
-            ))).limit(1);
+            ))).limit(2);
+          const c = trouves.length === 1 ? trouves[0] : undefined;
           if (c) { phone = c.phone || ""; contactId = c.id; firstName = c.firstName; lastName = c.lastName; }
         }
+        // `direction` est obligatoire (NOT NULL, sans defaut) : l'insertion
+        // echouait a chaque fois. Un appel qu'on consigne a la voix est un
+        // appel passe, sauf si on dit qu'on l'a recu.
         const [row] = await db.insert(callsTable).values({
           organisationId: orgId,
           contactId,
           contactName: firstName ? `${firstName} ${lastName ?? ""}`.trim() : (who || null),
           phoneNumber: phone || (params.phone || ""),
-          status: "termine",
+          direction: params.direction === "entrant" ? "entrant" : "sortant",
+          status: "repondu",
           notes: (params.note || "").slice(0, 1000),
           createdBy: userId || null,
-        } as any).returning({ id: callsTable.id });
+        }).returning({ id: callsTable.id });
         await logAudit(userId, userEmail, "voice_log_call", "call", String(row?.id), { contactName: who, note: params.note }, ip, ua, orgId);
         res.json({ success: true, action: "call_logged", spoken: t(lang, "done_call", { who: who || t(lang, "no_contact_generic") }), navigate: "/appels", id: row?.id });
         return;

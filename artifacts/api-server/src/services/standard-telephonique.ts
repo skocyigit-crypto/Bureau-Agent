@@ -524,13 +524,14 @@ export async function creerRendezVousConfirme(input: {
 
 /**
  * Demande de rappel : un message « rappel » rattache au contact, une tache
- * assignee, une notification. Rend l'id du message. Une seule par appel
- * (revendiquee par l'appelant de cette fonction).
+ * assignee, une notification. Rend l'id du message et celui de la tache (que
+ * l'appel rattache a sa fiche a la cloture). Une seule par appel (revendiquee
+ * par l'appelant de cette fonction).
  */
 export async function creerDemandeRappel(input: {
   orgId: number; callSid: string; telephone: string; nom: string | null; contactId: number | null;
   raison: string; demande: string;
-}): Promise<number> {
+}): Promise<{ messageId: number; tacheId: number | null }> {
   const [m] = await db.insert(messagesTable).values({
     organisationId: input.orgId,
     contactId: input.contactId,
@@ -540,7 +541,7 @@ export async function creerDemandeRappel(input: {
     type: "rappel",
     priority: "haute",
   }).returning({ id: messagesTable.id });
-  await creerTacheIa({
+  const tache = await creerTacheIa({
     organisationId: input.orgId,
     agent: AGENTS.secretaireAutonome,
     nature: "commercial",
@@ -549,7 +550,7 @@ export async function creerDemandeRappel(input: {
     priority: "haute",
     dueDate: new Date(Date.now() + 2 * 3600_000),
     relatedContactId: input.contactId,
-  }).catch((err) => logger.warn({ err, orgId: input.orgId }, "[standard] tache de rappel non creee"));
+  }).catch((err) => { logger.warn({ err, orgId: input.orgId }, "[standard] tache de rappel non creee"); return null; });
   await db.insert(notificationsTable).values({
     organisationId: input.orgId,
     type: "alerte",
@@ -560,5 +561,5 @@ export async function creerDemandeRappel(input: {
     sourceType: "ai_receptionist_callback",
     sourceId: String(m!.id),
   });
-  return m!.id;
+  return { messageId: m!.id, tacheId: tache?.id ?? null };
 }

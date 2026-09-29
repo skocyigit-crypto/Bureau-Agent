@@ -196,6 +196,8 @@ interface Turn {
   text: string;
 }
 interface CallSession {
+  /** Taches ouvertes pendant l'appel : rattachees a la fiche d'appel a la cloture. */
+  tachesIds?: number[];
   orgId: number;
   providerId: number;
   callerNumber: string;
@@ -1654,7 +1656,8 @@ async function apresRendezVousCree(
       priority: "haute",
       dueDate: debut,
       relatedContactId: session.callerContactId,
-    }).catch((err) => logger.warn({ err, orgId: session.orgId }, "[voice] creation tache de suivi echouee"));
+    }).then((tache) => { (session.tachesIds ??= []).push(tache.id); })
+      .catch((err) => logger.warn({ err, orgId: session.orgId }, "[voice] creation tache de suivi echouee"));
   }
   if (session.cfg.smsConfirmation !== false) {
     void sendVoiceSms(session, caller, smsConfirmText("appointment", session, creneauParle(debut, p.fuseau, session.lang)), "appointment-confirm").catch(() => {});
@@ -1715,7 +1718,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
       phoneNumber: caller,
       contactName: session.callerName,
       direction: "entrant",
-      status: "termine",
+      status: "repondu",
       duration,
       notes,
       sentiment: session.sentiment || "neutre",
@@ -1724,6 +1727,15 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     callId = row?.id ?? null;
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec insertion callsTable");
+  }
+
+  // Les taches nees de l'appel (preparer le RDV, rappeler) pointent vers lui :
+  // « a-t-on rappele ? » se lit sur la fiche d'appel, et la table du jour ne
+  // compte plus un appel suivi comme un appel a rappeler.
+  if (callId && session.tachesIds?.length) {
+    await db.update(tasksTable).set({ relatedCallId: callId })
+      .where(and(eq(tasksTable.organisationId, session.orgId), inArray(tasksTable.id, session.tachesIds), isNull(tasksTable.relatedCallId)))
+      .catch((err) => logger.warn({ err, orgId: session.orgId }, "[voice] rattachement des taches a l'appel echoue"));
   }
 
   if (contactId) {
@@ -1855,10 +1867,11 @@ async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): 
     try {
       const contactId = await contactDeLAppelant(session.orgId, caller, session.callerName, true);
       if (contactId) session.callerContactId = contactId;
-      const id = await creerDemandeRappel({
+      const { messageId: id, tacheId } = await creerDemandeRappel({
         orgId: session.orgId, callSid: session.callSid, telephone: caller, nom: session.callerName,
         contactId: session.callerContactId, raison, demande: session.demande || session.summary,
       });
+      if (tacheId) (session.tachesIds ??= []).push(tacheId);
       session.rappelMessageId = id;
       await poserAction(session.callSid, session.orgId, "rappel", id);
       session.journal.push(`Demande de rappel #${id} créée : ${raison}`);
@@ -2373,8 +2386,22 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
   }
 
   try {
+    // Le client connu, s'il y en a un : on ne cree pas de fiche pour un
+    // numero qui a seulement laisse un message.
+    const contactId = await contactDeLAppelant(tenant.orgId, callerNumber, null, false).catch(() => null);
+    await db.insert(callsTable).values({
+      organisationId: tenant.orgId,
+      contactId,
+      phoneNumber: callerNumber || "inconnu",
+      direction: "entrant",
+      status: "messagerie",
+      duration: parseInt(body.RecordingDuration || "0", 10) || 0,
+      notes: transcript ? `[Message vocal]\n${transcript}` : "[Message vocal non transcrit]",
+      tags: ["secretaire-ia", "messagerie"],
+    });
     await db.insert(messagesTable).values({
       organisationId: tenant.orgId,
+      contactId,
       phoneNumber: callerNumber,
       contactName: null,
       content: transcript || "(message vocal non transcrit — voir l'enregistrement)",

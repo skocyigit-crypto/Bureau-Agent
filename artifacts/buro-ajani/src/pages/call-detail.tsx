@@ -176,7 +176,8 @@ export default function CallDetail() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'repondu': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><Check className="w-3 h-3 mr-1" /> {t("callDetail.statuses.repondu")}</Badge>;
+      // « termine » : ancien statut des appels pris par la secretaire IA.
+      case 'repondu': case 'termine': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><Check className="w-3 h-3 mr-1" /> {t("callDetail.statuses.repondu")}</Badge>;
       case 'manque': return <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20"><PhoneMissed className="w-3 h-3 mr-1" /> {t("callDetail.statuses.manque")}</Badge>;
       case 'messagerie': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Voicemail className="w-3 h-3 mr-1" /> {t("callDetail.statuses.messagerie")}</Badge>;
       case 'en_cours': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><Clock className="w-3 h-3 mr-1" /> {t("callDetail.statuses.en_cours")}</Badge>;

@@ -145,7 +145,8 @@ async function gatherEmployeeStats(orgId: number): Promise<EmployeeStats[]> {
       .select({
         userId: callsTable.createdBy,
         total: count(),
-        answered: sql<number>`sum(case when ${callsTable.status} = 'repondu' then 1 else 0 end)`,
+        // « termine » : ancien statut des appels pris par la secretaire IA.
+        answered: sql<number>`sum(case when ${callsTable.status} in ('repondu', 'termine') then 1 else 0 end)`,
         missed: sql<number>`sum(case when ${callsTable.status} = 'manque' then 1 else 0 end)`,
       })
       .from(callsTable)
