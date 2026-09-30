@@ -18,7 +18,7 @@
  * Reponse identique qu'il n'existe pas ou qu'il soit ailleurs : la reponse ne
  * dit rien des autres organisations.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Response } from "express";
 import { callsTable, contactsTable, db, projetsTable, prospectsTable, tasksTable } from "@workspace/db";
 
@@ -84,4 +84,39 @@ export async function referenceOuNull(orgId: number, genre: GenreReference, vale
   return (await referencesRefusees(orgId, [{ champ: "x", genre, valeur }])).length === 0 && valeur !== null && valeur !== undefined && valeur !== ""
     ? Number(valeur)
     : null;
+}
+
+/**
+ * Le rattachement d'un DOCUMENT a une entite (`entityType`/`entityId`).
+ *
+ * Revue du 30/09 : le televersement acceptait « project » quand le dossier de
+ * chantier lisait « projet » — une photo envoyee depuis l'ecran de chantier
+ * n'y apparaissait donc jamais — et PUT /documents/:id ecrivait n'importe
+ * quel couple sans verifier a qui appartenait la cible : on pouvait accrocher
+ * une photo a la note de journal d'une autre organisation, et elle entrait
+ * dans son compteur de photos.
+ *
+ * Une seule orthographe est gardee, et une cible de chantier ou de journal
+ * doit etre de l'organisation. Les autres types restent libres (etiquettes
+ * historiques), mais leur identifiant n'ouvre aucune lecture croisee.
+ */
+const ALIAS_ENTITE: Record<string, string> = { project: "projet", projects: "projet", chantier: "projet" };
+
+export function typeEntiteDocument(brut: unknown): string | null {
+  if (brut === null || brut === undefined || brut === "") return null;
+  const t = String(brut).trim().toLowerCase();
+  return ALIAS_ENTITE[t] ?? t;
+}
+
+/** Vrai si la cible designee n'est pas de l'organisation (a refuser). */
+export async function cibleDocumentRefusee(orgId: number, type: string | null, id: unknown): Promise<boolean> {
+  if (!type || id === null || id === undefined || id === "") return false;
+  const n = Number(id);
+  if (!Number.isInteger(n) || n <= 0) return true;
+  if (type === "projet") return (await referencesRefusees(orgId, [{ champ: "entityId", genre: "projet", valeur: n }])).length > 0;
+  if (type === "journal_chantier") {
+    const r = await db.execute(sql`select 1 from journal_chantier where id = ${n} and organisation_id = ${orgId} limit 1`);
+    return (r.rows?.length ?? 0) === 0;
+  }
+  return false;
 }

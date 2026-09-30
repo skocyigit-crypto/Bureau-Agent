@@ -38,7 +38,7 @@ export default function CGU() {
               <li><strong>Plan Professionnel</strong> : 79 €/mois HT — jusqu'à 15 utilisateurs</li>
               <li><strong>Plan Entreprise</strong> : 199 €/mois HT — jusqu'à 100 utilisateurs</li>
             </ul>
-            <p className="mt-3">Les prix s'entendent hors taxes. La TVA applicable est celle en vigueur en France au moment de la facturation. Les tarifs peuvent être modifiés avec un préavis de 30 jours.</p>
+            <p className="mt-3">Les prix s'entendent hors taxes. La TVA applicable est celle en vigueur en France au moment de la facturation. La révision des prix, la facturation, la suspension et la résiliation sont régies par les <a href="/cgv" className="text-primary underline">Conditions générales de vente</a>, qui prévalent en cas de divergence.</p>
           </div>
 
           <div>

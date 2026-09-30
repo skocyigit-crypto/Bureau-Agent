@@ -18,6 +18,7 @@ import { Banknote,Building2,Edit,FileCode,FileDown,Loader2,Plus,Receipt,RefreshC
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useCallback,useEffect,useState } from "react";
 import { jourLocal } from "@/lib/jour-local";
+import { EnregistrementCible } from "@/components/enregistrement-cible";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -276,6 +277,7 @@ export default function AdminFacturesClientPage() {
 
   return (
     <div className="space-y-6">
+      <EnregistrementCible ressource="facture" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">

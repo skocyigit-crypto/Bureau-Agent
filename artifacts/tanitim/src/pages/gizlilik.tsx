@@ -165,7 +165,20 @@ export default function Gizlilik() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">8. AB dışı transferler</h2>
-            <p>Bazı alt yüklenicilerimiz (barındırma, işlemsel e-posta) AB dışında bulunabilir. Bu aktarımlar uygun güvencelerle (Avrupa Komisyonu Standart Sözleşme Maddeleri) çerçevelenmiştir.</p>
+            {/* Fransizca metin (confidentialite.tsx) her alici ulkeyi ve
+                guvenceyi adiyla sayiyordu; bu sayfa « bazi alt yukleniciler »
+                diyordu ve yapay zeka saglayicilarini hic anmiyordu (satilabilirlik
+                denetimi, 30/09). Iki liste artik ayni; test ile kilitli. */}
+            <p>Alt işleyicilerimiz ve verilerinizi işledikleri ülke:</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li><strong>Google Cloud EMEA Limited</strong> — barındırma, veritabanı ve yedekler. Avrupa Birliği.</li>
+              <li><strong>Resend</strong> — işlemsel e-postalar. Amerika Birleşik Devletleri, Standart Sözleşme Maddeleri kapsamında.</li>
+              <li><strong>Cloudflare</strong> — DNS ve gelen e-postaların yönlendirilmesi. Küresel ağ, Standart Sözleşme Maddeleri kapsamında.</li>
+              <li><strong>Expo (650 Industries, Inc.)</strong> — mobil uygulama bildirimlerinin iletilmesi (bildirimin başlığı ve metni). Amerika Birleşik Devletleri, Standart Sözleşme Maddeleri kapsamında.</li>
+              <li><strong>OpenStreetMap Foundation</strong> — isteğiniz üzerine bir konumun adrese çevrilmesi, kimlik bilgisi olmadan. Birleşik Krallık, yeterlilik kararı.</li>
+              <li><strong>Google, Anthropic, OpenAI</strong> — yapay zekâ işlevleri, yapılandırmaya göre. Amerika Birleşik Devletleri, Standart Sözleşme Maddeleri kapsamında. Kendi anahtarlarınızı girdiğinizde seçtiğiniz sağlayıcıyla doğrudan sözleşme yaparsınız.</li>
+            </ul>
+            <p className="mt-2">Güvencelerin (Standart Sözleşme Maddeleri) bir kopyası <a href="mailto:privacy@agentdebureau.fr" className="text-primary underline">privacy@agentdebureau.fr</a> adresinden istenebilir. Amaçlarıyla birlikte tam liste <a href="/dpa" className="text-primary underline">DPA</a>'nın 1. ekindedir.</p>
           </div>
 
           <div>

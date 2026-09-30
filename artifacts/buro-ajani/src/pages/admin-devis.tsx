@@ -17,6 +17,7 @@ import { fr } from "date-fns/locale";
 import { ArrowRight,Edit,FileText,HardHat,Loader2,Plus,RefreshCw,Search,Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useCallback,useEffect,useState } from "react";
+import { EnregistrementCible } from "@/components/enregistrement-cible";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -172,6 +173,7 @@ export default function AdminDevisPage() {
 
   return (
     <div className="space-y-6">
+      <EnregistrementCible ressource="devis" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">

@@ -17,7 +17,7 @@ import { getOrgId } from "../middleware/tenant";
 import { generateUniqueReference } from "../lib/unique-reference";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate } from "../services/invoice-totals";
 import {
-  avenantExistant, comparaisonParAffaire, dossierChantier, estMarcheInitial, montantsDuChantier,
+  affectationDuDevis, comparaisonParAffaire, dossierChantier, montantsDuChantier, rattacherFacturesDuDevis, verrouillerDevis,
 } from "../services/dossier-chantier";
 import { logAudit } from "./audit";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
@@ -27,6 +27,11 @@ const router: IRouter = Router();
 function numero(v: unknown): number | null {
   const n = Number.parseInt(String(v), 10);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function estAdministrateur(req: Request): boolean {
+  const role = req.session?.userRole;
+  return role === "super_admin" || role === "administrateur";
 }
 
 /** AAAA-MM-JJ, et une date qui existe vraiment (2026-02-31 est refusee). */
@@ -63,6 +68,13 @@ router.get("/projets/:id/dossier", async (req: Request, res: Response): Promise<
   try {
     const dossier = await dossierChantier(orgId, id);
     if (!dossier) { res.status(404).json({ error: "Chantier non trouve." }); return; }
+    // Les routes de documents sont reservees aux roles agent et plus
+    // (routes/documents.ts, requireMinAgent) : le dossier ne doit pas en
+    // ouvrir la liste par un autre chemin a un compte en lecture seule.
+    const role = req.session?.userRole;
+    if (role !== "super_admin" && role !== "administrateur" && role !== "agent") {
+      dossier.onglets.belgeler = [];
+    }
     res.json(dossier);
   } catch (err: any) {
     req.log.error({ err }, "Erreur lecture du dossier de chantier");
@@ -96,8 +108,9 @@ router.get("/projets/:id/montants", async (req: Request, res: Response): Promise
 router.get("/finance/affaires", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   try {
-    const lignes = await comparaisonParAffaire(orgId);
-    res.json({ lignes, adet: lignes.length });
+    const { lignes, toplam } = await comparaisonParAffaire(orgId);
+    // `adet` est le nombre REEL de chantiers ; `fazlasi` dit que la liste est tronquee.
+    res.json({ lignes, adet: toplam, fazlasi: toplam > lignes.length });
   } catch (err: any) {
     req.log.error({ err }, "Erreur comparaison par affaire");
     res.status(500).json({ error: "La comparaison n'a pas pu etre calculee." });
@@ -241,50 +254,55 @@ router.post("/projets/:id/avenant/rattacher", async (req: Request, res: Response
       .where(and(eq(devisTable.id, devisId), eq(devisTable.organisationId, orgId)))
       .limit(1);
     if (!devis) { res.status(404).json({ error: "Devis non trouve." }); return; }
+    // Rattacher un devis DEJA ACCEPTE augmente l'engage du chantier sur-le-champ :
+    // c'est une acceptation par un autre chemin, reservee comme elle.
+    if (devis.status === "accepte" && !estAdministrateur(req)) {
+      res.status(403).json({ error: "Seul un administrateur peut rattacher un devis deja accepte.", code: "acceptation_reservee" });
+      return;
+    }
     if (devis.currency !== projet.currency) {
       res.status(409).json({ error: "Un avenant est dans la devise du chantier.", code: "devise_differente", devise: projet.currency });
       return;
     }
 
-    const marche = await estMarcheInitial(orgId, devisId);
-    if (marche) {
+    // Meme verrou et meme question que POST /devis/:id/chantier : un devis n'a
+    // qu'une affectation (services/dossier-chantier.ts, verrouillerDevis). Le
+    // filet 23505 d'avant rendait 200 « deja rattache » meme quand le gagnant
+    // etait un AUTRE chantier ; sous verrou, la question est posee une fois.
+    const issue = await db.transaction(async (tx) => {
+      await verrouillerDevis(tx, devisId);
+      const aff = await affectationDuDevis(tx, orgId, devisId);
+      if (aff.marcheDe) return { marche: aff.marcheDe } as const;
+      if (aff.avenant) { const deja = aff.avenant; return { deja } as const; }
+      const [cree] = await tx.insert(avenantsTable).values({
+        organisationId: orgId, projetId, devisId, motif, ouvertPar: req.session?.userId ?? null,
+      }).returning();
+      const facturesRattachees = await rattacherFacturesDuDevis(tx, orgId, devisId, projetId);
+      return { cree: cree!, facturesRattachees } as const;
+    });
+    if ("marche" in issue) {
       res.status(409).json({
         error: "Ce devis est le marche initial d'un chantier : il ne peut pas en etre aussi l'avenant.",
         code: "devis_est_marche_initial",
-        projetId: marche.id,
+        projetId: issue.marche,
       });
       return;
     }
-    const deja = await avenantExistant(orgId, devisId);
-    if (deja) {
-      if (deja.projetId === projetId) { res.status(200).json({ avenant: deja, dejaRattache: true }); return; }
+    if ("deja" in issue && issue.deja) {
+      if (issue.deja.projetId === projetId) { res.status(200).json({ avenant: issue.deja, dejaRattache: true }); return; }
       res.status(409).json({
         error: "Ce devis est deja l'avenant d'un autre chantier.",
         code: "devis_deja_avenant",
-        projetId: deja.projetId,
+        projetId: issue.deja.projetId,
       });
       return;
     }
-
-    let avenant;
-    try {
-      [avenant] = await db.insert(avenantsTable).values({
-        organisationId: orgId, projetId, devisId, motif, ouvertPar: req.session?.userId ?? null,
-      }).returning();
-    } catch (err: any) {
-      // Deux rattachements simultanes : `avenants_devis_uq` a garde le premier.
-      const code = err?.code ?? err?.cause?.code;
-      if (code !== "23505") throw err;
-      const gagnant = await avenantExistant(orgId, devisId);
-      if (!gagnant) throw err;
-      res.status(200).json({ avenant: gagnant, dejaRattache: true });
-      return;
-    }
+    const avenant = issue.cree;
 
     await logAudit(
       req.session?.userId, req.session?.userEmail,
-      "chantier.avenant_rattache", "avenant", String(avenant!.id),
-      { projetId, devisId, reference: devis.reference, statutDevis: devis.status },
+      "chantier.avenant_rattache", "avenant", String(avenant.id),
+      { projetId, devisId, reference: devis.reference, statutDevis: devis.status, facturesRattachees: issue.facturesRattachees },
       req.ip, req.get("user-agent"), orgId,
     ).catch(() => {});
     res.status(201).json({ avenant });
@@ -300,6 +318,16 @@ router.delete("/avenants/:id", async (req: Request, res: Response): Promise<void
   const id = numero(req.params.id);
   if (id === null) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
+    // Detacher un avenant ACCEPTE retire son montant de l'engage : meme reserve
+    // que retirer une acceptation (routes/devis.ts).
+    const [cible] = await db.select({ statut: devisTable.status }).from(avenantsTable)
+      .innerJoin(devisTable, eq(devisTable.id, avenantsTable.devisId))
+      .where(and(eq(avenantsTable.id, id), eq(avenantsTable.organisationId, orgId))).limit(1);
+    if (!cible) { res.status(404).json({ error: "Avenant non trouve." }); return; }
+    if (cible.statut === "accepte" && !estAdministrateur(req)) {
+      res.status(403).json({ error: "Seul un administrateur peut detacher un avenant accepte.", code: "retrait_acceptation_reserve" });
+      return;
+    }
     const lignes = await db.delete(avenantsTable)
       .where(and(eq(avenantsTable.id, id), eq(avenantsTable.organisationId, orgId)))
       .returning();
@@ -356,20 +384,10 @@ router.post("/projets/:id/journal", async (req: Request, res: Response): Promise
 
     // Une note ENTREE au journal (non brouillon) ne se reecrit que par son
     // auteur. Sinon le second envoi effacerait le recit du premier sans trace —
-    // exactement ce que ce journal existe pour empecher.
-    const [existante] = await db.select({ brouillon: journalChantierTable.brouillon, redigePar: journalChantierTable.redigePar })
-      .from(journalChantierTable)
-      .where(and(eq(journalChantierTable.projetId, projetId), eq(journalChantierTable.jour, jour), eq(journalChantierTable.organisationId, orgId)))
-      .limit(1);
-    if (existante && !existante.brouillon && existante.redigePar != null && existante.redigePar !== (req.session?.userId ?? null)) {
-      res.status(409).json({
-        error: "La note de ce jour est deja au journal, ecrite par une autre personne.",
-        code: "note_verrouillee",
-        remediation: "Demandez a son auteur de la completer, ou ajoutez vos observations dans une tache du chantier.",
-      });
-      return;
-    }
-
+    // exactement ce que ce journal existe pour empecher. La regle est tenue
+    // DANS l'ecriture (setWhere ci-dessous) : une lecture prealable laissait
+    // passer deux envois simultanes, et la mesure a montre qu'elle n'ajoutait
+    // rien une fois la condition posee dans l'upsert.
     const valeurs = {
       organisationId: orgId,
       projetId,
@@ -392,8 +410,23 @@ router.post("/projets/:id/journal", async (req: Request, res: Response): Promise
           brouillon: valeurs.brouillon, redigePar: valeurs.redigePar,
           updatedAt: sql`now()`,
         },
+        // La regle du verrou, DANS l'ecriture : la verification ci-dessus puis
+        // l'upsert laissaient passer deux envois simultanes (revue du 30/09).
+        // Ici la base ne met a jour que si la note est un brouillon, sans
+        // auteur, ou de l'auteur lui-meme ; sinon rien n'est rendu.
+        setWhere: sql`${journalChantierTable.brouillon} = true
+          or ${journalChantierTable.redigePar} is null
+          or ${journalChantierTable.redigePar} = ${valeurs.redigePar ?? -1}`,
       })
       .returning();
+    if (!note) {
+      res.status(409).json({
+        error: "La note de ce jour est deja au journal, ecrite par une autre personne.",
+        code: "note_verrouillee",
+        remediation: "Demandez a son auteur de la completer, ou ajoutez vos observations dans une tache du chantier.",
+      });
+      return;
+    }
 
     await logAudit(
       req.session?.userId, req.session?.userEmail,
@@ -464,9 +497,18 @@ router.post("/projets/:id/documents/:documentId", async (req: Request, res: Resp
       .where(and(eq(documentsTable.id, documentId), eq(documentsTable.organisationId, orgId)))
       .limit(1);
     if (!actuel) { res.status(404).json({ error: "Document non trouve." }); return; }
+    // Une photo du journal d'un AUTRE chantier n'est pas « deja ici » : il faut
+    // savoir a quel chantier appartient la note qui la porte.
+    let noteDeCeChantier = false;
+    if (actuel.entityType === "journal_chantier" && actuel.entityId != null) {
+      const [n] = await db.select({ id: journalChantierTable.id }).from(journalChantierTable)
+        .where(and(eq(journalChantierTable.id, actuel.entityId), eq(journalChantierTable.projetId, projetId), eq(journalChantierTable.organisationId, orgId)))
+        .limit(1);
+      noteDeCeChantier = !!n;
+    }
     const dejaIci = actuel.entityType === null
       || (actuel.entityType === "projet" && actuel.entityId === projetId)
-      || actuel.entityType === "journal_chantier";
+      || noteDeCeChantier;
     if (!dejaIci && req.body?.remplacer !== true) {
       res.status(409).json({
         error: "Ce document est deja rattache a un autre enregistrement.",

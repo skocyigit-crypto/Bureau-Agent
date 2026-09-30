@@ -286,7 +286,15 @@ export async function montantsDuChantier(organisationId: number, projetId: numbe
   //    modifiable, le journal est chaine et inalterable (art. 286-I-3 bis CGI).
   //    Les annulations y sont des montants negatifs : la somme les prend en
   //    compte sans traitement particulier.
-  const idsFacture = factures.map((f) => f.id);
+  //
+  //    Toutes les factures du chantier, QUEL QUE SOIT leur statut : un
+  //    reglement enregistre sur une facture restee en brouillon, ou annulee
+  //    sans remboursement, est de l argent reellement recu. Le filtrer sur les
+  //    seules factures emises le faisait disparaitre du dossier (revue du 30/09).
+  const toutesFactures = await db.select({ id: facturesClientTable.id, reference: facturesClientTable.reference })
+    .from(facturesClientTable)
+    .where(and(eq(facturesClientTable.projetId, projetId), eq(facturesClientTable.organisationId, organisationId)));
+  const idsFacture = toutesFactures.map((f) => f.id);
   const encaissements = idsFacture.length
     ? await db
         .select({
@@ -303,7 +311,7 @@ export async function montantsDuChantier(organisationId: number, projetId: numbe
         .orderBy(desc(encaissementsTable.numero))
     : [];
 
-  const referenceParFacture = new Map(factures.map((f) => [f.id, f.reference]));
+  const referenceParFacture = new Map(toutesFactures.map((f) => [f.id, f.reference]));
   const tahsilEdilen = montant(encaissements.map((e) => ({
     tur: "encaissement",
     id: e.id,
@@ -427,7 +435,7 @@ export async function dossierChantier(organisationId: number, projetId: number):
       prenom: usersTable.prenom, nom: usersTable.nom,
       fotoAdedi: sql<number>`(
         select count(*)::int from documents dd
-        where dd.entity_type = 'journal_chantier' and dd.entity_id = "journal_chantier"."id"
+        where dd.entity_type = 'journal_chantier' and dd.entity_id = "journal_chantier"."id" and dd.organisation_id = "journal_chantier"."organisation_id"
       )`,
     }).from(journalChantierTable)
       .leftJoin(usersTable, eq(usersTable.id, journalChantierTable.redigePar))
@@ -440,7 +448,8 @@ export async function dossierChantier(organisationId: number, projetId: number):
     }).from(documentsTable)
       .where(and(
         eq(documentsTable.organisationId, organisationId),
-        eq(documentsTable.entityType, "projet"),
+        // « project » : orthographe acceptee par le televersement avant le 30/09.
+        inArray(documentsTable.entityType, ["projet", "project"]),
         eq(documentsTable.entityId, projetId),
       ))
       .orderBy(desc(documentsTable.createdAt)).limit(200),
@@ -570,7 +579,7 @@ export type LigneComparaison = {
   asim: boolean;
 };
 
-export async function comparaisonParAffaire(organisationId: number, limite = 200): Promise<LigneComparaison[]> {
+export async function comparaisonParAffaire(organisationId: number, limite = 200): Promise<{ lignes: LigneComparaison[]; toplam: number }> {
   const statutsEmis = STATUTS_FACTURE_EMISE.map((s) => `'${s}'`).join(", ");
   const lignes = await db
     .select({
@@ -600,7 +609,7 @@ export async function comparaisonParAffaire(organisationId: number, limite = 200
       tahsilEdilen: sql<string>`coalesce((
         select sum(en.montant_centimes)::numeric / 100 from encaissements en
         join factures_client fc2 on fc2.id = en.facture_id
-        where fc2.projet_id = ${P_ID} and fc2.organisation_id = ${P_ORG} and en.organisation_id = ${P_ORG} and fc2.status in (${sql.raw(statutsEmis)})
+        where fc2.projet_id = ${P_ID} and fc2.organisation_id = ${P_ORG} and en.organisation_id = ${P_ORG}
       ), 0)`,
     })
     .from(projetsTable)
@@ -608,7 +617,8 @@ export async function comparaisonParAffaire(organisationId: number, limite = 200
     .orderBy(desc(projetsTable.id))
     .limit(limite);
 
-  return lignes.map((l) => {
+  const [{ n: toplam }] = await db.select({ n: sql<number>`count(*)::int` }).from(projetsTable).where(eq(projetsTable.organisationId, organisationId));
+  const rendues = lignes.map((l) => {
     const teklif = nombre(l.teklif);
     const ekIsler = nombre(l.ekIsler);
     const gider = nombre(l.gider);
@@ -633,6 +643,7 @@ export async function comparaisonParAffaire(organisationId: number, limite = 200
       asim: onayliIs > 0 && gider > onayliIs,
     };
   });
+  return { lignes: rendues, toplam: Number(toplam) };
 }
 
 /** Utilise par la route d'ouverture d'avenant pour refuser un devis deja rattache. */
@@ -657,4 +668,67 @@ export async function estMarcheInitial(organisationId: number, devisId: number) 
     ))
     .limit(1);
   return ligne ?? null;
+}
+
+// ---- Un devis n'a qu'UNE affectation ----------------------------------------
+//
+// Un devis est soit le marche initial d'un chantier (`projets.devis_id`), soit
+// l'avenant d'un chantier (`avenants.devis_id`), jamais les deux, et jamais deux
+// fois. Chacune des deux tables a son index unique, mais aucune contrainte ne
+// relie les deux : la revue du 30/09 (8 domaines, 43 constats confirmes) a
+// montre qu'un devis deja avenant du chantier A pouvait ouvrir le chantier B
+// par POST /devis/:id/chantier — son montant entrait alors dans l'engage des
+// DEUX chantiers. La regle n'etait tenue que sur le chemin de rattachement, et
+// sans verrou, deux requetes simultanees la franchissaient toutes les deux.
+//
+// Les deux chemins prennent donc le meme verrou transactionnel sur le devis,
+// puis posent la meme question dans la transaction.
+
+export const DEVIS_AFFECTATION_LOCK_NAMESPACE = 4321;
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export async function verrouillerDevis(tx: Tx, devisId: number): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(${DEVIS_AFFECTATION_LOCK_NAMESPACE}, ${devisId})`);
+}
+
+/** Ou ce devis est deja engage. A lire APRES `verrouillerDevis`, dans la meme transaction. */
+export async function affectationDuDevis(tx: Tx, organisationId: number, devisId: number) {
+  const [marche] = await tx.select({ id: projetsTable.id }).from(projetsTable)
+    .where(and(eq(projetsTable.devisId, devisId), eq(projetsTable.organisationId, organisationId))).limit(1);
+  const [avenant] = await tx.select({ id: avenantsTable.id, projetId: avenantsTable.projetId }).from(avenantsTable)
+    .where(and(eq(avenantsTable.devisId, devisId), eq(avenantsTable.organisationId, organisationId))).limit(1);
+  return { marcheDe: marche?.id ?? null, avenant: avenant ?? null };
+}
+
+/**
+ * Les factures de ce devis emises AVANT que le devis ait un chantier suivent le
+ * chantier quand il en recoit un. Sans cela, une facture d'acompte emise avant
+ * l'ouverture restait hors du dossier pour toujours : le chantier affichait
+ * « rien de facture » alors que le client avait deja paye.
+ *
+ * Ne touche qu'aux factures SANS chantier : un rattachement fait a la main
+ * n'est jamais ecrase.
+ */
+export async function rattacherFacturesDuDevis(tx: Tx, organisationId: number, devisId: number, projetId: number): Promise<number> {
+  const lignes = await tx.update(facturesClientTable).set({ projetId })
+    .where(and(
+      eq(facturesClientTable.devisId, devisId),
+      eq(facturesClientTable.organisationId, organisationId),
+      sql`${facturesClientTable.projetId} is null`,
+    ))
+    .returning({ id: facturesClientTable.id });
+  return lignes.length;
+}
+
+/**
+ * La devise d'un chantier, pour refuser une facture ou une depense qui s'y
+ * rattacherait dans une autre devise. Le dossier additionne sans convertir :
+ * une ligne en dollars sur un chantier en euros ferait un total faux, affiche
+ * en euros. Meme regle que pour les avenants (routes/chantier.ts).
+ */
+export async function deviseDuChantier(organisationId: number, projetId: number): Promise<string | null> {
+  const [p] = await db.select({ currency: projetsTable.currency }).from(projetsTable)
+    .where(and(eq(projetsTable.id, projetId), eq(projetsTable.organisationId, organisationId))).limit(1);
+  return p?.currency ?? null;
 }

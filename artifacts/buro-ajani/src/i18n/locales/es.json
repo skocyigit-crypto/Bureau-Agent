@@ -10104,6 +10104,31 @@
     "sansEngage": "Sin importe aceptado",
     "depasse": "supera lo aprobado",
     "reste": "quedan {{montant}}",
-    "note": "Solo cuentan presupuestos aceptados, gastos aprobados, facturas emitidas y el diario de cobros. No se estima nada."
+    "note": "Solo cuentan presupuestos aceptados, gastos aprobados, facturas emitidas y el diario de cobros. No se estima nada.",
+    "tronque": "Se muestran las primeras {{shown}} obras de {{total}}."
+  },
+  "enregistrementCible": {
+    "titre": "Registro abierto",
+    "chargement": "Cargando registro…",
+    "introuvable": "El registro n.º {{id}} no existe o ha sido eliminado.",
+    "interdit": "No tiene permiso para ver el registro n.º {{id}}.",
+    "erreur": "No se pudo leer el registro n.º {{id}}. Compruebe su conexión.",
+    "statut": "Estado: {{statut}}",
+    "fermer": "Cerrar",
+    "statuts": {
+      "brouillon": "Borrador",
+      "envoye": "Enviado",
+      "accepte": "Aceptado",
+      "refuse": "Rechazado",
+      "expire": "Caducado",
+      "envoyee": "Enviada",
+      "payee": "Pagada",
+      "partiellement_payee": "Pagada en parte",
+      "en_retard": "Vencida",
+      "annulee": "Anulada",
+      "en_attente": "Pendiente",
+      "approuve": "Aprobada",
+      "rejete": "Rechazada"
+    }
   }
 }

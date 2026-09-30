@@ -24,7 +24,7 @@ process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 
 import { describe, expect, it } from "vitest";
 import { deciderTransition, prochaineFinDePeriode, type EtatAbonnement } from "../services/cycle-abonnement";
-import { PAYMENT_GRACE_DAYS } from "../services/payment-access-policy";
+import { DELAI_MISE_EN_DEMEURE_JOURS, peutSuspendre } from "../services/mise-en-demeure";
 
 const JOUR = 86_400_000;
 const MAINTENANT = new Date("2026-09-24T12:00:00Z");
@@ -122,30 +122,48 @@ describe("l'impaye fait basculer en retard, puis suspend", () => {
     expect(d.action).toBe("passer_en_retard");
   });
 
-  it("le delai de grace est celui DEJA applique aux acces", () => {
-    // Deux delais differents — l'un pour bloquer l'ecriture, l'autre pour
-    // suspendre — seraient impossibles a expliquer a un client.
-    expect(PAYMENT_GRACE_DAYS).toBeGreaterThan(0);
-    const veille = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS - 1) }), MAINTENANT);
-    expect(veille.action, "suspendu trop tot").toBe("rien");
+  // CGV art. 4 (depuis le 30/09) : la suspension suit une MISE EN DEMEURE
+  // restee sans effet quinze jours. Avant, elle tombait PAYMENT_GRACE_DAYS
+  // (7) jours apres le premier impaye, sans mise en demeure — contraire au
+  // contrat publie. Le delai de grace reste celui des acces (license-check).
+
+  it("un retard sans mise en demeure en appelle d'abord une — jamais une suspension", () => {
+    const d = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(60) }), MAINTENANT);
+    expect(d.action, "suspendu sans mise en demeure").toBe("mettre_en_demeure");
   });
 
-  it("au terme exact du delai, la suspension tombe", () => {
-    const d = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS) }), MAINTENANT);
-    expect(d.action).toBe("suspendre");
+  it("la veille de l'echeance de la mise en demeure, rien ne tombe", () => {
+    expect(DELAI_MISE_EN_DEMEURE_JOURS).toBe(15);
+    const d = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(30), miseEnDemeureAt: ilYA(14) }), MAINTENANT);
+    expect(d.action, "suspendu trop tot").toBe("rien");
   });
 
-  it("et la raison est ecrite, pas laissee vide", () => {
-    const d = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS + 5) }), MAINTENANT);
-    if (d.action !== "suspendre") throw new Error("attendu : suspendre");
-    expect(d.raison).toContain(String(PAYMENT_GRACE_DAYS));
+  it("au terme exact des quinze jours, la suspension tombe, avec sa raison", () => {
+    const d = deciderTransition(etat({ statut: "past_due", echecDepuis: ilYA(30), miseEnDemeureAt: ilYA(15) }), MAINTENANT);
+    if (d.action !== "suspendre") throw new Error(`attendu : suspendre, obtenu ${d.action}`);
+    expect(d.raison).toBe("mise_en_demeure_echue");
   });
 
-  it("un impaye deja enregistre ne recompte pas l'echec", () => {
+  it("un impaye deja enregistre et mis en demeure ne recompte pas l'echec", () => {
     // `echecDepuis` present : on est deja en retard, on ne repasse pas par
     // `passer_en_retard` a chaque tick — le compteur exploserait.
-    const d = deciderTransition(etat({ statut: "past_due", impayeDepuis: ilYA(2), echecDepuis: ilYA(2) }), MAINTENANT);
+    const d = deciderTransition(etat({ statut: "past_due", impayeDepuis: ilYA(2), echecDepuis: ilYA(2), miseEnDemeureAt: ilYA(2) }), MAINTENANT);
     expect(d.action).toBe("rien");
+  });
+
+  it("un abonnement gere par Stripe est suspendu quand la mise en demeure est echue, meme sans nouvel evenement", () => {
+    // Stripe peut cesser ses relances avant l'echeance : sans cette regle,
+    // plus rien ne viendrait, et l'impaye resterait ouvert indefiniment.
+    const avant = deciderTransition(etat({ statut: "past_due", stripeSubscriptionId: "sub_x", miseEnDemeureAt: ilYA(10) }), MAINTENANT);
+    expect(avant.action).toBe("rien");
+    const apres = deciderTransition(etat({ statut: "past_due", stripeSubscriptionId: "sub_x", miseEnDemeureAt: ilYA(16) }), MAINTENANT);
+    expect(apres.action).toBe("suspendre");
+  });
+
+  it("la regle est la meme dans les deux sens (pure)", () => {
+    expect(peutSuspendre(null, MAINTENANT)).toBe(false);
+    expect(peutSuspendre(ilYA(15), MAINTENANT)).toBe(true);
+    expect(peutSuspendre(ilYA(14.9), MAINTENANT)).toBe(false);
   });
 
   it("une facture en BROUILLON ne compte pas comme impaye", () => {
@@ -184,7 +202,7 @@ describe("l'impaye passe AVANT le renouvellement", () => {
     // Ici c'est la garde de statut qui protege, pas l'ordre — mais le
     // comportement merite d'etre verrouille pour lui-meme.
     const d = deciderTransition(
-      etat({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS + 1), finPeriode: ilYA(3) }),
+      etat({ statut: "past_due", echecDepuis: ilYA(40), miseEnDemeureAt: ilYA(16), finPeriode: ilYA(3) }),
       MAINTENANT,
     );
     expect(d.action).toBe("suspendre");
@@ -197,7 +215,7 @@ describe("l'impaye passe AVANT le renouvellement", () => {
 
   it("un abonnement en grace ne se renouvelle pas non plus", () => {
     const d = deciderTransition(
-      etat({ statut: "past_due", echecDepuis: ilYA(1), finPeriode: ilYA(1) }),
+      etat({ statut: "past_due", echecDepuis: ilYA(1), miseEnDemeureAt: ilYA(1), finPeriode: ilYA(1) }),
       MAINTENANT,
     );
     expect(d.action).toBe("rien");
@@ -225,7 +243,7 @@ describe("Stripe tranche ce qu il gere", () => {
 
   it("un retard hors delai n est PAS suspendu par ce moteur", () => {
     const d = deciderTransition(
-      stripe({ statut: "past_due", echecDepuis: ilYA(PAYMENT_GRACE_DAYS + 10) }),
+      stripe({ statut: "past_due", echecDepuis: ilYA(40) }),
       MAINTENANT,
     );
     expect(d.action).toBe("rien");

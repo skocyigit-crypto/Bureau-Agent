@@ -329,6 +329,37 @@ router.delete("/projets/:id", async (req: Request, res: Response): Promise<void>
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
+    // UN CHANTIER QUI PORTE DES ENREGISTREMENTS NE SE SUPPRIME PAS.
+    //
+    // Sa suppression effacait en cascade son journal et ses avenants — sans
+    // passer par la corbeille — et detachait (set null) ses depenses,
+    // factures, appels, creneaux et taches. Restaure depuis la corbeille, le
+    // chantier revenait VIDE : aucun chemin ne savait refaire ces liens (revue
+    // du 30/09, domaines veri-yasam, yuzey-envanter, kiraci). Le journal est
+    // ce qu'on oppose a un litige ; les montants, ce qu'on facture. Un
+    // chantier abandonne se passe au statut « annule », il ne disparait pas.
+    const compte = await db.execute(sql`
+      select
+        (select count(*) from journal_chantier where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from avenants where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from depenses where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from factures_client where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from calls where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from calendar_events where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from tasks where projet_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from documents where entity_type = 'projet' and entity_id = ${id} and organisation_id = ${orgId})
+      + (select count(*) from projets where id = ${id} and organisation_id = ${orgId} and devis_id is not null)
+      as n`);
+    const n = Number(compte.rows?.[0]?.n ?? 0);
+    if (n > 0) {
+      res.status(409).json({
+        error: "Ce chantier porte des enregistrements (devis, journal, depenses, factures, echanges) : il ne se supprime pas.",
+        code: "chantier_non_vide",
+        enregistrements: n,
+        remediation: "Passez-le au statut « annule » : il sort des listes actives et garde son historique.",
+      });
+      return;
+    }
     const [deleted] = await db.delete(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning();
     if (!deleted) { res.status(404).json({ error: "Projet non trouve." }); return; }
     await archiveDeletedRows(projetsTable, [deleted], deletionContext(req, orgId));

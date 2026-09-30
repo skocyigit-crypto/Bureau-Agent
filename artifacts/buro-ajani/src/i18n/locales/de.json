@@ -10104,6 +10104,31 @@
     "sansEngage": "Kein angenommener Betrag",
     "depasse": "über beauftragter Leistung",
     "reste": "offen {{montant}}",
-    "note": "Gezählt werden nur angenommene Angebote, freigegebene Ausgaben, ausgestellte Rechnungen und das Zahlungsjournal. Es wird nichts geschätzt."
+    "note": "Gezählt werden nur angenommene Angebote, freigegebene Ausgaben, ausgestellte Rechnungen und das Zahlungsjournal. Es wird nichts geschätzt.",
+    "tronque": "Die ersten {{shown}} von {{total}} Baustellen werden angezeigt."
+  },
+  "enregistrementCible": {
+    "titre": "Geöffneter Datensatz",
+    "chargement": "Datensatz wird geladen…",
+    "introuvable": "Datensatz Nr. {{id}} wurde nicht gefunden oder gelöscht.",
+    "interdit": "Sie dürfen Datensatz Nr. {{id}} nicht ansehen.",
+    "erreur": "Datensatz Nr. {{id}} konnte nicht gelesen werden. Prüfen Sie Ihre Verbindung.",
+    "statut": "Status: {{statut}}",
+    "fermer": "Schließen",
+    "statuts": {
+      "brouillon": "Entwurf",
+      "envoye": "Gesendet",
+      "accepte": "Angenommen",
+      "refuse": "Abgelehnt",
+      "expire": "Abgelaufen",
+      "envoyee": "Gesendet",
+      "payee": "Bezahlt",
+      "partiellement_payee": "Teilweise bezahlt",
+      "en_retard": "Überfällig",
+      "annulee": "Storniert",
+      "en_attente": "Ausstehend",
+      "approuve": "Freigegeben",
+      "rejete": "Abgelehnt"
+    }
   }
 }

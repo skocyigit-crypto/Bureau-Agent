@@ -10104,6 +10104,31 @@
     "sansEngage": "Aucun montant accepté",
     "depasse": "dépasse l’accepté",
     "reste": "reste {{montant}}",
-    "note": "Seuls comptent les devis acceptés, les dépenses approuvées, les factures émises et le journal des encaissements. Aucune estimation."
+    "note": "Seuls comptent les devis acceptés, les dépenses approuvées, les factures émises et le journal des encaissements. Aucune estimation.",
+    "tronque": "Les {{shown}} premiers chantiers sont affichés sur {{total}}."
+  },
+  "enregistrementCible": {
+    "titre": "Enregistrement ouvert",
+    "chargement": "Chargement de l’enregistrement…",
+    "introuvable": "L’enregistrement n° {{id}} est introuvable ou a été supprimé.",
+    "interdit": "Vous n’avez pas le droit de consulter l’enregistrement n° {{id}}.",
+    "erreur": "L’enregistrement n° {{id}} n’a pas pu être lu. Vérifiez votre connexion.",
+    "statut": "Statut : {{statut}}",
+    "fermer": "Fermer",
+    "statuts": {
+      "brouillon": "Brouillon",
+      "envoye": "Envoyé",
+      "accepte": "Accepté",
+      "refuse": "Refusé",
+      "expire": "Expiré",
+      "envoyee": "Envoyée",
+      "payee": "Payée",
+      "partiellement_payee": "Partiellement payée",
+      "en_retard": "En retard",
+      "annulee": "Annulée",
+      "en_attente": "En attente",
+      "approuve": "Approuvée",
+      "rejete": "Rejetée"
+    }
   }
 }

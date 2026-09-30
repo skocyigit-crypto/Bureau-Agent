@@ -488,11 +488,38 @@ function twimlReject(): string {
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`;
 }
 
+/**
+ * Ce qu'on dit AVANT d'enregistrer un message vocal.
+ *
+ * RGPD art. 13 : l'information se donne au moment de la collecte. Le
+ * repondeur disait seulement « laissez un message apres le bip » ; rien sur
+ * l'enregistrement, la transcription par une IA, ni la duree de conservation
+ * (revue de vendabilite du 30/09). La duree dite ici est celle que le code
+ * applique : `services/purge-transcriptions.ts` efface la transcription a
+ * 12 mois.
+ *
+ * Posee par le CODE, comme ANNONCE_IA : le texte d'accueil est redige par
+ * l'organisation cliente et ne doit pas pouvoir la faire disparaitre.
+ */
+export const ANNONCE_ENREGISTREMENT: Record<RecLang, string> = {
+  fr: "Votre message sera enregistre et transcrit par une intelligence artificielle. Il est conserve douze mois, et vous pouvez en demander l'effacement.",
+  tr: "Mesajiniz kaydedilecek ve bir yapay zeka tarafindan yaziya dokulecek. On iki ay saklanir; silinmesini isteyebilirsiniz.",
+  en: "Your message will be recorded and transcribed by an artificial intelligence. It is kept for twelve months, and you may ask for it to be deleted.",
+  es: "Su mensaje sera grabado y transcrito por una inteligencia artificial. Se conserva doce meses y puede solicitar su supresion.",
+  de: "Ihre Nachricht wird aufgezeichnet und von einer kuenstlichen Intelligenz transkribiert. Sie wird zwoelf Monate aufbewahrt; Sie koennen die Loeschung verlangen.",
+  ar: "سيتم تسجيل رسالتك وتحويلها إلى نص بواسطة الذكاء الاصطناعي. تُحفظ اثني عشر شهراً، ويمكنك طلب حذفها.",
+};
+
+/** Le texte dit avant le bip : l'information sur l'enregistrement, puis le message de l'organisation. */
+export function texteAvantEnregistrement(lang: RecLang, say: string): string {
+  return `${ANNONCE_ENREGISTREMENT[lang]} ${say}`;
+}
+
 function twimlRecord(actionUrl: string, say: string, lang: RecLang, voice: string): string {
   const speechLang = SPEECH_LANG[lang];
   return (
     `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-    `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(say)}</Say>` +
+    `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(texteAvantEnregistrement(lang, say))}</Say>` +
     `<Record action="${escapeXml(actionUrl)}" method="POST" maxLength="120" timeout="5" ` +
     `finishOnKey="#" playBeep="true" transcribe="false" trim="trim-silence"/>` +
     `</Response>`

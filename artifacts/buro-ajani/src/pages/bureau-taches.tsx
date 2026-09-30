@@ -79,7 +79,12 @@ export default function BureauTachesPage() {
   const qc = useQueryClient();
   const { user } = useWorkspaceUser();
   const estResponsable = user?.role === "administrateur" || user?.role === "super_admin";
-  const [onglet, setOnglet] = useState<Statut>("en_attente");
+  // « Aujourd hui » mene ici avec ?statut=echouee : l onglet doit suivre le lien,
+  // sinon l execution en erreur s ouvre dans l onglet des attentes.
+  const [onglet, setOnglet] = useState<Statut>(() => {
+    const s = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("statut");
+    return (STATUTS as readonly string[]).includes(s ?? "") ? (s as Statut) : "en_attente";
+  });
   const [ouverte, setOuverte] = useState<number | null>(null);
   const [annonce, setAnnonce] = useState("");
   const [form, setForm] = useState({ canal: "formulaire" as (typeof CANAUX)[number], nom: "", email: "", sujet: "", contenu: "" });

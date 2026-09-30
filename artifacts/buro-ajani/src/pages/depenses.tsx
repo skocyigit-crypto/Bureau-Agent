@@ -56,6 +56,7 @@ ResponsiveContainer,
 XAxis,
 YAxis,
 } from "recharts";
+import { EnregistrementCible } from "@/components/enregistrement-cible";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -608,6 +609,7 @@ export default function DepensesPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      <EnregistrementCible ressource="depense" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">

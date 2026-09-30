@@ -22,6 +22,14 @@ export const subscriptionsTable = pgTable("subscriptions", {
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   paymentFailedCount: integer("payment_failed_count").notNull().default(0),
   lastPaymentFailedAt: timestamp("last_payment_failed_at", { withTimezone: true }),
+  /**
+   * Date d envoi de la MISE EN DEMEURE de payer. Les CGV (art. 4) promettent
+   * que la suspension n intervient qu apres une mise en demeure restee sans
+   * effet QUINZE jours ; avant cette colonne, rien ne l envoyait ni ne la
+   * datait, et la suspension tombait apres 3 echecs Stripe ou 7 jours de
+   * retard. Remise a nul quand le paiement arrive.
+   */
+  miseEnDemeureAt: timestamp("mise_en_demeure_at", { withTimezone: true }),
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   suspensionReason: varchar("suspension_reason", { length: 30 }),
   stripeCustomerId: text("stripe_customer_id").unique(),

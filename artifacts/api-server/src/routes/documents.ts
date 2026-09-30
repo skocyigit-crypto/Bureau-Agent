@@ -6,6 +6,7 @@ import { db, documentsTable, bulkScanJobsTable, organisationsTable } from "@work
 import { eq, and, or, ne, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
+import { cibleDocumentRefusee, typeEntiteDocument } from "../services/appartenance";
 import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
@@ -72,7 +73,14 @@ router.post("/documents/upload", requireMinAgent, handleUploadStream, async (req
     const rawMime = uploadedFile
       ? (req.body.mimeType || uploadedFile.mimetype)
       : req.body.mimeType;
-    const { entityType, entityId, category, description } = req.body;
+    const { entityId, category, description } = req.body;
+    // Une seule orthographe (« projet »), et une cible de chantier ou de journal
+    // de CETTE organisation (services/appartenance.ts).
+    const entityType = typeEntiteDocument(req.body.entityType);
+    if (await cibleDocumentRefusee(getOrgId(req), entityType, entityId)) {
+      res.status(400).json({ error: "Reference inconnue dans votre organisation : entityId" });
+      return;
+    }
     let tags = req.body.tags;
     if (typeof tags === "string") {
       // multipart transmet les tags en JSON array OU en CSV. On normalise
@@ -173,7 +181,12 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
   try {
     const orgId = getOrgId(req);
     const userId = req.session?.userId;
-    const { files, entityType, entityId, category } = req.body;
+    const { files, entityId, category } = req.body;
+    const entityType = typeEntiteDocument(req.body.entityType);
+    if (await cibleDocumentRefusee(orgId, entityType, entityId)) {
+      res.status(400).json({ error: "Reference inconnue dans votre organisation : entityId" });
+      return;
+    }
 
     if (!Array.isArray(files) || files.length === 0) {
       res.status(400).json({ error: "Un tableau de fichiers est requis" });
@@ -198,7 +211,7 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
           fileContent: file.fileContent,
           fileName: file.fileName,
           mimeType: file.mimeType,
-          entityType: entityType || file.entityType || null,
+          entityType: entityType || typeEntiteDocument(file.entityType) || null,
           entityId: entityId ? parseInt(String(entityId)) : (file.entityId ? parseInt(String(file.entityId)) : null),
           category: category || file.category || null,
           description: file.description || null,
@@ -1553,14 +1566,21 @@ router.put("/documents/:id", requireMinAgent, async (req: Request, res: Response
     const docId = parseInt(String(req.params.id));
     if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
 
-    const [doc] = await db.select({ id: documentsTable.id }).from(documentsTable)
+    const [doc] = await db.select({ id: documentsTable.id, entityType: documentsTable.entityType, entityId: documentsTable.entityId }).from(documentsTable)
       .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
 
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
 
     const updates: any = { updatedAt: new Date() };
-    if (req.body.entityType !== undefined) updates.entityType = req.body.entityType;
+    if (req.body.entityType !== undefined) updates.entityType = typeEntiteDocument(req.body.entityType);
     if (req.body.entityId !== undefined) updates.entityId = req.body.entityId ? parseInt(String(req.body.entityId)) : null;
+    // La cible APRES modification doit etre de l'organisation.
+    const typeFinal = updates.entityType !== undefined ? updates.entityType : doc.entityType;
+    const idFinal = updates.entityId !== undefined ? updates.entityId : doc.entityId;
+    if ((req.body.entityType !== undefined || req.body.entityId !== undefined) && await cibleDocumentRefusee(orgId, typeFinal, idFinal)) {
+      res.status(400).json({ error: "Reference inconnue dans votre organisation : entityId" });
+      return;
+    }
     if (req.body.category !== undefined) updates.category = req.body.category;
     if (req.body.description !== undefined) updates.description = req.body.description;
     if (req.body.tags !== undefined) updates.tags = req.body.tags;
