@@ -78,7 +78,9 @@ export const DESTIN_DES_TABLES: Record<TableLocataire, Destin> = {
   raccordements_chorus_pro: "effacer", user_location_state: "effacer", location_events: "effacer",
   messages: "effacer", notes_internes: "effacer", objectifs_commerciaux: "effacer",
   organisation_closures: "effacer", performance_reports: "effacer", platform_connections: "effacer",
-  platform_sync_logs: "effacer", proactive_suggestions: "effacer", projets: "effacer", prospects: "effacer",
+  platform_sync_logs: "effacer", proactive_suggestions: "effacer", projets: "effacer",
+  // Dossier de chantier : suit le chantier et le devis, effaces eux aussi.
+  journal_chantier: "effacer", avenants: "effacer", prospects: "effacer",
   push_tokens: "effacer", security_lists: "effacer", security_scans: "effacer", stock_mouvements: "effacer",
   stock_articles: "effacer", super_agent_state: "effacer", super_agent_logs: "effacer", tasks: "effacer",
   telephony_providers: "effacer", telephony_call_logs: "effacer", telephony_sms_logs: "effacer",

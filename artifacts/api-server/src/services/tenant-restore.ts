@@ -43,6 +43,9 @@ export const RESTORABLE_TABLES = [
   "payments",
   "compte_client",
   "projets",
+  // Apres projets et devis, auxquels ils se rattachent.
+  "journal_chantier",
+  "avenants",
   "tasks",
   "calendar_events",
   "calls",

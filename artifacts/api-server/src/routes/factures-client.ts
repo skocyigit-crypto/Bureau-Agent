@@ -5,7 +5,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendInvoiceReminderEmail } from "../services/email";
 import { frozenFieldsTouched, isIssued, nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
-import { devisFacturable, lireDevisDeLOrganisation } from "../services/devis-facturable";
+import { chantierDuDevis, devisFacturable, lireDevisDeLOrganisation } from "../services/devis-facturable";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
@@ -200,7 +200,7 @@ router.get("/factures-client/:id/facturx.xml", async (req: Request, res: Respons
 
 router.post("/factures-client", async (req: Request, res: Response): Promise<void> => {
   const targetOrg = getOrgId(req);
-  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, retenueGarantieRate, cautionBancaire } = req.body;
+  const { reference, title, clientName, clientEmail, clientPhone, clientAddress, clientCompany, clientSiren, deliveryAddress, operationCategory, vatOnDebits, items, subtotal, taxAmount, totalAmount, paidAmount, isAutoliquidation, currency = "EUR", status = "brouillon", dueDate, paymentMethod, notes, conditions, contactId, devisId, projetId, retenueGarantieRate, cautionBancaire } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!clientName?.trim()) { res.status(400).json({ error: "Le client est obligatoire." }); return; }
   if (!STATUSES.includes(status)) { res.status(400).json({ error: "Statut invalide." }); return; }
@@ -221,7 +221,10 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
   const totalsPre = computeInvoiceTotals(Array.isArray(items) ? items : [], { autoliquidation: !!isAutoliquidation });
   if (totalsPre.overflow) { res.status(400).json({ error: "Montant trop élevé (dépasse la limite autorisée)." }); return; }
   // Le contact, comme le devis, doit etre de la meme organisation.
-  const refusees = await referencesRefusees(targetOrg, [{ champ: "contactId", genre: "contact", valeur: contactId }]);
+  const refusees = await referencesRefusees(targetOrg, [
+    { champ: "contactId", genre: "contact", valeur: contactId },
+    { champ: "projetId", genre: "projet", valeur: projetId },
+  ]);
   if (refusees.length > 0) { refuserReferences(res, refusees); return; }
   try {
     // Un devis lie doit appartenir a la meme organisation ET se facturer.
@@ -249,6 +252,23 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
         return;
       }
     }
+    // Le chantier de la facture. Donne par l appelant, ou deduit du devis : une
+    // facture de devis appartient au chantier dont ce devis est le prix.
+    // Les deux a la fois et en desaccord : refus, plutot que de compter la
+    // facture sur un chantier et son devis sur un autre — les deux dossiers
+    // seraient faux, et aucun ne le montrerait.
+    const projetDemande = projetId === null || projetId === undefined || projetId === "" ? null : Number(projetId);
+    const projetDuDevis = linkedDevis != null ? await chantierDuDevis(targetOrg, linkedDevis) : null;
+    if (projetDemande != null && projetDuDevis != null && projetDemande !== projetDuDevis) {
+      res.status(409).json({
+        error: "Ce devis est le prix d un autre chantier.",
+        code: "chantier_different_du_devis",
+        projetDuDevis,
+        remediation: "Laissez le chantier vide : il sera deduit du devis.",
+      });
+      return;
+    }
+    const projetFacture = projetDemande ?? projetDuDevis;
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
         .where(and(eq(facturesClientTable.organisationId, targetOrg), eq(facturesClientTable.reference, candidate)));
@@ -315,6 +335,7 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       conditions: conditions ?? null,
       contactId: contactId ? Number(contactId) : null,
       devisId: linkedDevis,
+      projetId: projetFacture,
     }).returning();
       // Le devis porte la trace de SA facture, quel que soit le chemin
       // emprunte. Sans cette ligne, /devis/:id/convert-to-facture en
@@ -394,6 +415,25 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
       if (b[k] !== undefined) updates[k] = b[k];
     }
     if (b.vatOnDebits !== undefined) updates.vatOnDebits = !!b.vatOnDebits;
+    // Le chantier se corrige meme sur une facture emise : c est un classement
+    // interne, pas une mention de la facture — il ne figure ni sur le PDF ni
+    // dans le flux Factur-X, et le laisser fige interdirait de ranger les
+    // factures emises avant que le lien n existe.
+    if (b.projetId !== undefined) {
+      if (b.projetId === null || b.projetId === "") updates.projetId = null;
+      else {
+        const refus = await referencesRefusees(orgId, [{ champ: "projetId", genre: "projet", valeur: b.projetId }]);
+        if (refus.length > 0) { refuserReferences(res, refus); return; }
+        // Meme regle qu a la creation : une facture de devis reste au chantier
+        // dont ce devis est le prix — sinon deux dossiers faux, aucun ne le dit.
+        const projetDuDevis = existing.devisId != null ? await chantierDuDevis(orgId, existing.devisId) : null;
+        if (projetDuDevis != null && projetDuDevis !== Number(b.projetId)) {
+          res.status(409).json({ error: "Ce devis est le prix d un autre chantier.", code: "chantier_different_du_devis", projetDuDevis });
+          return;
+        }
+        updates.projetId = Number(b.projetId);
+      }
+    }
     // Reference: unicite verifiee aussi en modification (une facture legale ne
     // peut pas partager son numero avec une autre — exigence Factur-X incluse).
     if (b.reference !== undefined && String(b.reference).trim()) {

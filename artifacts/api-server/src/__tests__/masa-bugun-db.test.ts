@@ -16,7 +16,7 @@ import request from "supertest";
 import { eq, inArray } from "drizzle-orm";
 import {
   db, organisationsTable, usersTable, callsTable, voiceCallSessionsTable, messagesTable, tasksTable, calendarEventsTable,
-  projetsTable, prospectsTable, devisTable, facturesClientTable, agentRunsTable, agentProposalsTable, telephonyProvidersTable,
+  projetsTable, prospectsTable, devisTable, depensesTable, facturesClientTable, agentRunsTable, agentProposalsTable, telephonyProvidersTable,
 } from "@workspace/db";
 import { construireMasaBugun, echeanceProposition, type MasaBugun, type Satir } from "../services/masa-bugun";
 import { bornesDuJour } from "../lib/jour-local";
@@ -68,9 +68,15 @@ beforeAll(async () => {
   ]).returning({ id: projetsTable.id });
   const [projTermine, projDepasse] = await db.insert(projetsTable).values([
     { organisationId: A, title: "Chantier termine", status: "termine", endDate: new Date(maintenant.getTime() - 5 * JOUR) },
-    { organisationId: A, title: "Chantier au-dessus du budget", status: "en_cours", budget: "10000", spent: "12500", currency: "EUR", assignedTo: "Chef Martin" },
+    // Depassement MESURE : ouvert depuis un devis accepte de 10 000, 12 500 de
+    // depenses approuvees. `budget` reste nul, comme sur tout chantier issu
+    // d un devis — c est ce cas que l ancienne regle ne voyait jamais.
+    { organisationId: A, title: "Chantier au-dessus du budget", status: "en_cours", currency: "EUR", assignedTo: "Chef Martin" },
   ]).returning({ id: projetsTable.id });
   Object.assign(ids, { livraison: chantierUrgent!.id, retard: chantierVivant!.id, projTermine: projTermine!.id, depasse: projDepasse!.id });
+  const [marche] = await db.insert(devisTable).values({ organisationId: A, reference: `DV-MARCHE-${Date.now()}`, title: "Marche", clientName: "X", totalAmount: "10000", status: "accepte", acceptedAt: maintenant, convertedToInvoice: -1 } as any).returning({ id: devisTable.id });
+  await db.update(projetsTable).set({ devisId: marche!.id }).where(eq(projetsTable.id, ids.depasse));
+  await db.insert(depensesTable).values({ organisationId: A, projetId: ids.depasse, vendor: "Point P", amountTtc: "12500", status: "approuve", source: "manuel" } as any);
 
   const [urgente, urgenteSansChantier, urgenteFinie, duJour, rappelTache] = await db.insert(tasksTable).values([
     { organisationId: A, title: "Fuite sur le chantier", priority: "haute", status: "en_attente", projetId: ids.retard, assignedTo: String(ids.paul) },
@@ -232,7 +238,7 @@ describe("finances", () => {
     expect(ligne(masa, `fatura_gecikti:${ids.echue}`)).toMatchObject({ tutar: 600, href: "/factures" });
     expect(ligne(masa, `fatura_gecikti:${ids.brouillon}`)).toBeUndefined();
     expect(ligne(masa, `fatura_gecikti:${ids.payee}`)).toBeUndefined();
-    expect(ligne(masa, `butce_asimi:${ids.depasse}`)).toMatchObject({ tutar: 2500, detay: "manuel", sorumlu: "Chef Martin" });
+    expect(ligne(masa, `butce_asimi:${ids.depasse}`)).toMatchObject({ tutar: 2500, detay: "onayli_is", href: `/projets/${ids.depasse}`, sorumlu: "Chef Martin" });
     expect(ligne(masa, `faturasiz_kabul:${ids.accepte}`)).toMatchObject({ tutar: 9000, sorumlu: "Marie Martin" });
     expect(ligne(masa, `faturasiz_kabul:${ids.factureDejaFaite}`)).toBeUndefined();
   });

@@ -105,6 +105,8 @@ const CorbeillePage = lazy(() => import("@/pages/corbeille"));
 const ContactsImportPage = lazy(() => import("@/pages/contacts-import"));
 const ActiviteRecentePage = lazy(() => import("@/pages/activite-recente"));
 const ProjetsPage = lazy(() => import("@/pages/projets"));
+const DossierChantierPage = lazy(() => import("@/pages/dossier-chantier"));
+const FinanceAffairesPage = lazy(() => import("@/pages/finance-affaires"));
 const SecuritePage = lazy(() => import("@/pages/securite"));
 const AssistantProactifPage = lazy(() => import("@/pages/assistant-proactif"));
 const IaApprentissagePage = lazy(() => import("@/pages/ia-apprentissage"));
@@ -330,6 +332,8 @@ function AppRoutes() {
         <Route path="/factures" component={withLicenseGate(AdminFacturesClientPage)} />
         <Route path="/taches" component={withLicenseGate(Tasks)} />
         <Route path="/tresorerie" component={withLicenseGate(TresoreriePage)} />
+        {/* Par chantier : accepte, avenants, depense, facture, encaisse. */}
+        <Route path="/finance/affaires" component={withLicenseGate(FinanceAffairesPage)} />
         <Route path="/depenses" component={withLicenseGate(DepensesPage)} />
         <Route path="/messages" component={withLicenseGate(Messages)} />
         <Route path="/whatsapp" component={withLicenseGate(WhatsappInbox)} />
@@ -375,6 +379,9 @@ function AppRoutes() {
         <Route path="/protection-donnees" component={withRoleGate(DataProtectionPage, ADMIN_ROLES)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
+        {/* Le dossier d un chantier : sa fiche, ses cinq montants avec leurs
+            lignes, ses avenants, son journal et ses huit onglets. */}
+        <Route path="/projets/:id" component={withLicenseGate(DossierChantierPage)} />
         <Route path="/saisie-chantier" component={withLicenseGate(VoiceSiteOpsPage)} />
         <Route path="/securite" component={withLicenseGate(SecuritePage)} />
         {/* Diagnostic d un poste de travail: le client lance le script, depose

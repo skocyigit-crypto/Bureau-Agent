@@ -3,12 +3,19 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { contactsTable } from "./contacts";
 import { organisationsTable } from "./organisations";
+import { projetsTable } from "./projets";
 import { usersTable } from "./users";
 
 export const callsTable = pgTable("calls", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
+  // Le chantier auquel cette ligne se rattache. Sans ce lien, le dossier d'un
+  // chantier ne peut PAS additionner ce qu'il a coute, facture ou encaisse :
+  // les montants existaient, mais aucun n'etait rattachable a un travail.
+  // Nullable : tout ne releve pas d'un chantier (frais generaux, appel entrant
+  // d'un inconnu, facture hors affaire).
+  projetId: integer("projet_id").references(() => projetsTable.id, { onDelete: "set null" }),
   contactName: text("contact_name"),
   phoneNumber: text("phone_number").notNull(),
   direction: text("direction").notNull(),
@@ -26,6 +33,7 @@ export const callsTable = pgTable("calls", {
   index("calls_status_idx").on(table.status),
   index("calls_created_at_idx").on(table.createdAt),
   index("calls_org_id_idx").on(table.organisationId),
+  index("calls_projet_idx").on(table.projetId),
 ]);
 
 export const insertCallSchema = createInsertSchema(callsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });

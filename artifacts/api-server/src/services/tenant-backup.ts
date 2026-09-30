@@ -43,6 +43,9 @@ export const TENANT_TABLES = [
   // La corbeille contient des lignes que le client a supprimees mais dont il
   // dispose encore: elles sont a lui tant que le delai de retention court.
   "deleted_rows",
+  // Dossier de chantier (30/09) : le journal et les avenants sont des donnees
+  // du client — le journal est ce qu il oppose a un litige de chantier.
+  "journal_chantier", "avenants",
   "demo_handoffs", "depenses", "devis", "documents", "email_providers",
   "face_profiles", "face_recognition_logs", "factures_client", "google_oauth_tokens",
   "google_app_credentials", "integration_connections", "invitations", "invoices",

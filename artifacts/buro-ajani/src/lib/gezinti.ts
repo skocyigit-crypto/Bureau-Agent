@@ -27,7 +27,7 @@ import {
   Activity, AudioLines, Banknote, BarChart, Bell, BookOpen, Bot, Briefcase, Building2, Calendar, CheckSquare, ClipboardList, Clock,
   CreditCard, FileSignature, FileText, Globe, HardHat, Inbox, KeyRound, LayoutDashboard, LifeBuoy, Mail, MapPin, MessageCircle,
   MessageSquare, Phone, Plug, Radar, Receipt, ReceiptText, Rocket, Search, Settings, Shield, ShieldCheck, StickyNote, UserCog,
-  Users, Wallet, Workflow,
+  Scale, Users, Wallet, Workflow,
 } from "lucide-react";
 
 /**
@@ -113,6 +113,9 @@ export const SECTIONS_BUREAU: readonly Section[] = [
   {
     cle: "finance",
     entrees: [
+      // La comparaison par chantier vient en tete : c est la question que la
+      // section Finance existe pour trancher — ce chantier rapporte-t-il ?
+      seule("businessComparison", "/finance/affaires", Scale),
       seule("clientInvoices", "/factures", Receipt),
       seule("encaissements", "/reglements", Banknote),
       seule("expenses", "/depenses", ReceiptText),

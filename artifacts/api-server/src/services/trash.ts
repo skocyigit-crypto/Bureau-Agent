@@ -85,6 +85,8 @@ const CHAMPS_LIBELLE = [
   // nus pour ce qu'on supprime le plus souvent dans un CRM — exactement ce que
   // cette fonction existe pour eviter.
   "employeeName", "contactName", "clientName", "fileName", "company", "phoneNumber",
+  // Un avenant detache se reconnait a son motif (« appuis fissures »).
+  "motif",
   // En dernier: une description peut faire un paragraphe, elle identifie moins
   // bien qu'un nom.
   "description",

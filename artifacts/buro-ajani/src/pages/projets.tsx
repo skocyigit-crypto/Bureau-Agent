@@ -46,6 +46,7 @@ X,
 XCircle
 } from "lucide-react";
 import { useCallback,useEffect,useState } from "react";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -468,7 +469,7 @@ function ProjetCard({ projet, onEdit, onDelete, onDuplicate, onUpdated, selectMo
               <Badge className={`text-[10px] ${pc.color}`}>{t(`projets.priority.${priorityKey}`)}</Badge>
               {overdue && <Badge variant="outline" className="text-[10px] text-red-600 border-red-300 bg-red-50 dark:bg-red-900/20"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{t("projets.card.overdue")}</Badge>}
             </div>
-            <h3 className="font-semibold text-sm mt-1.5 leading-tight">{projet.title}</h3>
+            <h3 className="font-semibold text-sm mt-1.5 leading-tight">{selectMode ? projet.title : <Link href={`/projets/${projet.id}`} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded" data-testid={`ouvrir-dossier-${projet.id}`}>{projet.title}</Link>}</h3>
             {(projet.clientName || projet.clientCompany) && (
               <p className="text-xs text-muted-foreground mt-0.5">{[projet.clientName, projet.clientCompany].filter(Boolean).join(" · ")}</p>
             )}

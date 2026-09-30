@@ -70,6 +70,7 @@ import publicAppointmentsRouter from "./public-appointments";
 import prospectsRouter from "./prospects";
 import trashRouter from "./trash";
 import devisRouter from "./devis";
+import chantierRouter from "./chantier";
 import facturesClientRouter from "./factures-client";
 import plateformeAgreeeRouter from "./plateforme-agreee";
 import chorusProRouter from "./chorus-pro";
@@ -282,6 +283,9 @@ router.use(orgClosuresRouter);
 router.use(prospectsRouter);
 router.use(trashRouter);
 router.use(devisRouter);
+// Dossier de chantier, avenants, journal de chantier et comparaison par
+// affaire : contenu CLIENT, borne a l organisation de la session.
+router.use(chantierRouter);
 router.use(facturesClientRouter);
 router.use(plateformeAgreeeRouter);
 router.use(chorusProRouter);

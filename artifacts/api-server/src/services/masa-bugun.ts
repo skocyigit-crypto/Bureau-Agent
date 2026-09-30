@@ -32,6 +32,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, notEx
 import { iaUtilisable } from "./ai-providers";
 import { bornesDuJour } from "../lib/jour-local";
 import { overdueCondition } from "./invoice-status";
+import { depassementSql } from "./dossier-chantier";
 
 /** bilgi = a savoir ; onay = attend une decision humaine ; acil = erreur ou urgence. */
 export type Ton = "bilgi" | "onay" | "acil";
@@ -329,18 +330,36 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
     }).from(facturesClientTable)
       .where(and(eq(facturesClientTable.organisationId, orgId), overdueCondition(maintenant)))
       .orderBy(asc(facturesClientTable.dueDate)).limit(limite),
-    // `spent` est saisi a la main sur le chantier (aucune depense n'y est
-    // rattachee aujourd'hui) : la ligne le dit, elle ne le fait pas passer
-    // pour un calcul.
-    db.select({ id: projetsTable.id, title: projetsTable.title, budget: projetsTable.budget, spent: projetsTable.spent, currency: projetsTable.currency, assignedTo: projetsTable.assignedTo })
-      .from(projetsTable)
-      .where(and(
-        eq(projetsTable.organisationId, orgId),
-        sql`coalesce(${projetsTable.budget}::numeric, 0) > 0`,
-        sql`coalesce(${projetsTable.spent}::numeric, 0) > ${projetsTable.budget}::numeric`,
-        notInArray(projetsTable.status, ["annule"]),
-      ))
-      .limit(limite),
+    // LE DEPASSEMENT, MESURE SUR CE QUI A ETE ACCEPTE.
+    //
+    // Cette ligne ne pouvait PAS s'afficher. Elle comparait `spent` a
+    // `budget`, deux colonnes saisies a la main, et exigeait `budget > 0` —
+    // or la route qui ouvre un chantier depuis un devis ne remplit
+    // deliberement pas `budget` (le prix de vente n'est pas l'enveloppe de
+    // depenses). Sur tout chantier issu du parcours commercial, la condition
+    // etait donc fausse par construction : la surveillance existait a
+    // l'ecran et ne surveillait rien.
+    //
+    // On compare desormais la depense REELLE (depenses approuvees rattachees
+    // au chantier) a ce que le client a ACCEPTE (devis initial + avenants
+    // accordes) — la grandeur que demande le plan du 29/09, et la seule
+    // qu'un litige permette d'opposer. `services/dossier-chantier.ts` en
+    // tient la definition unique.
+    (() => {
+      const { engage, depense, depasse } = depassementSql();
+      return db.select({
+        id: projetsTable.id, title: projetsTable.title, currency: projetsTable.currency,
+        assignedTo: projetsTable.assignedTo,
+        engage: sql<string>`${engage}`, depense: sql<string>`${depense}`,
+      })
+        .from(projetsTable)
+        .where(and(
+          eq(projetsTable.organisationId, orgId),
+          notInArray(projetsTable.status, ["annule"]),
+          depasse,
+        ))
+        .limit(limite);
+    })(),
     db.select({ id: devisTable.id, reference: devisTable.reference, title: devisTable.title, clientName: devisTable.clientName, totalAmount: devisTable.totalAmount, currency: devisTable.currency, acceptedAt: devisTable.acceptedAt, acceptedBy: devisTable.acceptedBy })
       .from(devisTable)
       .where(and(eq(devisTable.organisationId, orgId), eq(devisTable.status, "accepte"), isNull(devisTable.convertedToInvoice)))
@@ -352,8 +371,13 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
       sorumlu: null, zaman: iso(f.dueDate), ton: "acil" as Ton, tutar: nombre(f.reste), para: f.currency ?? "EUR",
     })),
     depassements.map((p) => ({
-      cle: `butce_asimi:${p.id}`, tur: "butce_asimi", baslik: p.title, detay: "manuel", href: "/projets",
-      sorumlu: nommer(p.assignedTo, noms), zaman: null, ton: "acil" as Ton, tutar: nombre(p.spent) - nombre(p.budget), para: p.currency ?? "EUR",
+      // `detay` nomme la SOURCE de la comparaison, pas un commentaire : le
+      // client en tire « depense au-dela de l'accepte », et la ligne mene au
+      // dossier du chantier, ou les deux totaux portent leurs justificatifs.
+      cle: `butce_asimi:${p.id}`, tur: "butce_asimi", baslik: p.title, detay: "onayli_is",
+      href: `/projets/${p.id}`,
+      sorumlu: nommer(p.assignedTo, noms), zaman: null, ton: "acil" as Ton,
+      tutar: nombre(p.depense) - nombre(p.engage), para: p.currency ?? "EUR",
     })),
     nonFactures.map((d) => ({
       cle: `faturasiz_kabul:${d.id}`, tur: "faturasiz_kabul", baslik: `${d.reference} — ${d.title}`, detay: d.clientName, href: "/devis",

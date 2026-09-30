@@ -13,7 +13,7 @@
  * Deux portes pour une seule decision, c'est une porte de trop : la regle est
  * ici, et les deux routes la lisent.
  */
-import { db, devisTable, facturesClientTable } from "@workspace/db";
+import { avenantsTable, db, devisTable, facturesClientTable, projetsTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
 import { devisExpire } from "./devis-expires";
 
@@ -25,6 +25,24 @@ export type VerdictFacturable =
   /** Le devis a deja sa facture : on la rend plutot que d'en creer une autre. */
   | { ok: true; devis: Devis; dejaFacture: FactureClient }
   | { ok: false; statut: number; corps: Record<string, unknown> };
+
+/**
+ * Le chantier dont ce devis est le prix : son marche initial, ou l un de ses
+ * avenants. `null` si le devis n a pas (encore) de chantier.
+ *
+ * Lu par les deux chemins de facturation. Sans lui, une facture issue d un
+ * devis naissait sans chantier, et le dossier du chantier ne pouvait jamais
+ * dire ce qui avait ete facture — le montant existait, a un endroit ou
+ * personne ne le cherchait.
+ */
+export async function chantierDuDevis(orgId: number, devisId: number): Promise<number | null> {
+  const [initial] = await db.select({ id: projetsTable.id }).from(projetsTable)
+    .where(and(eq(projetsTable.devisId, devisId), eq(projetsTable.organisationId, orgId))).limit(1);
+  if (initial) return initial.id;
+  const [avenant] = await db.select({ projetId: avenantsTable.projetId }).from(avenantsTable)
+    .where(and(eq(avenantsTable.devisId, devisId), eq(avenantsTable.organisationId, orgId))).limit(1);
+  return avenant?.projetId ?? null;
+}
 
 /** Le devis de CETTE organisation, ou null. */
 export async function lireDevisDeLOrganisation(orgId: number, devisId: number): Promise<Devis | null> {

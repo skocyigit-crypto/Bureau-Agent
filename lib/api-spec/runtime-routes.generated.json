@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 706,
+    "runtimeOperations": 717,
     "documentedOperations": 96,
-    "undocumentedOperations": 610
+    "undocumentedOperations": 621
   },
   "operations": [
     {
@@ -1199,6 +1199,14 @@
       ]
     },
     {
+      "method": "delete",
+      "path": "/avenants/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
       "method": "post",
       "path": "/billing/generate",
       "documented": false,
@@ -1600,6 +1608,14 @@
     },
     {
       "method": "post",
+      "path": "/calendar/events/{id}/chantier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "post",
       "path": "/calendar/events/{id}/duplicate",
       "documented": false,
       "sources": [
@@ -1652,6 +1668,14 @@
       "documented": true,
       "sources": [
         "artifacts/api-server/src/routes/calls.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/calls/{id}/chantier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
       ]
     },
     {
@@ -3169,6 +3193,14 @@
     },
     {
       "method": "get",
+      "path": "/finance/affaires",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "get",
       "path": "/geofences",
       "documented": false,
       "sources": [
@@ -4547,10 +4579,66 @@
     },
     {
       "method": "post",
+      "path": "/projets/{id}/avenant",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/projets/{id}/avenant/rattacher",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/projets/{id}/documents/{documentId}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets/{id}/dossier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "post",
       "path": "/projets/{id}/duplicate",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/projets.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets/{id}/journal",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/projets/{id}/journal",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/projets/{id}/montants",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/chantier.ts"
       ]
     },
     {

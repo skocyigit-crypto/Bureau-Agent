@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { referencesRefusees, refuserReferences } from "../services/appartenance";
 import { requireRole } from "../middleware/auth";
 import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
 import { montantsDepense, NOTE_TVA_NON_LUE } from "../services/montants-depense";
@@ -358,6 +359,12 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
       return;
     }
 
+    // Le chantier auquel la depense se rattache : de CETTE organisation, sinon
+    // elle fausserait les montants d un chantier qui n est pas le sien.
+    const refusChantier = await referencesRefusees(orgId, [{ champ: "projetId", genre: "projet", valeur: body.projetId }]);
+    if (refusChantier.length > 0) { refuserReferences(res, refusChantier); return; }
+    const projetId = body.projetId === null || body.projetId === undefined || body.projetId === "" ? null : Number(body.projetId);
+
     const amountTtc = num(body.amountTtc);
     if (amountTtc <= 0 && num(body.amountHt) <= 0) {
       res.status(400).json({ error: "Un montant (HT ou TTC) est requis." });
@@ -419,6 +426,7 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
       .insert(depensesTable)
       .values({
         organisationId: orgId,
+        projetId,
         vendor,
         title: typeof body.title === "string" ? body.title.trim() || null : null,
         reference: typeof body.reference === "string" ? body.reference.trim() || null : null,
@@ -477,6 +485,18 @@ router.patch("/depenses/:id", requireMinAgent, async (req: Request, res: Respons
     if (typeof body.title === "string") update.title = body.title.trim() || null;
     if (typeof body.reference === "string") update.reference = body.reference.trim() || null;
     if (typeof body.notes === "string") update.notes = body.notes.trim() || null;
+    // Rattacher, changer ou retirer le chantier. Possible meme sur une depense
+    // approuvee : c est un classement, pas un montant — et c est precisement
+    // sur les depenses deja approuvees qu il faut pouvoir le faire, puisque
+    // toutes l ont ete avant que le lien existe.
+    if ("projetId" in body) {
+      if (body.projetId === null || body.projetId === "") update.projetId = null;
+      else {
+        const refus = await referencesRefusees(orgId, [{ champ: "projetId", genre: "projet", valeur: body.projetId }]);
+        if (refus.length > 0) { refuserReferences(res, refus); return; }
+        update.projetId = Number(body.projetId);
+      }
+    }
     // Coordonnees bancaires du fournisseur : refusees des la saisie si elles
     // sont fausses. Un IBAN errone ne se rattrape pas une fois le virement
     // parti, et le decouvrir au moment de la remise ferait rejeter le fichier

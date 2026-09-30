@@ -211,7 +211,8 @@
       "flows": "Flux",
       "runs": "Exécutions",
       "connections": "Connexions",
-      "security": "Sécurité"
+      "security": "Sécurité",
+      "businessComparison": "Comparaison par affaire"
     },
     "mainNav": "Menu principal",
     "sectionTabs": "Pages de « {{name}} »",
@@ -9931,12 +9932,178 @@
     "sorumlu": "Responsable",
     "tumu": "Tout voir",
     "fazlasi": "Il y en a d'autres — tout voir",
-    "kaynakManuel": "Dépense saisie à la main sur le chantier",
     "onayToplam": "action(s) attendent votre décision",
     "sayac": "Dernières 24 h : {{calisiyor}} en cours · {{bekliyor}} rendus à un humain · {{hata}} en erreur",
     "yukleniyor": "Chargement de la table du jour",
     "hata": "La table du jour n'a pas pu être chargée. Rien n'a changé ; vous pouvez réessayer.",
     "tekrar": "Réessayer",
-    "gostergeler": "Indicateurs"
+    "gostergeler": "Indicateurs",
+    "kaynakOnayliIs": "Par rapport à l’accepté : devis et avenants, face aux dépenses réelles"
+  },
+  "etatEcran": {
+    "chargement": {
+      "titre": "Chargement…"
+    },
+    "hors_ligne": {
+      "titre": "Connexion perdue",
+      "detay": "Les données n’ont pas pu être lues. Ce n’est pas une liste vide : rien n’a été lu. Vérifiez votre connexion et réessayez."
+    },
+    "interdit": {
+      "titre": "Accès non autorisé",
+      "detay": "Vous n’avez pas le droit de consulter cet enregistrement. Adressez-vous à l’administrateur du bureau si vous en avez besoin."
+    },
+    "introuvable": {
+      "titre": "Enregistrement introuvable",
+      "detay": "Cet enregistrement n’existe pas ou a été supprimé."
+    },
+    "reessayer": "Réessayer"
+  },
+  "dossierChantier": {
+    "titreMontants": "Les chiffres du chantier",
+    "montant": {
+      "teklif": "Montant du devis",
+      "ekIsler": "Avenants acceptés",
+      "gider": "Dépenses réelles",
+      "faturalanan": "Facturé",
+      "tahsilEdilen": "Encaissé"
+    },
+    "lignes_one": "{{count}} ligne",
+    "lignes_other": "{{count}} lignes",
+    "aucuneSource": {
+      "teklif": "Ce chantier n’a pas été ouvert depuis un devis accepté, ou ce devis n’est plus accepté.",
+      "ekIsler": "Aucun avenant accepté. Les avenants en attente sont listés à part et n’entrent pas dans ce montant.",
+      "gider": "Aucune dépense approuvée rattachée à ce chantier. Les dépenses en attente d’inspection ne comptent pas.",
+      "faturalanan": "Aucune facture émise rattachée à ce chantier. Brouillons et factures annulées ne comptent pas.",
+      "tahsilEdilen": "Le journal des encaissements ne contient aucune écriture pour les factures de ce chantier."
+    },
+    "sourcesTronquees": "Liste abrégée ; le total inclut toutes les lignes.",
+    "onayliIs": "Travaux acceptés (devis + avenants)",
+    "marj": "Marge constatée",
+    "faturalanmayan": "Reste à facturer",
+    "tahsilEdilmeyen": "Reste à encaisser",
+    "depassement": "Les dépenses réelles dépassent de {{montant}} ce que le client a accepté.",
+    "sansEngage": "Aucun montant accepté sur ce chantier : marge et dépassement ne se calculent pas.",
+    "noteMarge": "La marge est une différence entre faits enregistrés (accepté − dépensé), pas une prévision. Les dépenses à venir ne sont pas estimées.",
+    "avenant": {
+      "nouveau": "Nouvel avenant",
+      "ouvrir": "Ouvrir un avenant",
+      "explication": "L’avenant a son propre devis et naît en brouillon. Il ne touche pas au marché initial ; il s’ajoute aux travaux acceptés seulement quand son devis est accepté.",
+      "titre": "Intitulé",
+      "motif": "Motif",
+      "motifAide": "Qu’a demandé le client, ou qu’a-t-on découvert en ouvrant ? C’est ce qu’on opposera en cas de contestation à la réception.",
+      "lignes": "Lignes chiffrées",
+      "designation": "Ligne {{n}} — désignation",
+      "quantite": "Ligne {{n}} — quantité",
+      "prixUnitaire": "Ligne {{n}} — prix unitaire",
+      "tva": "Ligne {{n}} — TVA %",
+      "retirerLigne": "Retirer la ligne {{n}}",
+      "ajouterLigne": "Ajouter une ligne",
+      "creer": "Créer l’avenant en brouillon",
+      "aucun": "Aucun avenant sur ce chantier.",
+      "titreListe": "Avenants",
+      "enAttente_one": "{{count}} avenant attend un accord ; il ne compte pas dans les travaux acceptés tant qu’il n’est pas accepté.",
+      "enAttente_other": "{{count}} avenants attendent un accord ; ils ne comptent pas dans les travaux acceptés tant qu’ils ne sont pas acceptés.",
+      "statut": {
+        "brouillon": "Brouillon — en attente d’accord",
+        "envoye": "Envoyé au client — en attente d’accord",
+        "accepte": "Accepté",
+        "refuse": "Refusé",
+        "expire": "Expiré"
+      }
+    },
+    "annuler": "Annuler",
+    "journal": {
+      "nouvelle": "Note de journal de chantier",
+      "memeJour": "Pas de seconde note pour le même jour : la note existante est complétée.",
+      "jour": "Jour",
+      "meteo": "Météo",
+      "effectif": "Personnes présentes",
+      "travaux": "Travaux réalisés",
+      "incidents": "Ce qui a bloqué (livraison, accès, co-activité…)",
+      "enregistre": "Note enregistrée.",
+      "enregistrer": "Enregistrer la note",
+      "personnes_one": "{{count}} personne",
+      "personnes_other": "{{count}} personnes",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos",
+      "incidentsCourts": "Blocage",
+      "brouillon": "Brouillon — pas encore au journal"
+    },
+    "vide": {
+      "planning": "Aucun créneau d’agenda rattaché à ce chantier.",
+      "gorevler": "Aucune tâche rattachée à ce chantier.",
+      "ekip": "Aucune équipe sur la fiche, et aucune tâche de ce chantier n’est assignée.",
+      "gunluk": "Aucune note de journal pour l’instant.",
+      "belgeler": "Aucun document rattaché à ce chantier.",
+      "gorusmeler": "Aucun échange rattaché à ce chantier."
+    },
+    "onglets": "Sections du dossier de chantier",
+    "onglet": {
+      "ozet": "Synthèse",
+      "planning": "Planning",
+      "ekip": "Équipe",
+      "gunluk": "Journal de chantier",
+      "belgeler": "Documents",
+      "giderler": "Dépenses",
+      "faturalar": "Factures",
+      "gorusmeler": "Échanges"
+    },
+    "retourListe": "Retour aux chantiers",
+    "sorumlu": "Responsable",
+    "durum": {
+      "planifie": "Planifié",
+      "en_cours": "En cours",
+      "en_pause": "En pause",
+      "termine": "Terminé",
+      "annule": "Annulé"
+    },
+    "kabul": "Réception",
+    "kabulYok": "Pas encore réceptionné",
+    "cekinceli": "avec réserves",
+    "cekinceler": "Réserves",
+    "devisInitial": "Devis initial",
+    "aciklama": "Description",
+    "planning": {
+      "creneaux": "Programme de travaux",
+      "taches": "Tâches"
+    },
+    "rol": {
+      "sorumlu": "responsable de chantier",
+      "ekip": "équipe"
+    },
+    "gorevAdedi_one": "{{count}} tâche",
+    "gorevAdedi_other": "{{count}} tâches"
+  },
+  "financeAffaires": {
+    "titre": "Comparaison par affaire",
+    "sousTitre": "Pour chaque chantier : devis accepté, avenants accordés, dépenses réelles, facturé et encaissé. Chaque ligne ouvre le dossier, où chaque montant montre ses justificatifs.",
+    "filtres": "Filtres",
+    "filtre": {
+      "tous": "Tous",
+      "asim": "Au-delà de l’accepté",
+      "faturalanmayan": "Reste à facturer",
+      "tahsilEdilmeyen": "Reste à encaisser"
+    },
+    "compte_one": "{{count}} chantier",
+    "compte_other": "{{count}} chantiers",
+    "vide": {
+      "tous": "Aucun chantier pour l’instant.",
+      "asim": "Aucun chantier ne dépasse l’accepté.",
+      "faturalanmayan": "Aucun chantier n’a de reste à facturer.",
+      "tahsilEdilmeyen": "Aucun chantier n’a de reste à encaisser."
+    },
+    "col": {
+      "chantier": "Chantier",
+      "teklif": "Devis",
+      "ekIsler": "Avenants",
+      "gider": "Dépenses",
+      "faturalanan": "Facturé",
+      "tahsilEdilen": "Encaissé",
+      "marj": "Marge"
+    },
+    "sansEngage": "Aucun montant accepté",
+    "depasse": "dépasse l’accepté",
+    "reste": "reste {{montant}}",
+    "note": "Seuls comptent les devis acceptés, les dépenses approuvées, les factures émises et le journal des encaissements. Aucune estimation."
   }
 }
