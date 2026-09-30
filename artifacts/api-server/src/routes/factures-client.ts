@@ -5,6 +5,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendInvoiceReminderEmail } from "../services/email";
 import { frozenFieldsTouched, isIssued, nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
+import { devisFacturable, lireDevisDeLOrganisation } from "../services/devis-facturable";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
@@ -223,13 +224,30 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
   const refusees = await referencesRefusees(targetOrg, [{ champ: "contactId", genre: "contact", valeur: contactId }]);
   if (refusees.length > 0) { refuserReferences(res, refusees); return; }
   try {
-    // Un devis lie doit appartenir a la meme organisation: sans ce controle,
-    // une facture pourrait pointer vers le devis d'un autre client.
+    // Un devis lie doit appartenir a la meme organisation ET se facturer.
+    //
+    // Ce chemin ne verifiait que l'appartenance : on pouvait facturer par ici
+    // un devis refuse, expire ou encore en brouillon — la regle qui reserve
+    // l'acceptation a l'administration ne s'appliquait pas — et facturer DEUX
+    // FOIS le meme devis accepte, avec deux numeros de la sequence fiscale,
+    // puisque `convertedToInvoice` n'etait ni lu ni ecrit. La decision est
+    // desormais prise au meme endroit que pour /devis/:id/convert-to-facture
+    // (services/devis-facturable.ts).
     const linkedDevis = devisId ? Number(devisId) : null;
     if (linkedDevis != null) {
-      const [owned] = await db.select({ id: devisTable.id }).from(devisTable)
-        .where(and(eq(devisTable.id, linkedDevis), eq(devisTable.organisationId, targetOrg)));
-      if (!owned) { res.status(400).json({ error: "Devis lie introuvable." }); return; }
+      const devisLie = await lireDevisDeLOrganisation(targetOrg, linkedDevis);
+      if (!devisLie) { res.status(400).json({ error: "Devis lie introuvable." }); return; }
+      const verdict = await devisFacturable(targetOrg, devisLie);
+      if (!verdict.ok) { res.status(verdict.statut).json(verdict.corps); return; }
+      if ("dejaFacture" in verdict) {
+        res.status(409).json({
+          error: "Ce devis a deja sa facture.",
+          code: "devis_deja_facture",
+          facture: verdict.dejaFacture,
+          remediation: "Ouvrez la facture existante, ou detachez-la du devis avant d'en emettre une autre.",
+        });
+        return;
+      }
     }
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
@@ -298,6 +316,16 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       contactId: contactId ? Number(contactId) : null,
       devisId: linkedDevis,
     }).returning();
+      // Le devis porte la trace de SA facture, quel que soit le chemin
+      // emprunte. Sans cette ligne, /devis/:id/convert-to-facture en
+      // emettrait une seconde, avec un second numero de la sequence fiscale.
+      // Dans la meme transaction que l'insertion : une facture creee sans que
+      // le devis soit marque rouvrirait exactement ce doublon.
+      if (linkedDevis != null) {
+        await tx.update(devisTable)
+          .set({ convertedToInvoice: cree.id, updatedAt: new Date() })
+          .where(and(eq(devisTable.id, linkedDevis), eq(devisTable.organisationId, targetOrg)));
+      }
       return cree;
     });
     res.status(201).json(row);

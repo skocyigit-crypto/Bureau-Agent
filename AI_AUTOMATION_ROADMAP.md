@@ -299,6 +299,51 @@ Böylece **anahtar iptal edildikten sonra da erişimini koruyordu.**
   - **Yalnız okumaya açık:** `/data-protection` (silme ve dışa aktarma gibi değiştiren istekler kapalı).
   - Kayıtlara ait rotalar (kişiler, çağrılar, teklifler…) anahtarla çalışmaya devam ediyor.
 - **Hâlâ açık:** gerçek kapsam uygulaması, yani salt okunur anahtar, rota bazında izin ve anahtara özel rol. Anahtar hâlâ oluşturanın bütün kayıt yetkisini taşıyor.
+
+### Karşı-iddialı denetim (30/09): 8 PR, 92 ajan
+
+29/09'da çıkan sekiz PR (#311–#318) yedi eksende gözden geçirildi. Her bulgu üç bağımsız şüpheciye verildi; çoğunluk çürütürse bulgu düştü. Ayakta kalanlar aşağıda. **Not:** bulgular ajan çıktısıdır; her biri koddan ayrıca doğrulanmalı. İlk ikisi doğrulandı ve düzeltildi, kalanlar sıradaki partilere.
+
+**Düzeltildi (bu partide):**
+1. **Kural listesi büyük/küçük harfe duyarlıydı** (bloquant). `POST /api/Auth/users` anahtar bariyerini atlatıp yönetici hesabı açıyordu — ölçüldü. Express yolları harfe duyarsız eşleştiriyor; artık yol normalize ediliyor.
+2. **Teklifi faturaya çeviren ikinci bir yol vardı** (bloquant). `POST /factures-client` `devisId` alıyor ama yalnız kurum sahipliğine bakıyordu. Bu yoldan reddedilmiş, süresi geçmiş ya da taslak bir teklif faturalanabiliyor, üstelik aynı teklife **iki fatura** ve iki resmi sıra numarası çıkarılabiliyordu. Kural artık `services/devis-facturable.ts` içinde, iki yol da onu okuyor.
+
+**Sıradaki partilere (doğrulanacak):**
+- **Sesli mesaj kalıcı olarak kaybolabiliyor.** Yazım sırasında örnek geri dönüştürülürse Twilio'nun tekrarı yutuluyor ve mesaj hiçbir yerde kalmıyor (`voice-receptionist.ts:2368`).
+- **ISO olmayan para birimi tüm panoyu düşürüyor.** `currency:"Euro"` kabul ediliyor; bütçe aşımı satırında `Intl.NumberFormat` hata fırlatıp Kontrol Paneli'ni hata ekranına çeviriyor.
+- **"Düzenle ve onayla" başka bir yöneticinin değişikliğini eziyor.** PATCH, önbellekteki eski değeri yazıyor; sonra parmak izi kendi yazdığıyla karşılaştırıldığı için asla uyuşmazlık çıkmıyor.
+- **Eski `termine` durumu dört yüzeyde "yanıtlanmadı" sayılıyor** (`calls.ts`, `dashboard.ts`, `ai-analysis.ts`, `ai-agents.ts`). #315 üç okuyucuyu düzeltti ama bunlar kaldı; yapay zekâ raporu yanlış "yanıt oranı düştü" diyip patrona e-posta gönderebiliyor. Ortak bir `STATUTS_REPONDU` modülü hepsini çözer; veri göçü gerekmez.
+- **Son etkinlikler, yanıtlanmış çağrıyı "telesekreter" diye gösteriyor** (`dashboard.ts:235`).
+- **Bütçe aşımı listesi sıralamasız**, 9 aşımdan 5'i rastgele gösteriliyor; en büyüğü hiç görünmeyebiliyor.
+- **"Şimdi ilgilen" paneli 5'ten fazlasını sessizce gizliyor**: `fazlasi` hesaplanıyor ama ekranda karşılığı yok.
+- **Teklif silmek faturasını ve şantiyesini kopartıyor**; tekil indeks artık doğrudan korumuyor.
+- **Tekliften açılmış şantiyeyi kopyalamak her zaman 500 veriyor** (tekil indeks ihlali yakalanmıyor).
+- **Kabul edilmiş teklif ekrandan düzenlenemiyor**: form her kaydetmede `items` ve `currency` gönderdiği için 409 alıyor.
+- **Arapçada "Cihaz araçları" paneli ekran dışına taşıyor**; dil, tema ve dışa aktarma erişilemez oluyor.
+- **Mobilde "Talepler ve fırsatlar" yalnız süper yöneticiye açık**, oysa web ve API'de kurumun kendi verisi.
+- Ayrıca: ajan çalışma bağlantısı yanlış sekme açıyor, Ctrl+K denetim komutu `/gestion-licence` üzerindeyken etkisiz, mobilde "Ekip performansı" ekranın reddettiği rollere sunuluyor, sesli mesaj kişinin çağrı sayacını artırmıyor, karar masası renk şeridi Arapçada ters tarafta, yükleme durumu ekran okuyucuya duyurulmuyor.
+
+### API anahtarı: koruma yanlış katmandaydı (`sec/cle-api-barriere-globale`, 30/09)
+
+İlk düzeltme (#317) korumayı üç korumanın (`requireAuth`, `requireRole`, `requireSuperAdmin`) içine koymuştu. Oysa `app.ts` her `/api/*` isteğinde anahtarı oturuma yüklüyor ve kimlik doğrulama yönlendiricisi **küresel korumadan önce** bağlanıyor. Oturumu doğrudan okuyan uçlar hiçbir korumadan geçmiyordu. Yani #317 bu yolları hiç kapatmamıştı.
+
+**Ölçüm (bariyer kaldırılıp çalıştırıldı):** yalnız anahtarla, parola olmadan
+- `POST /auth/mfa/setup` → **200**, hesabın yeni MFA gizli anahtarı ve QR kodu yanıtta geliyor;
+- `POST /auth/mfa/enable` → saldırganın kendi uygulamasındaki kodla MFA açılabiliyor; sahibi kendi hesabından kilitleniyor ve yedek kodlar saldırgana gidiyor;
+- `POST /auth/sessions/revoke-all` → **200**, bürodaki bütün oturumlar düşüyor;
+- `POST /auth/users` → **201**, yönetici hesabı açılıyor.
+
+Parola değiştirme ve MFA kapatma güvenliydi: ikisi de mevcut parolayı istiyor.
+
+**Düzeltme:** `barriereCleApi`, anahtarın kimliğe dönüştüğü tek noktada — yüklemeden hemen sonra, yönlendiriciden önce — küresel olarak bağlandı. Böylece hangi korumayı kullandığından (ya da hiç kullanmadığından) bağımsız olarak bütün rotaları kapsıyor. Üç korumadaki çağrılar, bariyeri kurmayan test kurulumları için bırakıldı.
+
+**Kural listesi genişledi:** `/billing`, `/stripe`, `/google-oauth`. `google-oauth` gerçek bir boşluktu: `/google-oauth/disconnect` oturumu korumasız okuyor, yani bir muhasebe entegrasyonu tüm şirketin Google bağlantısını koparabiliyordu.
+
+**Yüzey kilidi (`surface-cle-api.test.ts`):** BTP oturumunun önerisi. Kural listesi çürür; bu test yükü tersine çeviriyor. Gerçek rota envanterini (`lib/api-spec/runtime-routes.generated.json`) okuyor, adı kimlik/hesap/anahtar/ödeme/platform çağrıştıran her rotanın ya kapalı ya da gerekçesiyle bildirilmiş olmasını şart koşuyor. Bugün 109 rotadan 17'si gerekçeli bildirimle açık. Yeni bir yönlendirici sessizce açılamıyor.
+
+**Testler:** gerçek uygulamayı (`app.ts`) kuran 11 test ve yüzey kilidinin 6 testi. 6 mutasyonun hepsi yakalandı.
+
+**Bir tuzak:** ilk testler yanlış nedenle yeşildi. CSRF koruması, Origin başlığı olmayan bütün POST'lara 403 veriyor; yani istekler bariyere hiç ulaşmıyordu. Testlere izinli bir Origin ve "zararsız bir yazma isteği gerçekten iş koduna ulaşıyor mu" garde-fou'su eklendi. Saldırgan Origin başlığını kendi yazabildiği için açık gerçekti; CSRF yalnız tarayıcıyı korur.
 - **Testler:** 8 veritabanı testi (gerçek anahtar ve `routes/index.ts` ile aynı bağlanma sırası), 4 mutasyon.
 
 ### ❓ Kullanıcı kararı bekliyor: iş kayıtlarının sahibi
@@ -320,6 +365,17 @@ Ajan Bureau bugün kendi `prospects`, `devis`, `projets` ve `factures_client` ta
 - **Tekrar koruması:** her POST isteğinde `Idempotency-Key` başlığı gerekiyor.
 
 Yani ortada iki ayrı BTP ürünü var: GESTION-BTP Pro (BatiFlow) ve BTP Ultra. **Hangisinin, ya da hangilerinin, kayıt sahibi olacağı da kullanıcı kararı.**
+
+**30/09 — BatiFlow oturumunun önerisi (uygulanmadı).** BatiFlow, kullanıcının kendisine "sorma, karar ver" dediğini aktardı ve şu kararı bildirdi: kayıtların sahibi **GESTION-BTP Pro** olsun; Ajant Bureau yalnız çağrı tarafını (kayıt, döküm, çağrı verisi, kendi ajan durumu) tutsun; `prospects`, `devis`, `projets`, `factures_client` tabloları BTP kimliğine göre anahtarlanmış **önbelleğe** dönüşsün. Ürün gerekçesi: entegrasyon orada yazılmış ve sınanmış; aynı sözleşmeyi ikinci bir üründe yeniden kurmak aynı garantilerin iki ayrı uygulaması demek.
+
+**Uygulanmadı, çünkü:**
+- Bu talimat eş oturuma, kendi ürünü hakkında verildi; benim oturumumda kullanıcıdan gelmiş bir yetki değil.
+- Değişiklik canlıdaki gerçek müşteri verisine dokunuyor. "Önbelleğe dönüşsün" bir kod değişikliği değil, bir **göç**: mevcut teklif ve şantiyelerin ya BTP'ye taşınması ya da onunla eşleştirilmesi gerekir.
+- Göç planı olmadan BTP'ye yazan yeni yollar açmak, şartnamenin yasakladığı iki-kaynak durumunu bu kez Ajant Bureau'nun içine taşır.
+
+**Gereken:** kullanıcının bu oturumda tek cümlelik onayı ve göç planının sırası (önce göç, sonra ilk yazma yolu).
+
+**Teknik not (BatiFlow'dan):** BTP'de avans faturası `brouillon` doğuyor; 201 yanıtı "fatura kesildi" demek değil. İnsan gönderene kadar taslaktır.
 
 Webhook biçimi BatiFlow'a yalnız öneri olarak gönderildi, uygulanmadı:
 - HMAC imzası: `X-Signature: t=,v1=`, 5 dakika tolerans;
