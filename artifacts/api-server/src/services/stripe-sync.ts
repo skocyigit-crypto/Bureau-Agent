@@ -7,6 +7,7 @@ import { logLicenseEvent } from "./license-audit";
 import { sendSubscriptionSuspendedEmail, sendSubscriptionRecoveredEmail } from "./email";
 import { invalidateQuotaCache } from "./ai-quota";
 import { invalidateLicenseCache } from "../middleware/license-check";
+import { DELAI_MISE_EN_DEMEURE_JOURS, mettreEnDemeure, peutSuspendre } from "./mise-en-demeure";
 
 async function getOrgEmail(orgId: number): Promise<{ email: string | null; name: string }> {
   const [org] = await db.select({ email: organisationsTable.email, name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1);
@@ -248,6 +249,9 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
     const wasSuspended = isPaymentSuspension;
     await db.update(subscriptionsTable).set({
       paymentFailedCount: 0,
+      // Paye : l episode d impaye est clos, la prochaine defaillance appellera
+      // une nouvelle mise en demeure.
+      miseEnDemeureAt: null,
       suspendedAt: null,
       suspensionReason: null,
       status: isPaymentSuspension || sub?.status === "past_due" ? "active" : sub?.status ?? "active",
@@ -270,7 +274,6 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
   logger.info({ orgId, invoice: invoice.id, total, currency }, "[stripe-sync] invoice.paid recorded");
 }
 
-const MAX_PAYMENT_FAILURES_BEFORE_SUSPEND = 3;
 
 export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
@@ -279,9 +282,14 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   if (!orgId) return;
   const [current] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1);
   const newCount = (current?.paymentFailedCount ?? 0) + 1;
-  const shouldSuspend = newCount >= MAX_PAYMENT_FAILURES_BEFORE_SUSPEND;
   const isManualSuspension = (current as any)?.suspensionReason === "manual";
   const now = new Date();
+  // CGV art. 4 : pas de suspension sans mise en demeure restee sans effet
+  // quinze jours (services/mise-en-demeure.ts). Le nombre d echecs Stripe ne
+  // decide plus : il dependait du calendrier de relance de Stripe, pas du
+  // contrat. La premiere tentative envoie la mise en demeure.
+  const miseEnDemeureAt = isManualSuspension ? null : await mettreEnDemeure(orgId, current?.plan ?? "starter", now);
+  const shouldSuspend = peutSuspendre(miseEnDemeureAt, now);
   if (isManualSuspension) {
     await db.update(subscriptionsTable).set({
       paymentFailedCount: newCount,
@@ -309,10 +317,10 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const transitionedToSuspended = shouldSuspend && current?.status !== "suspended";
   logger.warn(
     { orgId, invoice: invoice.id, attempts: newCount, suspended: shouldSuspend },
-    `[stripe-sync] invoice.payment_failed -> ${shouldSuspend ? "suspended (3+ echecs)" : "past_due"}`,
+    `[stripe-sync] invoice.payment_failed -> ${shouldSuspend ? "suspended (mise en demeure echue)" : "past_due"}`,
   );
   await logLicenseEvent(orgId, transitionedToSuspended ? "subscription_suspended" : "payment_failed",
-    transitionedToSuspended ? `Suspendu apres ${newCount} echecs consecutifs` : `Echec de paiement #${newCount}`,
+    transitionedToSuspended ? `Suspendu : mise en demeure restee sans effet ${DELAI_MISE_EN_DEMEURE_JOURS} jours` : `Echec de paiement #${newCount}`,
     { metadata: { invoice: invoice.id, attempts: newCount } },
   );
   if (transitionedToSuspended) {

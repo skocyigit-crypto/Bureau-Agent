@@ -1,5 +1,5 @@
 import { tracerExtraction } from "../lib/tracer-extraction";
-import { Router, type Request, type Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { deductibiliteTva, totalDeductible } from "../services/tva-deductible";
 import {
   db,
@@ -11,6 +11,7 @@ import {
 import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { referencesRefusees, refuserReferences } from "../services/appartenance";
+import { deviseDuChantier } from "../services/dossier-chantier";
 import { requireRole } from "../middleware/auth";
 import { CURSEUR_EXPORT_DEBUT } from "../lib/curseur-export";
 import { montantsDepense, NOTE_TVA_NON_LUE } from "../services/montants-depense";
@@ -364,6 +365,12 @@ router.post("/depenses", requireMinAgent, async (req: Request, res: Response): P
     const refusChantier = await referencesRefusees(orgId, [{ champ: "projetId", genre: "projet", valeur: body.projetId }]);
     if (refusChantier.length > 0) { refuserReferences(res, refusChantier); return; }
     const projetId = body.projetId === null || body.projetId === undefined || body.projetId === "" ? null : Number(body.projetId);
+    // Une depense est saisie en euros (colonne `currency`, non saisissable) : elle
+    // ne se rattache qu'a un chantier en euros, sans quoi le total melangerait.
+    if (projetId != null) {
+      const deviseChantier = await deviseDuChantier(orgId, projetId);
+      if (deviseChantier && deviseChantier !== "EUR") { res.status(409).json({ error: "Une ligne rattachee a un chantier est dans la devise du chantier.", code: "devise_differente", devise: deviseChantier }); return; }
+    }
 
     const amountTtc = num(body.amountTtc);
     if (amountTtc <= 0 && num(body.amountHt) <= 0) {
@@ -494,6 +501,8 @@ router.patch("/depenses/:id", requireMinAgent, async (req: Request, res: Respons
       else {
         const refus = await referencesRefusees(orgId, [{ champ: "projetId", genre: "projet", valeur: body.projetId }]);
         if (refus.length > 0) { refuserReferences(res, refus); return; }
+        const deviseChantier = await deviseDuChantier(orgId, Number(body.projetId));
+        if (deviseChantier && deviseChantier !== (current.currency ?? "EUR")) { res.status(409).json({ error: "Une ligne rattachee a un chantier est dans la devise du chantier.", code: "devise_differente", devise: deviseChantier }); return; }
         update.projetId = Number(body.projetId);
       }
     }
@@ -853,6 +862,27 @@ router.delete("/depenses/comptes/:categorie", requireResponsable, async (req: Re
     .returning({ id: comptesDepenseTable.id });
   if (supprimees.length === 0) { res.status(404).json({ error: "Aucun compte pour cette categorie." }); return; }
   res.json({ ok: true });
+});
+
+/**
+ * Une depense, par son numero. Le dossier de chantier et la comparaison par
+ * affaire menent a `/depenses?id=N` : sans cette lecture, le lien ouvrait la
+ * liste, paginee, ou la ligne visee pouvait ne pas figurer (revue du 30/09).
+ * Un segment non numerique passe aux routes nommees (`/depenses/stats`...).
+ */
+router.get("/depenses/:id", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const brut = String(req.params.id);
+  if (!/^[0-9]+$/.test(brut)) { next(); return; }
+  try {
+    const orgId = getOrgId(req);
+    const [ligne] = await db.select().from(depensesTable)
+      .where(and(eq(depensesTable.id, Number(brut)), eq(depensesTable.organisationId, orgId))).limit(1);
+    if (!ligne) { res.status(404).json({ error: "Depense introuvable." }); return; }
+    res.json(ligne);
+  } catch (err) {
+    logger.error({ err }, "[depenses] lecture unitaire");
+    res.status(500).json({ error: "La depense n a pas pu etre lue." });
+  }
 });
 
 export default router;

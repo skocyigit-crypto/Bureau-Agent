@@ -76,3 +76,22 @@ describe("sous-traitants : la liste suit le code", () => {
     expect(DPA).toMatch(/Annexe 1 — Sous-traitants ultérieurs/);
   });
 });
+
+/**
+ * La page turque nomme les memes destinataires que la page francaise.
+ *
+ * Revue de vendabilite du 30/09 : `gizlilik.tsx` disait « certains
+ * sous-traitants (hebergement, e-mail) » et ne nommait aucun fournisseur d'IA,
+ * quand `confidentialite.tsx` listait Google, Anthropic et OpenAI aux
+ * Etats-Unis. Deux lecteurs, deux verites.
+ */
+describe("gizlilik (TR) = confidentialite (FR) sur les destinataires", () => {
+  const GIZLILIK = readFileSync(join(import.meta.dirname, "gizlilik.tsx"), "utf8");
+  const NOMS = ["Google Cloud EMEA", "Resend", "Cloudflare", "Expo", "OpenStreetMap", "Anthropic", "OpenAI"];
+  for (const nom of NOMS) {
+    it(`${nom} : nomme dans les deux pages`, () => {
+      expect(POLITIQUE, `confidentialite.tsx ne nomme pas ${nom}`).toContain(nom);
+      expect(GIZLILIK, `gizlilik.tsx ne nomme pas ${nom}`).toContain(nom);
+    });
+  }
+});

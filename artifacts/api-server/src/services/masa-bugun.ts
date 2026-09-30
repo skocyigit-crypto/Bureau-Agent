@@ -283,7 +283,7 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
       sorumlu: nommer(tache.assignedTo, noms), zaman: iso(tache.dueDate), ton: "bilgi" as Ton,
     })),
     livraisons.map((p) => ({
-      cle: `teslim:${p.id}`, tur: "teslim", baslik: p.title, detay: p.clientName, href: "/projets",
+      cle: `teslim:${p.id}`, tur: "teslim", baslik: p.title, detay: p.clientName, href: `/projets/${p.id}`,
       sorumlu: nommer(p.assignedTo, noms), zaman: iso(p.endDate), ton: "bilgi" as Ton,
     })),
   ]);
@@ -317,7 +317,7 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
       tutar: nombre(d.totalAmount), para: d.currency ?? "EUR",
     })),
     enRetard.map((p) => ({
-      cle: `santiye_gecikti:${p.id}`, tur: "santiye_gecikti", baslik: p.title, detay: p.clientName, href: "/projets",
+      cle: `santiye_gecikti:${p.id}`, tur: "santiye_gecikti", baslik: p.title, detay: p.clientName, href: `/projets/${p.id}`,
       sorumlu: nommer(p.assignedTo, noms), zaman: iso(p.endDate), ton: "acil" as Ton,
     })),
   ]);

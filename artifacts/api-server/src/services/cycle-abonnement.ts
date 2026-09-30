@@ -40,6 +40,7 @@ import { and, eq, isNotNull, lt, or } from "drizzle-orm";
 import { db, invoicesTable, subscriptionsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { PAYMENT_GRACE_DAYS } from "./payment-access-policy";
+import { mettreEnDemeure, peutSuspendre } from "./mise-en-demeure";
 
 const JOUR_MS = 86_400_000;
 
@@ -75,13 +76,16 @@ export interface EtatAbonnement {
    * aucune n'a de `stripe_subscription_id` — ce moteur reste le seul a agir.
    */
   stripeSubscriptionId: string | null;
+  /** Date de la mise en demeure en cours (services/mise-en-demeure.ts), ou null. */
+  miseEnDemeureAt?: Date | null;
 }
 
 export type Transition =
   | { action: "rien"; raison: string }
   | { action: "renouveler"; nouveauDebut: Date; nouvelleFin: Date }
   | { action: "passer_en_retard"; depuis: Date }
-  | { action: "suspendre"; raison: string };
+  | { action: "suspendre"; raison: string }
+  | { action: "mettre_en_demeure" };
 
 /**
  * La fin de periode suivante.
@@ -142,6 +146,13 @@ export function deciderTransition(etat: EtatAbonnement, maintenant: Date = new D
   // laisser ce moteur regarder un abonnement Stripe, ne serait-ce que pour
   // « constater » un retard, ouvrirait la porte a deux verdicts.
   if (etat.stripeSubscriptionId) {
+    // Stripe sait si l argent est arrive ; le MOMENT de la suspension, lui,
+    // est fixe par le contrat. Si Stripe cesse ses relances avant l echeance
+    // de la mise en demeure, plus aucun evenement n arrive : sans cette
+    // branche, l abonnement resterait impaye et ouvert indefiniment.
+    if (etat.statut === "past_due" && peutSuspendre(etat.miseEnDemeureAt ?? null, maintenant)) {
+      return { action: "suspendre", raison: "mise_en_demeure_echue" };
+    }
     return { action: "rien", raison: "gere par Stripe : stripe-sync fait foi" };
   }
 
@@ -164,12 +175,15 @@ export function deciderTransition(etat: EtatAbonnement, maintenant: Date = new D
 
   const debutRetard = etat.echecDepuis ?? etat.impayeDepuis;
 
+  // CGV art. 4 : la suspension suit une mise en demeure restee sans effet
+  // quinze jours — pas un nombre de jours depuis le premier impaye. Un retard
+  // sans mise en demeure en appelle d'abord une.
   if (etat.statut === "past_due" && debutRetard) {
-    const finGrace = new Date(debutRetard.getTime() + PAYMENT_GRACE_DAYS * JOUR_MS);
-    if (finGrace.getTime() <= maintenant.getTime()) {
-      return { action: "suspendre", raison: `impaye depuis plus de ${PAYMENT_GRACE_DAYS} jours` };
+    if (!etat.miseEnDemeureAt) return { action: "mettre_en_demeure" };
+    if (peutSuspendre(etat.miseEnDemeureAt, maintenant)) {
+      return { action: "suspendre", raison: "mise_en_demeure_echue" };
     }
-    return { action: "rien", raison: "delai de grace en cours" };
+    return { action: "rien", raison: "delai de la mise en demeure en cours" };
   }
 
   // Une facture emise et impayee fait basculer en retard, meme si la periode
@@ -191,6 +205,7 @@ export interface ResultatCycle {
   renouveles: number;
   passesEnRetard: number;
   suspendus: number;
+  misesEnDemeure: number;
   /** Abonnements qu'on n'a PAS pu evaluer : on le dit, on ne les compte pas comme sains. */
   illisibles: string[];
 }
@@ -203,7 +218,7 @@ export interface ResultatCycle {
  * de « rien n'a ete lu ».
  */
 export async function appliquerCycleAbonnements(maintenant: Date = new Date()): Promise<ResultatCycle> {
-  const r: ResultatCycle = { examines: 0, renouveles: 0, passesEnRetard: 0, suspendus: 0, illisibles: [] };
+  const r: ResultatCycle = { examines: 0, renouveles: 0, passesEnRetard: 0, suspendus: 0, misesEnDemeure: 0, illisibles: [] };
 
   const abonnements = await db.select().from(subscriptionsTable);
 
@@ -231,7 +246,14 @@ export async function appliquerCycleAbonnements(maintenant: Date = new Date()): 
         impayeDepuis: impaye?.issuedAt ? new Date(impaye.issuedAt) : null,
         echecDepuis: sub.lastPaymentFailedAt ? new Date(sub.lastPaymentFailedAt) : null,
         stripeSubscriptionId: sub.stripeSubscriptionId ?? null,
+        miseEnDemeureAt: sub.miseEnDemeureAt ? new Date(sub.miseEnDemeureAt) : null,
       }, maintenant);
+
+      if (decision.action === "mettre_en_demeure") {
+        await mettreEnDemeure(sub.organisationId, sub.plan, maintenant);
+        r.misesEnDemeure++;
+        continue;
+      }
 
       if (decision.action === "rien") continue;
 
@@ -254,6 +276,8 @@ export async function appliquerCycleAbonnements(maintenant: Date = new Date()): 
           updatedAt: maintenant,
         }).where(eq(subscriptionsTable.id, sub.id));
         r.passesEnRetard++;
+        // Le retard ouvre la mise en demeure dans le meme passage.
+        if (await mettreEnDemeure(sub.organisationId, sub.plan, maintenant)) r.misesEnDemeure++;
         logger.warn({ orgId: sub.organisationId, depuis: decision.depuis.toISOString() }, "[CycleAbonnement] passe en retard de paiement");
         continue;
       }

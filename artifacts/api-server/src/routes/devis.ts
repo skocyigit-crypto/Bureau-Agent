@@ -12,6 +12,7 @@ import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { logAudit } from "./audit";
 import { referencesRefusees, refuserReferences } from "../services/appartenance";
 import { chantierDuDevis } from "../services/devis-facturable";
+import { affectationDuDevis, rattacherFacturesDuDevis, verrouillerDevis } from "../services/dossier-chantier";
 
 const router: IRouter = Router();
 
@@ -210,7 +211,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
     const [existing] = await db
       .select({
         id: devisTable.id, status: devisTable.status, validUntil: devisTable.validUntil,
-        acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount, prospectId: devisTable.prospectId,
+        acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount, prospectId: devisTable.prospectId, currency: devisTable.currency,
       })
       .from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
@@ -286,6 +287,39 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
           champs: touches,
           remediation: "Refusez ce devis et emettez-en un nouveau au prix revise, pour que le changement laisse une trace.",
         });
+        return;
+      }
+    }
+
+    // REVENIR SUR UNE ACCEPTATION est aussi grave que l'accorder : sur un
+    // avenant ou un marche, cela retire son montant de l'engage du chantier.
+    // L'acceptation etait reservee a l'administration ; son retrait ne l'etait
+    // pas, et un agent pouvait faire disparaitre un depassement en repassant
+    // un avenant accepte en brouillon.
+    if (existing.status === "accepte" && b.status !== undefined && b.status !== "accepte") {
+      const role = req.session?.userRole;
+      if (role !== "super_admin" && role !== "administrateur") {
+        res.status(403).json({
+          error: "Seul un administrateur peut revenir sur l'acceptation d'un devis.",
+          code: "retrait_acceptation_reserve",
+        });
+        return;
+      }
+      void logAudit(
+        req.session?.userId, req.session?.userEmail,
+        "devis.acceptation_retiree", "devis", String(id),
+        { de: existing.status, vers: b.status, totalAmount: existing.totalAmount },
+        req.ip, req.get("user-agent"), req.session?.organisationId ?? null,
+      ).catch(() => {});
+    }
+
+    // La devise d'un devis rattache a un chantier est celle du chantier : sans
+    // quoi l'engage additionnerait des euros et des dollars.
+    if (b.currency !== undefined && b.currency !== existing.currency) {
+      const aff = await db.transaction(async (tx) => affectationDuDevis(tx, orgId, id));
+      const projetLie = aff.marcheDe ?? aff.avenant?.projetId ?? null;
+      if (projetLie) {
+        res.status(409).json({ error: "Ce devis est rattache a un chantier : sa devise est celle du chantier.", code: "devise_differente", projetId: projetLie });
         return;
       }
     }
@@ -549,12 +583,18 @@ router.post("/devis/:id/chantier", async (req: Request, res: Response): Promise<
     }
     const existant = async () => (await db.select().from(projetsTable)
       .where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.devisId, id))))[0];
-    const deja = await existant();
-    if (deja) { res.status(200).json({ projet: deja, dejaOuvert: true }); return; }
 
-    let projet;
-    try {
-      [projet] = await db.insert(projetsTable).values({
+    // Verrou + verification + insertion dans UNE transaction, sous le meme
+    // verrou que le rattachement d'avenant (services/dossier-chantier.ts).
+    const issue = await db.transaction(async (tx) => {
+      await verrouillerDevis(tx, id);
+      const aff = await affectationDuDevis(tx, orgId, id);
+      if (aff.avenant) return { avenantDe: aff.avenant.projetId } as const;
+      if (aff.marcheDe) {
+        const [p] = await tx.select().from(projetsTable).where(eq(projetsTable.id, aff.marcheDe));
+        return { deja: p! } as const;
+      }
+      const [cree] = await tx.insert(projetsTable).values({
         organisationId: orgId,
         devisId: devis.id,
         prospectId: devis.prospectId ?? null,
@@ -567,19 +607,33 @@ router.post("/devis/:id/chantier", async (req: Request, res: Response): Promise<
         address: devis.clientAddress ?? null,
         currency: devis.currency ?? "EUR",
       }).returning();
-    } catch (err: any) {
-      // Deux ouvertures simultanees : l'index unique a garde la premiere.
+      // Une facture d'acompte emise avant l'ouverture rejoint le chantier.
+      const facturesRattachees = await rattacherFacturesDuDevis(tx, orgId, id, cree!.id);
+      return { cree: cree!, facturesRattachees } as const;
+    }).catch(async (err: any) => {
+      // Filet : l'index unique garde la premiere ouverture si le verrou manquait.
       const code = err?.code ?? err?.cause?.code;
       if (code !== "23505") throw err;
       const gagnant = await existant();
       if (!gagnant) throw err;
-      res.status(200).json({ projet: gagnant, dejaOuvert: true });
+      return { deja: gagnant } as const;
+    });
+
+    if ("avenantDe" in issue) {
+      res.status(409).json({
+        error: "Ce devis est deja l'avenant d'un chantier : il ne peut pas en ouvrir un autre.",
+        code: "devis_est_avenant",
+        projetId: issue.avenantDe,
+        remediation: "Ouvrez le dossier du chantier dont il est l'avenant.",
+      });
       return;
     }
+    if ("deja" in issue) { res.status(200).json({ projet: issue.deja, dejaOuvert: true }); return; }
+    const projet = issue.cree;
     await logAudit(
       req.session?.userId, req.session?.userEmail,
-      "chantier.ouvert_depuis_devis", "projet", String(projet!.id),
-      { devisId: devis.id, reference: devis.reference },
+      "chantier.ouvert_depuis_devis", "projet", String(projet.id),
+      { devisId: devis.id, reference: devis.reference, facturesRattachees: issue.facturesRattachees },
       req.ip, req.get("user-agent"), orgId,
     ).catch(() => {});
     res.status(201).json({ projet });
@@ -594,6 +648,25 @@ router.delete("/devis/:id", async (req: Request, res: Response): Promise<void> =
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
+    // Un devis accepte est un engagement du client ; un devis rattache a un
+    // chantier (marche ou avenant) porte l'engage de ce chantier. Le supprimer
+    // remettait l'engage a zero en silence, faisait disparaitre les avenants
+    // (cascade) et l'alerte de depassement avec eux. On le refuse : un devis
+    // accepte se conserve, un devis a retirer d'un chantier se detache.
+    const [cible] = await db.select({ status: devisTable.status }).from(devisTable)
+      .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
+    if (!cible) { res.status(404).json({ error: "Devis non trouve." }); return; }
+    const aff = await db.transaction(async (tx) => affectationDuDevis(tx, orgId, id));
+    if (cible.status === "accepte" || aff.marcheDe || aff.avenant) {
+      res.status(409).json({
+        error: "Ce devis engage un chantier ou le client : il ne se supprime pas.",
+        code: "devis_engage",
+        statut: cible.status,
+        projetId: aff.marcheDe ?? aff.avenant?.projetId ?? null,
+        remediation: aff.avenant ? "Detachez d'abord l'avenant depuis le dossier du chantier." : "Un devis accepte se conserve ; creez un nouveau devis si le prix change.",
+      });
+      return;
+    }
     const result = await db.delete(devisTable)
       .where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)))
       .returning();

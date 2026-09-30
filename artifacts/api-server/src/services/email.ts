@@ -785,6 +785,38 @@ export async function sendSubscriptionSuspendedEmail(params: {
   return sendEmail(to, `[Ajant Bureau] Abonnement suspendu - ${orgName}`, html, text);
 }
 
+/**
+ * MISE EN DEMEURE de payer l'abonnement (CGV art. 4).
+ *
+ * C'est la piece que les CGV exigent AVANT toute suspension : datee, elle fait
+ * courir le delai de quinze jours. Elle nomme la date a partir de laquelle
+ * l'acces pourra etre suspendu, pour que le client sache ce qu'il risque et
+ * quand.
+ */
+export async function sendMiseEnDemeureEmail(params: {
+  to: string;
+  orgName: string;
+  plan: string;
+  dateLimite: Date;
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+  const { to, orgName, plan, dateLimite } = params;
+  const portalUrl = `${APP_URL}/abonnement`;
+  const limite = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(dateLimite);
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;">
+<div style="background:#9a3412;padding:28px;text-align:center;"><h1 style="color:#fff;font-size:21px;margin:0;">Mise en demeure de payer</h1></div>
+<div style="padding:28px;color:#0f1729;font-size:15px;line-height:1.6;">
+<p>Bonjour,</p>
+<p>Le paiement de l'abonnement <strong>${escapeHtml(plan)}</strong> de votre organisation <strong>${escapeHtml(orgName)}</strong> n'a pas abouti.</p>
+<p>Conformement a l'article 4 de nos conditions generales de vente, nous vous mettons en demeure de regulariser ce paiement. <strong>A defaut de reglement au plus tard le ${escapeHtml(limite)}</strong>, l'acces en ecriture a votre compte pourra etre suspendu. Vos donnees restent conservees et consultables.</p>
+<p style="text-align:center;margin:24px 0;"><a href="${portalUrl}" style="display:inline-block;background:#ea580c;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;">Regulariser le paiement</a></p>
+<p style="color:#64748b;font-size:13px;">Si le paiement a deja ete effectue, ignorez ce message. Support : support@agentdebureau.fr</p>
+</div></div></body></html>`;
+  const text = `Mise en demeure de payer - Ajant Bureau\n\nLe paiement de l'abonnement ${plan} de ${orgName} n'a pas abouti.\nConformement a l'article 4 de nos CGV, nous vous mettons en demeure de regulariser ce paiement. A defaut de reglement au plus tard le ${limite}, l'acces en ecriture pourra etre suspendu. Vos donnees restent conservees.\n\nRegulariser : ${portalUrl}\nSupport : support@agentdebureau.fr`;
+  return sendEmail(to, `[Ajant Bureau] Mise en demeure de payer - ${orgName}`, html, text);
+}
+
 export async function sendSubscriptionRecoveredEmail(params: {
   to: string;
   orgName: string;

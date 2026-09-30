@@ -38,11 +38,14 @@ export const RESTORABLE_TABLES = [
   "contacts",
   "prospects",
   "devis",
+  // Avant factures_client, calls, calendar_events et depenses : depuis le
+  // 30/09 ils portent tous projet_id -> projets. Restaure apres eux, un
+  // chantier faisait echouer (ou orpheliner) chaque ligne qui s y rattache.
+  "projets",
   "factures_client",
   "invoices",
   "payments",
   "compte_client",
-  "projets",
   // Apres projets et devis, auxquels ils se rattachent.
   "journal_chantier",
   "avenants",

@@ -10104,6 +10104,31 @@
     "sansEngage": "Kabul edilmiş tutar yok",
     "depasse": "onaylı işi aşıyor",
     "reste": "kalan {{montant}}",
-    "note": "Yalnız kabul edilmiş teklifler, onaylı giderler, kesilmiş faturalar ve tahsilat defteri sayılır. Tahmin yapılmaz."
+    "note": "Yalnız kabul edilmiş teklifler, onaylı giderler, kesilmiş faturalar ve tahsilat defteri sayılır. Tahmin yapılmaz.",
+    "tronque": "İlk {{shown}} şantiye gösteriliyor; toplam {{total}}."
+  },
+  "enregistrementCible": {
+    "titre": "Açılan kayıt",
+    "chargement": "Kayıt yükleniyor…",
+    "introuvable": "#{{id}} numaralı kayıt bulunamadı ya da silinmiş.",
+    "interdit": "#{{id}} numaralı kaydı görme yetkiniz yok.",
+    "erreur": "#{{id}} numaralı kayıt okunamadı. Bağlantınızı kontrol edin.",
+    "statut": "Durum: {{statut}}",
+    "fermer": "Kapat",
+    "statuts": {
+      "brouillon": "Taslak",
+      "envoye": "Gönderildi",
+      "accepte": "Kabul edildi",
+      "refuse": "Reddedildi",
+      "expire": "Süresi doldu",
+      "envoyee": "Gönderildi",
+      "payee": "Ödendi",
+      "partiellement_payee": "Kısmen ödendi",
+      "en_retard": "Gecikmede",
+      "annulee": "İptal edildi",
+      "en_attente": "İncelemede",
+      "approuve": "Onaylandı",
+      "rejete": "Reddedildi"
+    }
   }
 }

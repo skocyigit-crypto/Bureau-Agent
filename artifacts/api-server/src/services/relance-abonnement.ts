@@ -33,7 +33,7 @@ export type ResultatRelanceAbonnement =
   | { statut: "deja_relancee" | "rien_a_relancer" | "sans_destinataire" | "en_cours" | "echec"; detail?: string };
 
 /** Adresse de l'organisation + administrateurs actifs, sans doublon. */
-async function destinataires(orgId: number, emailOrg: string | null): Promise<string[]> {
+export async function destinataires(orgId: number, emailOrg: string | null): Promise<string[]> {
   const admins = await db.select({ email: usersTable.email }).from(usersTable).where(and(
     eq(usersTable.organisationId, orgId), eq(usersTable.role, "administrateur"), eq(usersTable.actif, true),
   ));

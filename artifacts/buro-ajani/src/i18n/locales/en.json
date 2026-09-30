@@ -10104,6 +10104,31 @@
     "sansEngage": "No accepted amount",
     "depasse": "over approved work",
     "reste": "{{montant}} left",
-    "note": "Only accepted quotes, approved expenses, issued invoices and the payment journal are counted. Nothing is estimated."
+    "note": "Only accepted quotes, approved expenses, issued invoices and the payment journal are counted. Nothing is estimated.",
+    "tronque": "Showing the first {{shown}} of {{total}} jobs."
+  },
+  "enregistrementCible": {
+    "titre": "Opened record",
+    "chargement": "Loading record…",
+    "introuvable": "Record #{{id}} was not found or has been deleted.",
+    "interdit": "You are not allowed to view record #{{id}}.",
+    "erreur": "Record #{{id}} could not be read. Check your connection.",
+    "statut": "Status: {{statut}}",
+    "fermer": "Close",
+    "statuts": {
+      "brouillon": "Draft",
+      "envoye": "Sent",
+      "accepte": "Accepted",
+      "refuse": "Refused",
+      "expire": "Expired",
+      "envoyee": "Sent",
+      "payee": "Paid",
+      "partiellement_payee": "Partly paid",
+      "en_retard": "Overdue",
+      "annulee": "Cancelled",
+      "en_attente": "Pending",
+      "approuve": "Approved",
+      "rejete": "Rejected"
+    }
   }
 }

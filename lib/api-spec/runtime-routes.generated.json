@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 717,
+    "runtimeOperations": 718,
     "documentedOperations": 96,
-    "undocumentedOperations": 621
+    "undocumentedOperations": 622
   },
   "operations": [
     {
@@ -2544,6 +2544,14 @@
     },
     {
       "method": "delete",
+      "path": "/depenses/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/depenses.ts"
+      ]
+    },
+    {
+      "method": "get",
       "path": "/depenses/{id}",
       "documented": false,
       "sources": [

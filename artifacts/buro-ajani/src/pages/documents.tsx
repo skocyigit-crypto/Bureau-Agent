@@ -46,6 +46,7 @@ import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { useTranslation,type TFunction } from "@/i18n";
 import { streamSse } from "@/lib/ai-stream-client";
 import { useLocation } from "wouter";
+import { EnregistrementCible } from "@/components/enregistrement-cible";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -613,6 +614,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
+      <EnregistrementCible ressource="document" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t("documents.title")}</h1>

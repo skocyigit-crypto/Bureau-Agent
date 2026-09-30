@@ -6,6 +6,7 @@ import { sendInvoiceReminderEmail } from "../services/email";
 import { frozenFieldsTouched, isIssued, nextInvoiceNumber } from "../services/invoice-numbering";
 import { getOrgId } from "../middleware/tenant";
 import { chantierDuDevis, devisFacturable, lireDevisDeLOrganisation } from "../services/devis-facturable";
+import { deviseDuChantier } from "../services/dossier-chantier";
 import { deriveInvoiceStatus, overdueCondition } from "../services/invoice-status";
 import { buildInvoiceDocument, invoiceFileName, renderInvoicePdf } from "../services/invoice-pdf";
 import { buildFacturXXml } from "../services/facturx";
@@ -269,6 +270,10 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
       return;
     }
     const projetFacture = projetDemande ?? projetDuDevis;
+    if (projetFacture != null) {
+      const deviseChantier = await deviseDuChantier(targetOrg, projetFacture);
+      if (deviseChantier && deviseChantier !== currency) { res.status(409).json({ error: "Une ligne rattachee a un chantier est dans la devise du chantier.", code: "devise_differente", devise: deviseChantier }); return; }
+    }
     const checkExists = async (candidate: string): Promise<boolean> => {
       const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
         .where(and(eq(facturesClientTable.organisationId, targetOrg), eq(facturesClientTable.reference, candidate)));
@@ -432,6 +437,15 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
           return;
         }
         updates.projetId = Number(b.projetId);
+      }
+    }
+    // Devise et chantier, apres modification, doivent concorder.
+    {
+      const projetFinal = updates.projetId !== undefined ? updates.projetId : existing.projetId;
+      const deviseFinale = b.currency !== undefined ? b.currency : existing.currency;
+      if (projetFinal != null) {
+        const deviseChantier = await deviseDuChantier(orgId, projetFinal);
+        if (deviseChantier && deviseChantier !== deviseFinale) { res.status(409).json({ error: "Une ligne rattachee a un chantier est dans la devise du chantier.", code: "devise_differente", devise: deviseChantier }); return; }
       }
     }
     // Reference: unicite verifiee aussi en modification (une facture legale ne

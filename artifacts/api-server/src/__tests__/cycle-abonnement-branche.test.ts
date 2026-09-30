@@ -26,7 +26,7 @@ import { join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable } from "@workspace/db";
 import { appliquerCycleAbonnements } from "../services/cycle-abonnement";
-import { PAYMENT_GRACE_DAYS } from "../services/payment-access-policy";
+import { DELAI_MISE_EN_DEMEURE_JOURS } from "../services/mise-en-demeure";
 
 const SRC = join(import.meta.dirname, "..");
 const INDEX = readFileSync(join(SRC, "index.ts"), "utf8");
@@ -78,10 +78,11 @@ describe("le cycle ecrit vraiment", () => {
     expect((await relire(subId)).status).toBe("active");
   });
 
-  it("un abonnement en retard hors delai passe a suspended", async () => {
+  it("un abonnement mis en demeure depuis plus de quinze jours passe a suspended", async () => {
     const { subId } = await abonnement({
       status: "past_due",
-      lastPaymentFailedAt: new Date(Date.now() - (PAYMENT_GRACE_DAYS + 2) * JOUR),
+      lastPaymentFailedAt: new Date(Date.now() - 40 * JOUR),
+      miseEnDemeureAt: new Date(Date.now() - (DELAI_MISE_EN_DEMEURE_JOURS + 1) * JOUR),
       currentPeriodEnd: new Date(Date.now() + 10 * JOUR),
     });
     await appliquerCycleAbonnements();
@@ -94,12 +95,23 @@ describe("le cycle ecrit vraiment", () => {
     // confiance.
     const { subId } = await abonnement({
       status: "past_due",
-      lastPaymentFailedAt: new Date(Date.now() - (PAYMENT_GRACE_DAYS + 3) * JOUR),
+      lastPaymentFailedAt: new Date(Date.now() - 40 * JOUR),
+      miseEnDemeureAt: new Date(Date.now() - (DELAI_MISE_EN_DEMEURE_JOURS + 2) * JOUR),
     });
     await appliquerCycleAbonnements();
     const a = await relire(subId);
     expect(a.suspendedAt).toBeTruthy();
-    expect(String(a.suspensionReason)).toContain(String(PAYMENT_GRACE_DAYS));
+    expect(a.suspensionReason).toBe("mise_en_demeure_echue");
+  });
+
+  it("un retard ancien SANS mise en demeure n'est pas suspendu (CGV art. 4)", async () => {
+    // L organisation n a aucune adresse joignable : la mise en demeure ne peut
+    // pas partir, donc le delai ne s ouvre pas, donc pas de suspension.
+    const { subId } = await abonnement({ status: "past_due", lastPaymentFailedAt: new Date(Date.now() - 60 * JOUR) });
+    await appliquerCycleAbonnements();
+    const a = await relire(subId);
+    expect(a.status).toBe("past_due");
+    expect(a.miseEnDemeureAt, "delai ouvert sans mise en demeure recue").toBeNull();
   });
 
   it("un abonnement en grace n'est PAS suspendu", async () => {

@@ -30,7 +30,7 @@ class ErreurHttp extends Error {
   constructor(public statut: number | null) { super(`HTTP ${statut}`); }
 }
 
-async function lire(): Promise<{ lignes: LigneComparaison[] }> {
+async function lire(): Promise<{ lignes: LigneComparaison[]; adet?: number; fazlasi?: boolean }> {
   let r: Response;
   try { r = await fetch(`${API}/api/finance/affaires`, { credentials: "include" }); }
   catch { throw new ErreurHttp(null); }
@@ -44,7 +44,7 @@ const COLONNES = ["teklif", "ekIsler", "gider", "faturalanan", "tahsilEdilen", "
 export default function FinanceAffairesPage() {
   const { t, lang } = useTranslation();
   const [filtre, setFiltre] = useState<Filtre>("tous");
-  const q = useQuery<{ lignes: LigneComparaison[] }, ErreurHttp>({ queryKey: ["finance-affaires"], queryFn: lire, retry: (n, e) => n < 1 && e.statut === null });
+  const q = useQuery<{ lignes: LigneComparaison[]; adet?: number; fazlasi?: boolean }, ErreurHttp>({ queryKey: ["finance-affaires"], queryFn: lire, retry: (n, e) => n < 1 && e.statut === null });
 
   const argent = (n: number, devise: string) => argentSur(lang, n, devise);
 
@@ -87,6 +87,11 @@ export default function FinanceAffairesPage() {
             ))}
           </div>
           <p role="status" className="text-sm text-muted-foreground">{t("financeAffaires.compte", { count: lignes.length })}</p>
+          {q.data?.fazlasi && (
+            <p className="text-sm text-orange-800 dark:text-orange-300" data-testid="finance-tronque">
+              {t("financeAffaires.tronque", { shown: q.data.lignes.length, total: q.data.adet ?? q.data.lignes.length })}
+            </p>
+          )}
 
           {lignes.length === 0 ? (
             <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground" data-testid="finance-vide">
