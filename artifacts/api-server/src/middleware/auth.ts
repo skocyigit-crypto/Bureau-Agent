@@ -117,14 +117,39 @@ export async function hydrateFromBearer(req: Request): Promise<void> {
  * par une cle via la modification de profil).
  *
  * Refuse ici, a l'endroit ou la cle devient une identite : identite et
- * comptes, cles et webhooks, invitations, plateforme et facturation, et toute
- * ecriture de la protection des donnees (effacement, exports).
+ * comptes, cles et webhooks, invitations, plateforme et facturation, moyens
+ * de paiement, raccordement Google, et toute ecriture de la protection des
+ * donnees (effacement, exports).
+ *
+ * `billing` et `stripe` passent deja par une garde de role, donc par la
+ * barriere ; ils sont nommes ici pour que le jour ou quelqu'un change leur
+ * garde, la porte reste fermee. `google-oauth`, lui, etait un vrai trou :
+ * /google-oauth/disconnect lit la session sans garde, et une cle pouvait
+ * donc couper le raccordement Google du bureau. Le retour d'authentification
+ * Google (monte avant la garde globale) ne porte aucune cle : il n'est pas
+ * concerne.
+ *
+ * La liste est verrouillee par `surface-cle-api.test.ts` : toute route au
+ * nom sensible qui n'est ni refusee ici ni declaree y fait rougir la suite.
  */
-const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin)(\/|$)/;
+const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin|billing|stripe|google-oauth)(\/|$)/;
 const LECTURE_SEULE_AUX_CLES = /^\/api\/data-protection(\/|$)/;
 
+/**
+ * Le chemin tel qu'Express le ROUTE, pas tel qu'il est ecrit.
+ *
+ * Express compare les chemins sans tenir compte de la casse et tolere les
+ * barres doublees : `/api/Auth/users` et `/api//auth/users` atteignent le
+ * meme gestionnaire que `/api/auth/users`. Une liste de refus qui compare
+ * la chaine brute laissait donc passer la meme route ecrite autrement — et
+ * avec elle la creation d'un administrateur par une simple cle.
+ */
+function cheminNormalise(chemin: string): string {
+  return (chemin.split("?")[0] ?? "").toLowerCase().replace(/\/{2,}/g, "/");
+}
+
 export function routeInterditeAuxCles(methode: string, chemin: string): boolean {
-  const p = chemin.split("?")[0] ?? "";
+  const p = cheminNormalise(chemin);
   if (INTERDIT_AUX_CLES.test(p)) return true;
   return LECTURE_SEULE_AUX_CLES.test(p) && methode.toUpperCase() !== "GET";
 }
@@ -137,6 +162,32 @@ function refuserCle(req: Request, res: Response): boolean {
     code: "cle_api_interdite",
   });
   return true;
+}
+
+/**
+ * La barriere s'applique LA OU LA CLE DEVIENT UNE IDENTITE, pas dans les
+ * gardes.
+ *
+ * Premiere version : le refus vivait dans requireAuth / requireRole /
+ * requireSuperAdmin. Or `app.ts` hydrate le porteur pour CHAQUE requete
+ * /api/*, et le routeur d'authentification est monte AVANT la garde globale.
+ * Les routes qui lisent `req.session.userId` directement — /auth/mfa/*,
+ * /auth/sessions/revoke-all, /auth/logout — ne traversaient donc aucune
+ * garde, et la barriere ne s'y appliquait pas. Mesure : avec la seule cle,
+ * sans mot de passe, on pouvait poser un nouveau secret MFA sur le compte de
+ * son createur (/auth/mfa/setup), l'activer avec son propre authentificateur
+ * (/auth/mfa/enable) — le proprietaire ne pouvait plus entrer chez lui — et,
+ * avec une cle d'administrateur, invalider les sessions de toute
+ * l'organisation.
+ *
+ * Montee juste apres l'hydratation, cette barriere couvre toutes les routes,
+ * quelle que soit la garde qu'elles utilisent — ou qu'elles n'utilisent pas.
+ * Les appels dans les trois gardes restent : ils protegent les montages de
+ * test qui n'installent pas la barriere.
+ */
+export function barriereCleApi(req: Request, res: Response, next: NextFunction): void {
+  if (refuserCle(req, res)) return;
+  next();
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {

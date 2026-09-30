@@ -10,7 +10,7 @@ import router from "./routes";
 import crypto from "crypto";
 import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
-import { hydrateFromBearer } from "./middleware/auth";
+import { barriereCleApi, hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
 import { cleLimiteApplicative, rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
@@ -510,6 +510,13 @@ app.use("/api", csrfProtection);
 app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   hydrateFromBearer(req).then(() => next()).catch(next);
 });
+
+// Une cle API porte l'identite de son createur : elle sert aux integrations,
+// pas a gerer les comptes, les cles ni la plateforme. La barriere est ici,
+// juste apres l'hydratation, parce que c'est le seul endroit que TOUTE route
+// traverse — y compris celles montees avant la garde globale et celles qui
+// lisent la session sans garde (cf. middleware/auth.ts).
+app.use("/api", barriereCleApi);
 
 app.use("/api", router);
 
