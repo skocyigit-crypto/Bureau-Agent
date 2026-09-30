@@ -211,7 +211,8 @@
       "flows": "Akışlar",
       "runs": "Çalışmalar",
       "connections": "Bağlantılar",
-      "security": "Güvenlik"
+      "security": "Güvenlik",
+      "businessComparison": "İş bazında karşılaştırma"
     },
     "mainNav": "Ana menü",
     "sectionTabs": "“{{name}}” sayfaları",
@@ -9931,12 +9932,178 @@
     "sorumlu": "Sorumlu",
     "tumu": "Tümü",
     "fazlasi": "Daha fazlası var — tümünü görün",
-    "kaynakManuel": "Harcama şantiyede elle girilmiş",
     "onayToplam": "işlem kararınızı bekliyor",
     "sayac": "Son 24 saat: {{calisiyor}} çalışıyor · {{bekliyor}} insana devretti · {{hata}} hata",
     "yukleniyor": "Bugünün tablosu yükleniyor",
     "hata": "Bugünün tablosu yüklenemedi. Hiçbir şey değişmedi; yeniden deneyebilirsiniz.",
     "tekrar": "Yeniden dene",
-    "gostergeler": "Göstergeler"
+    "gostergeler": "Göstergeler",
+    "kaynakOnayliIs": "Onaylı işe göre: kabul edilen teklif ve ek işler, gerçekleşen gidere karşı"
+  },
+  "etatEcran": {
+    "chargement": {
+      "titre": "Yükleniyor…"
+    },
+    "hors_ligne": {
+      "titre": "Bağlantı yok",
+      "detay": "Veriler okunamadı. Bu boş bir liste değil: hiçbir şey okunmadı. Bağlantınızı kontrol edip tekrar deneyin."
+    },
+    "interdit": {
+      "titre": "Yetkiniz yok",
+      "detay": "Bu kaydı görme yetkiniz bulunmuyor. Erişim gerekiyorsa büro yöneticinize başvurun."
+    },
+    "introuvable": {
+      "titre": "Kayıt bulunamadı",
+      "detay": "Bu kayıt yok ya da silinmiş."
+    },
+    "reessayer": "Tekrar dene"
+  },
+  "dossierChantier": {
+    "titreMontants": "Şantiyenin rakamları",
+    "montant": {
+      "teklif": "Teklif edilen tutar",
+      "ekIsler": "Onaylı ek işler",
+      "gider": "Gerçekleşen gider",
+      "faturalanan": "Faturalanan",
+      "tahsilEdilen": "Tahsil edilen"
+    },
+    "lignes_one": "{{count}} kayıt",
+    "lignes_other": "{{count}} kayıt",
+    "aucuneSource": {
+      "teklif": "Bu şantiye kabul edilmiş bir tekliften açılmadı ya da teklif artık kabul durumunda değil.",
+      "ekIsler": "Kabul edilmiş ek iş yok. Bekleyen ek işler aşağıda ayrıca listelenir ve bu tutara girmez.",
+      "gider": "Bu şantiyeye bağlı onaylı gider yok. İncelemede bekleyen giderler sayılmaz.",
+      "faturalanan": "Bu şantiyeye bağlı kesilmiş fatura yok. Taslak ve iptal faturalar sayılmaz.",
+      "tahsilEdilen": "Tahsilat defterinde bu şantiyenin faturalarına ait kayıt yok."
+    },
+    "sourcesTronquees": "Liste kısaltıldı; toplam tüm kayıtları içerir.",
+    "onayliIs": "Onaylı iş (teklif + ek işler)",
+    "marj": "Gerçekleşen marj",
+    "faturalanmayan": "Faturalanacak kalan",
+    "tahsilEdilmeyen": "Tahsil edilecek kalan",
+    "depassement": "Gerçekleşen gider, müşterinin onayladığı işi {{montant}} aşıyor.",
+    "sansEngage": "Bu şantiyede kabul edilmiş tutar yok: marj ve aşım hesaplanamaz.",
+    "noteMarge": "Marj, kayıtlı gerçekleşmelerin farkıdır (onaylı iş − gider); tahmin değildir. Kalan giderler öngörülmez.",
+    "avenant": {
+      "nouveau": "Yeni ek iş",
+      "ouvrir": "Ek iş aç",
+      "explication": "Ek iş kendi teklifiyle açılır ve taslak olarak başlar. Ana sözleşmeye dokunmaz; ancak teklifi kabul edildiğinde onaylı işe eklenir.",
+      "titre": "Başlık",
+      "motif": "Gerekçe",
+      "motifAide": "Müşteri ne istedi ya da açınca ne çıktı? Teslimde itiraz edilirse gösterilecek olan budur.",
+      "lignes": "Fiyatlı kalemler",
+      "designation": "Kalem {{n}} — açıklama",
+      "quantite": "Kalem {{n}} — miktar",
+      "prixUnitaire": "Kalem {{n}} — birim fiyat",
+      "tva": "Kalem {{n}} — KDV %",
+      "retirerLigne": "Kalem {{n}}'i kaldır",
+      "ajouterLigne": "Kalem ekle",
+      "creer": "Taslak ek iş oluştur",
+      "aucun": "Bu şantiyede ek iş yok.",
+      "titreListe": "Ek işler",
+      "enAttente_one": "{{count}} ek iş onay bekliyor; kabul edilene kadar onaylı işe girmez.",
+      "enAttente_other": "{{count}} ek iş onay bekliyor; kabul edilene kadar onaylı işe girmez.",
+      "statut": {
+        "brouillon": "Taslak — onay bekliyor",
+        "envoye": "Müşteriye gönderildi — onay bekliyor",
+        "accepte": "Kabul edildi",
+        "refuse": "Reddedildi",
+        "expire": "Süresi doldu"
+      }
+    },
+    "annuler": "Vazgeç",
+    "journal": {
+      "nouvelle": "Saha günlüğü notu",
+      "memeJour": "Aynı gün için ikinci bir kayıt açılmaz: mevcut not güncellenir.",
+      "jour": "Gün",
+      "meteo": "Hava",
+      "effectif": "Sahadaki kişi sayısı",
+      "travaux": "Yapılan işler",
+      "incidents": "Aksayanlar (teslimat, erişim, iş çakışması…)",
+      "enregistre": "Not kaydedildi.",
+      "enregistrer": "Notu kaydet",
+      "personnes_one": "{{count}} kişi",
+      "personnes_other": "{{count}} kişi",
+      "photos_one": "{{count}} fotoğraf",
+      "photos_other": "{{count}} fotoğraf",
+      "incidentsCourts": "Aksayan",
+      "brouillon": "Taslak — henüz günlüğe girmedi"
+    },
+    "vide": {
+      "planning": "Bu şantiyeye bağlı takvim kaydı yok.",
+      "gorevler": "Bu şantiyeye bağlı görev yok.",
+      "ekip": "Fişte ekip yok ve bu şantiyede kimseye görev atanmamış.",
+      "gunluk": "Henüz saha günlüğü notu yok.",
+      "belgeler": "Bu şantiyeye bağlı belge yok.",
+      "gorusmeler": "Bu şantiyeye bağlı görüşme yok."
+    },
+    "onglets": "Şantiye dosyasının bölümleri",
+    "onglet": {
+      "ozet": "Özet",
+      "planning": "Planning",
+      "ekip": "Ekip",
+      "gunluk": "Saha Günlüğü",
+      "belgeler": "Belgeler",
+      "giderler": "Giderler",
+      "faturalar": "Faturalar",
+      "gorusmeler": "Görüşmeler"
+    },
+    "retourListe": "Şantiyelere dön",
+    "sorumlu": "Sorumlu",
+    "durum": {
+      "planifie": "Planlandı",
+      "en_cours": "Devam ediyor",
+      "en_pause": "Durduruldu",
+      "termine": "Tamamlandı",
+      "annule": "İptal"
+    },
+    "kabul": "Teslim (kabul)",
+    "kabulYok": "Henüz teslim alınmadı",
+    "cekinceli": "çekinceli",
+    "cekinceler": "Çekinceler",
+    "devisInitial": "Ana teklif",
+    "aciklama": "Açıklama",
+    "planning": {
+      "creneaux": "Çalışma programı",
+      "taches": "Görevler"
+    },
+    "rol": {
+      "sorumlu": "şantiye sorumlusu",
+      "ekip": "ekip"
+    },
+    "gorevAdedi_one": "{{count}} görev",
+    "gorevAdedi_other": "{{count}} görev"
+  },
+  "financeAffaires": {
+    "titre": "İş bazında karşılaştırma",
+    "sousTitre": "Her şantiye için: kabul edilen teklif, onaylı ek işler, gerçekleşen gider, faturalanan ve tahsil edilen. Bir satıra tıklayınca rakamların kaynak kayıtları açılır.",
+    "filtres": "Filtreler",
+    "filtre": {
+      "tous": "Tümü",
+      "asim": "Onaylı işi aşanlar",
+      "faturalanmayan": "Faturalanacak kalanı olanlar",
+      "tahsilEdilmeyen": "Tahsil edilecek kalanı olanlar"
+    },
+    "compte_one": "{{count}} şantiye",
+    "compte_other": "{{count}} şantiye",
+    "vide": {
+      "tous": "Henüz şantiye yok.",
+      "asim": "Onaylı işi aşan şantiye yok.",
+      "faturalanmayan": "Faturalanacak kalanı olan şantiye yok.",
+      "tahsilEdilmeyen": "Tahsil edilecek kalanı olan şantiye yok."
+    },
+    "col": {
+      "chantier": "Şantiye",
+      "teklif": "Teklif",
+      "ekIsler": "Ek işler",
+      "gider": "Gider",
+      "faturalanan": "Faturalanan",
+      "tahsilEdilen": "Tahsil edilen",
+      "marj": "Marj"
+    },
+    "sansEngage": "Kabul edilmiş tutar yok",
+    "depasse": "onaylı işi aşıyor",
+    "reste": "kalan {{montant}}",
+    "note": "Yalnız kabul edilmiş teklifler, onaylı giderler, kesilmiş faturalar ve tahsilat defteri sayılır. Tahmin yapılmaz."
   }
 }

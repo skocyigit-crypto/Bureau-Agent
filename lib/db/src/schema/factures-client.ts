@@ -3,12 +3,19 @@ import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 import { devisTable } from "./devis";
+import { projetsTable } from "./projets";
 
 export const facturesClientTable = pgTable("factures_client", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
   devisId: integer("devis_id").references(() => devisTable.id, { onDelete: "set null" }),
+  // Le chantier auquel cette ligne se rattache. Sans ce lien, le dossier d'un
+  // chantier ne peut PAS additionner ce qu'il a coute, facture ou encaisse :
+  // les montants existaient, mais aucun n'etait rattachable a un travail.
+  // Nullable : tout ne releve pas d'un chantier (frais generaux, appel entrant
+  // d'un inconnu, facture hors affaire).
+  projetId: integer("projet_id").references(() => projetsTable.id, { onDelete: "set null" }),
   reference: text("reference").notNull(),
   title: text("title").notNull(),
   clientName: text("client_name").notNull(),
@@ -127,6 +134,7 @@ export const facturesClientTable = pgTable("factures_client", {
   index("factures_client_org_id_idx").on(table.organisationId),
   index("factures_client_status_idx").on(table.status),
   index("factures_client_contact_id_idx").on(table.contactId),
+  index("factures_client_projet_idx").on(table.projetId),
   // Accent-insensitive trigram search index used by the Commandant chat
   // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
   // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).

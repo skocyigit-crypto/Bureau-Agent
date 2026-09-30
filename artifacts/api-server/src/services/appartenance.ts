@@ -20,9 +20,9 @@
  */
 import { and, eq } from "drizzle-orm";
 import type { Response } from "express";
-import { callsTable, contactsTable, db, prospectsTable, tasksTable } from "@workspace/db";
+import { callsTable, contactsTable, db, projetsTable, prospectsTable, tasksTable } from "@workspace/db";
 
-export type GenreReference = "contact" | "appel" | "tache" | "prospect";
+export type GenreReference = "contact" | "appel" | "tache" | "prospect" | "projet";
 
 async function existeDansOrganisation(genre: GenreReference, id: number, orgId: number): Promise<boolean> {
   switch (genre) {
@@ -39,6 +39,14 @@ async function existeDansOrganisation(genre: GenreReference, id: number, orgId: 
     case "tache": {
       const [l] = await db.select({ id: tasksTable.id }).from(tasksTable)
         .where(and(eq(tasksTable.id, id), eq(tasksTable.organisationId, orgId))).limit(1);
+      return !!l;
+    }
+    case "projet": {
+      // Rattacher une depense, une facture ou un appel au chantier d une autre
+      // organisation fausserait SES montants (le dossier additionne par
+      // projet_id) sans que rien ne le montre chez elle.
+      const [l] = await db.select({ id: projetsTable.id }).from(projetsTable)
+        .where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).limit(1);
       return !!l;
     }
     case "prospect": {

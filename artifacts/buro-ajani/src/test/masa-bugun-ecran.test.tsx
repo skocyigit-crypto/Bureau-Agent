@@ -37,7 +37,7 @@ function donnees(): MasaBugunVerisi {
     dosyalar: { satirlar: [s({ cle: "teklif:9", tur: "teklif_bekliyor", baslik: "DV-9 — Toiture", href: "/devis", tutar: 4200, para: "EUR", zaman: "2026-10-09T10:00:00.000Z" })], fazlasi: false },
     finans: { satirlar: [
       s({ cle: "fatura_gecikti:2", tur: "fatura_gecikti", baslik: "FC-2", detay: "Client En Retard", href: "/factures", ton: "acil", tutar: 600, para: "EUR", zaman: "2026-09-20T10:00:00.000Z" }),
-      s({ cle: "butce_asimi:5", tur: "butce_asimi", baslik: "Chantier Dupont", detay: "manuel", href: "/projets", ton: "acil", tutar: 2500, para: "EUR" }),
+      s({ cle: "butce_asimi:5", tur: "butce_asimi", baslik: "Chantier Dupont", detay: "onayli_is", href: "/projets/5", ton: "acil", tutar: 2500, para: "EUR" }),
     ], fazlasi: false },
     ajanlar: { satirlar: [s({ cle: "baglanti_eksik:telefon", tur: "baglanti_telefon", baslik: "telephony", href: "/telephonie", ton: "acil" })], fazlasi: false, sayac: { calisiyor: 2, bekliyor: 1, hata: 3 } },
     uretildi: "2026-09-29T10:00:00.000Z",
@@ -112,9 +112,12 @@ describe("la table Aujourd'hui", () => {
     expect(within(ligne("onay:4")).getByText("Onay bekliyor")).toBeInTheDocument();
   });
 
-  it("donne sa source a chaque montant : depense saisie a la main, echeance de la facture", async () => {
+  it("donne sa source a chaque montant : l accepte face a la depense, echeance de la facture", async () => {
     await monter();
-    expect(within(ligne("butce_asimi:5")).getByText(/Harcama şantiyede elle girilmiş/)).toBeInTheDocument();
+    // Le depassement est mesure sur ce que le client a accepte, et la ligne
+    // mene au dossier du chantier, ou les deux totaux portent leurs lignes.
+    expect(within(ligne("butce_asimi:5")).getByText(/Onaylı işe göre/)).toBeInTheDocument();
+    expect(ligne("butce_asimi:5")).toHaveAttribute("href", "/projets/5");
     expect(within(ligne("fatura_gecikti:2")).getByText(/^Vade\s/)).toBeInTheDocument();
     expect(within(ligne("fatura_gecikti:2")).getByText(/600/)).toBeInTheDocument();
     // Une proposition n'affiche pas de montant, meme si le serveur en posait un.

@@ -81,7 +81,10 @@ function Ligne({ s, langue }: { s: Satir; langue: string }) {
   const libelle = t(`bugun.tur.${s.tur}`);
   const nature = libelle === `bugun.tur.${s.tur}` && s.tur.startsWith("onay_") ? t("bugun.tur.onay") : libelle;
   const titre = s.tur.startsWith("baglanti_") ? t(`bugun.baglanti.${s.tur}`) : s.baslik;
-  const detay = s.tur === "butce_asimi" && s.detay === "manuel" ? t("bugun.kaynakManuel") : s.detay;
+  // Un depassement nomme la grandeur a laquelle il est compare : ce que le
+  // client a accepte (devis + avenants), face a la depense reelle. Le detail
+  // des deux totaux est dans le dossier du chantier, ou mene la ligne.
+  const detay = s.tur === "butce_asimi" && s.detay === "onayli_is" ? t("bugun.kaynakOnayliIs") : s.detay;
   const prefixe = s.zaman ? prefixeTemps(s.tur) : null;
   const source = s.tur.startsWith("onay_") && s.para ? t(`bugun.kaynak.${cleSource(s.para)}`) : null;
   return (

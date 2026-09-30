@@ -211,7 +211,8 @@
       "flows": "Flujos",
       "runs": "Ejecuciones",
       "connections": "Conexiones",
-      "security": "Seguridad"
+      "security": "Seguridad",
+      "businessComparison": "Comparación por obra"
     },
     "mainNav": "Menú principal",
     "sectionTabs": "Páginas de «{{name}}»",
@@ -9931,12 +9932,178 @@
     "sorumlu": "Responsable",
     "tumu": "Ver todo",
     "fazlasi": "Hay más: ver todo",
-    "kaynakManuel": "Gasto introducido a mano en la obra",
     "onayToplam": "acción(es) esperan su decisión",
     "sayac": "Últimas 24 h: {{calisiyor}} en curso · {{bekliyor}} traspasados · {{hata}} con error",
     "yukleniyor": "Cargando la mesa del día",
     "hata": "No se pudo cargar la mesa del día. No cambió nada; puede reintentar.",
     "tekrar": "Reintentar",
-    "gostergeler": "Indicadores"
+    "gostergeler": "Indicadores",
+    "kaynakOnayliIs": "Frente al trabajo aprobado: presupuesto aceptado y adicionales frente al gasto real"
+  },
+  "etatEcran": {
+    "chargement": {
+      "titre": "Cargando…"
+    },
+    "hors_ligne": {
+      "titre": "Sin conexión",
+      "detay": "No se pudieron leer los datos. No es una lista vacía: no se ha leído nada. Compruebe su conexión e inténtelo de nuevo."
+    },
+    "interdit": {
+      "titre": "Sin autorización",
+      "detay": "No tiene permiso para ver este registro. Consulte al administrador de la oficina si lo necesita."
+    },
+    "introuvable": {
+      "titre": "Registro no encontrado",
+      "detay": "Este registro no existe o ha sido eliminado."
+    },
+    "reessayer": "Reintentar"
+  },
+  "dossierChantier": {
+    "titreMontants": "Cifras de la obra",
+    "montant": {
+      "teklif": "Importe presupuestado",
+      "ekIsler": "Adicionales aprobados",
+      "gider": "Gasto real",
+      "faturalanan": "Facturado",
+      "tahsilEdilen": "Cobrado"
+    },
+    "lignes_one": "{{count}} registro",
+    "lignes_other": "{{count}} registros",
+    "aucuneSource": {
+      "teklif": "Esta obra no se abrió desde un presupuesto aceptado, o ese presupuesto ya no está aceptado.",
+      "ekIsler": "Ningún adicional aceptado. Los pendientes se listan aparte y no se incluyen aquí.",
+      "gider": "Ningún gasto aprobado vinculado a esta obra. Los gastos pendientes de revisión no cuentan.",
+      "faturalanan": "Ninguna factura emitida vinculada a esta obra. Borradores y anuladas no cuentan.",
+      "tahsilEdilen": "El diario de cobros no contiene asientos para las facturas de esta obra."
+    },
+    "sourcesTronquees": "Lista abreviada; el total incluye todos los registros.",
+    "onayliIs": "Trabajo aprobado (presupuesto + adicionales)",
+    "marj": "Margen real",
+    "faturalanmayan": "Pendiente de facturar",
+    "tahsilEdilmeyen": "Pendiente de cobrar",
+    "depassement": "El gasto real supera en {{montant}} el trabajo aprobado por el cliente.",
+    "sansEngage": "Sin importe aceptado en esta obra: no se calculan margen ni desviación.",
+    "noteMarge": "El margen es una diferencia entre hechos registrados (aprobado − gastado), no una previsión. No se estiman gastos futuros.",
+    "avenant": {
+      "nouveau": "Nuevo adicional",
+      "ouvrir": "Abrir un adicional",
+      "explication": "El adicional tiene su propio presupuesto y nace como borrador. No modifica el contrato inicial; se suma al trabajo aprobado solo cuando se acepta su presupuesto.",
+      "titre": "Título",
+      "motif": "Motivo",
+      "motifAide": "¿Qué pidió el cliente o qué se descubrió al abrir? Es lo que se mostrará si se discute en la recepción.",
+      "lignes": "Partidas valoradas",
+      "designation": "Partida {{n}} — descripción",
+      "quantite": "Partida {{n}} — cantidad",
+      "prixUnitaire": "Partida {{n}} — precio unitario",
+      "tva": "Partida {{n}} — IVA %",
+      "retirerLigne": "Quitar la partida {{n}}",
+      "ajouterLigne": "Añadir partida",
+      "creer": "Crear adicional en borrador",
+      "aucun": "Ningún adicional en esta obra.",
+      "titreListe": "Adicionales",
+      "enAttente_one": "{{count}} adicional espera aprobación; no cuenta como trabajo aprobado hasta que se acepte.",
+      "enAttente_other": "{{count}} adicionales esperan aprobación; no cuentan como trabajo aprobado hasta que se acepten.",
+      "statut": {
+        "brouillon": "Borrador — pendiente de aprobación",
+        "envoye": "Enviado al cliente — pendiente de aprobación",
+        "accepte": "Aceptado",
+        "refuse": "Rechazado",
+        "expire": "Caducado"
+      }
+    },
+    "annuler": "Cancelar",
+    "journal": {
+      "nouvelle": "Nota del diario de obra",
+      "memeJour": "No se abre una segunda nota para el mismo día: se completa la existente.",
+      "jour": "Día",
+      "meteo": "Tiempo",
+      "effectif": "Personas en obra",
+      "travaux": "Trabajos realizados",
+      "incidents": "Qué bloqueó (entrega, acceso, otros gremios…)",
+      "enregistre": "Nota guardada.",
+      "enregistrer": "Guardar nota",
+      "personnes_one": "{{count}} persona",
+      "personnes_other": "{{count}} personas",
+      "photos_one": "{{count}} foto",
+      "photos_other": "{{count}} fotos",
+      "incidentsCourts": "Bloqueo",
+      "brouillon": "Borrador — aún no en el diario"
+    },
+    "vide": {
+      "planning": "Ninguna franja de agenda vinculada a esta obra.",
+      "gorevler": "Ninguna tarea vinculada a esta obra.",
+      "ekip": "Sin equipo en la ficha y ninguna tarea de esta obra asignada.",
+      "gunluk": "Aún no hay notas en el diario.",
+      "belgeler": "Ningún documento vinculado a esta obra.",
+      "gorusmeler": "Ninguna conversación vinculada a esta obra."
+    },
+    "onglets": "Secciones del expediente de obra",
+    "onglet": {
+      "ozet": "Resumen",
+      "planning": "Planificación",
+      "ekip": "Equipo",
+      "gunluk": "Diario de obra",
+      "belgeler": "Documentos",
+      "giderler": "Gastos",
+      "faturalar": "Facturas",
+      "gorusmeler": "Conversaciones"
+    },
+    "retourListe": "Volver a las obras",
+    "sorumlu": "Responsable",
+    "durum": {
+      "planifie": "Planificada",
+      "en_cours": "En curso",
+      "en_pause": "En pausa",
+      "termine": "Terminada",
+      "annule": "Cancelada"
+    },
+    "kabul": "Recepción",
+    "kabulYok": "Aún no recibida",
+    "cekinceli": "con reservas",
+    "cekinceler": "Reservas",
+    "devisInitial": "Presupuesto inicial",
+    "aciklama": "Descripción",
+    "planning": {
+      "creneaux": "Programa de trabajos",
+      "taches": "Tareas"
+    },
+    "rol": {
+      "sorumlu": "jefe de obra",
+      "ekip": "equipo"
+    },
+    "gorevAdedi_one": "{{count}} tarea",
+    "gorevAdedi_other": "{{count}} tareas"
+  },
+  "financeAffaires": {
+    "titre": "Comparación por obra",
+    "sousTitre": "Para cada obra: presupuesto aceptado, adicionales aprobados, gasto real, facturado y cobrado. Cada fila abre el expediente, donde cada importe muestra sus registros.",
+    "filtres": "Filtros",
+    "filtre": {
+      "tous": "Todas",
+      "asim": "Por encima de lo aprobado",
+      "faturalanmayan": "Pendiente de facturar",
+      "tahsilEdilmeyen": "Pendiente de cobrar"
+    },
+    "compte_one": "{{count}} obra",
+    "compte_other": "{{count}} obras",
+    "vide": {
+      "tous": "Aún no hay obras.",
+      "asim": "Ninguna obra supera lo aprobado.",
+      "faturalanmayan": "Ninguna obra tiene pendiente de facturar.",
+      "tahsilEdilmeyen": "Ninguna obra tiene pendiente de cobrar."
+    },
+    "col": {
+      "chantier": "Obra",
+      "teklif": "Presupuesto",
+      "ekIsler": "Adicionales",
+      "gider": "Gasto",
+      "faturalanan": "Facturado",
+      "tahsilEdilen": "Cobrado",
+      "marj": "Margen"
+    },
+    "sansEngage": "Sin importe aceptado",
+    "depasse": "supera lo aprobado",
+    "reste": "quedan {{montant}}",
+    "note": "Solo cuentan presupuestos aceptados, gastos aprobados, facturas emitidas y el diario de cobros. No se estima nada."
   }
 }

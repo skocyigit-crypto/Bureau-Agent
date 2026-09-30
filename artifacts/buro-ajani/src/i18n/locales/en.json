@@ -211,7 +211,8 @@
       "flows": "Flows",
       "runs": "Runs",
       "connections": "Connections",
-      "security": "Security"
+      "security": "Security",
+      "businessComparison": "Per-job comparison"
     },
     "mainNav": "Main menu",
     "sectionTabs": "“{{name}}” pages",
@@ -9931,12 +9932,178 @@
     "sorumlu": "Owner",
     "tumu": "See all",
     "fazlasi": "There are more — see all",
-    "kaynakManuel": "Spend entered by hand on the site",
     "onayToplam": "action(s) awaiting your decision",
     "sayac": "Last 24 h: {{calisiyor}} running · {{bekliyor}} handed to a person · {{hata}} failed",
     "yukleniyor": "Loading today's desk",
     "hata": "Today's desk could not be loaded. Nothing changed; you can retry.",
     "tekrar": "Retry",
-    "gostergeler": "Indicators"
+    "gostergeler": "Indicators",
+    "kaynakOnayliIs": "Against approved work: accepted quote and change orders vs actual spend"
+  },
+  "etatEcran": {
+    "chargement": {
+      "titre": "Loading…"
+    },
+    "hors_ligne": {
+      "titre": "No connection",
+      "detay": "The data could not be read. This is not an empty list: nothing was read. Check your connection and try again."
+    },
+    "interdit": {
+      "titre": "Not authorised",
+      "detay": "You are not allowed to view this record. Ask your office administrator if you need access."
+    },
+    "introuvable": {
+      "titre": "Record not found",
+      "detay": "This record does not exist or has been deleted."
+    },
+    "reessayer": "Try again"
+  },
+  "dossierChantier": {
+    "titreMontants": "Job figures",
+    "montant": {
+      "teklif": "Quoted amount",
+      "ekIsler": "Approved change orders",
+      "gider": "Actual spend",
+      "faturalanan": "Invoiced",
+      "tahsilEdilen": "Collected"
+    },
+    "lignes_one": "{{count}} record",
+    "lignes_other": "{{count}} records",
+    "aucuneSource": {
+      "teklif": "This job was not opened from an accepted quote, or that quote is no longer accepted.",
+      "ekIsler": "No accepted change order. Pending ones are listed separately and are not included here.",
+      "gider": "No approved expense attached to this job. Expenses awaiting review are not counted.",
+      "faturalanan": "No issued invoice attached to this job. Drafts and cancelled invoices are not counted.",
+      "tahsilEdilen": "The payment journal holds no entry for this job’s invoices."
+    },
+    "sourcesTronquees": "List shortened; the total includes every record.",
+    "onayliIs": "Approved work (quote + change orders)",
+    "marj": "Actual margin",
+    "faturalanmayan": "Left to invoice",
+    "tahsilEdilmeyen": "Left to collect",
+    "depassement": "Actual spend exceeds the work the client approved by {{montant}}.",
+    "sansEngage": "No accepted amount on this job: margin and overrun cannot be computed.",
+    "noteMarge": "Margin is a difference between recorded facts (approved − spent), not a forecast. Future spend is not estimated.",
+    "avenant": {
+      "nouveau": "New change order",
+      "ouvrir": "Open a change order",
+      "explication": "A change order has its own quote and starts as a draft. It never alters the original contract; it adds to approved work only once its quote is accepted.",
+      "titre": "Title",
+      "motif": "Reason",
+      "motifAide": "What did the client ask for, or what was found on opening up? This is what you will show if it is disputed at handover.",
+      "lignes": "Priced lines",
+      "designation": "Line {{n}} — description",
+      "quantite": "Line {{n}} — quantity",
+      "prixUnitaire": "Line {{n}} — unit price",
+      "tva": "Line {{n}} — VAT %",
+      "retirerLigne": "Remove line {{n}}",
+      "ajouterLigne": "Add a line",
+      "creer": "Create draft change order",
+      "aucun": "No change order on this job.",
+      "titreListe": "Change orders",
+      "enAttente_one": "{{count}} change order awaits approval; it does not count as approved work until accepted.",
+      "enAttente_other": "{{count}} change orders await approval; they do not count as approved work until accepted.",
+      "statut": {
+        "brouillon": "Draft — awaiting approval",
+        "envoye": "Sent to client — awaiting approval",
+        "accepte": "Accepted",
+        "refuse": "Refused",
+        "expire": "Expired"
+      }
+    },
+    "annuler": "Cancel",
+    "journal": {
+      "nouvelle": "Site diary entry",
+      "memeJour": "No second entry for the same day: the existing one is updated.",
+      "jour": "Day",
+      "meteo": "Weather",
+      "effectif": "People on site",
+      "travaux": "Work done",
+      "incidents": "What held things up (delivery, access, other trades…)",
+      "enregistre": "Entry saved.",
+      "enregistrer": "Save entry",
+      "personnes_one": "{{count}} person",
+      "personnes_other": "{{count}} people",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos",
+      "incidentsCourts": "Hold-up",
+      "brouillon": "Draft — not yet in the diary"
+    },
+    "vide": {
+      "planning": "No calendar slot attached to this job.",
+      "gorevler": "No task attached to this job.",
+      "ekip": "No team on the record, and no task on this job is assigned.",
+      "gunluk": "No diary entry yet.",
+      "belgeler": "No document attached to this job.",
+      "gorusmeler": "No conversation attached to this job."
+    },
+    "onglets": "Job file sections",
+    "onglet": {
+      "ozet": "Summary",
+      "planning": "Planning",
+      "ekip": "Team",
+      "gunluk": "Site diary",
+      "belgeler": "Documents",
+      "giderler": "Expenses",
+      "faturalar": "Invoices",
+      "gorusmeler": "Conversations"
+    },
+    "retourListe": "Back to jobs",
+    "sorumlu": "Lead",
+    "durum": {
+      "planifie": "Planned",
+      "en_cours": "In progress",
+      "en_pause": "On hold",
+      "termine": "Completed",
+      "annule": "Cancelled"
+    },
+    "kabul": "Handover",
+    "kabulYok": "Not yet handed over",
+    "cekinceli": "with snags",
+    "cekinceler": "Snags",
+    "devisInitial": "Original quote",
+    "aciklama": "Description",
+    "planning": {
+      "creneaux": "Work programme",
+      "taches": "Tasks"
+    },
+    "rol": {
+      "sorumlu": "site lead",
+      "ekip": "team"
+    },
+    "gorevAdedi_one": "{{count}} task",
+    "gorevAdedi_other": "{{count}} tasks"
+  },
+  "financeAffaires": {
+    "titre": "Per-job comparison",
+    "sousTitre": "For each job: accepted quote, approved change orders, actual spend, invoiced and collected. Each row opens the job file, where every amount shows its records.",
+    "filtres": "Filters",
+    "filtre": {
+      "tous": "All",
+      "asim": "Over approved work",
+      "faturalanmayan": "Left to invoice",
+      "tahsilEdilmeyen": "Left to collect"
+    },
+    "compte_one": "{{count}} job",
+    "compte_other": "{{count}} jobs",
+    "vide": {
+      "tous": "No jobs yet.",
+      "asim": "No job is over approved work.",
+      "faturalanmayan": "No job has anything left to invoice.",
+      "tahsilEdilmeyen": "No job has anything left to collect."
+    },
+    "col": {
+      "chantier": "Job",
+      "teklif": "Quote",
+      "ekIsler": "Change orders",
+      "gider": "Spend",
+      "faturalanan": "Invoiced",
+      "tahsilEdilen": "Collected",
+      "marj": "Margin"
+    },
+    "sansEngage": "No accepted amount",
+    "depasse": "over approved work",
+    "reste": "{{montant}} left",
+    "note": "Only accepted quotes, approved expenses, issued invoices and the payment journal are counted. Nothing is estimated."
   }
 }

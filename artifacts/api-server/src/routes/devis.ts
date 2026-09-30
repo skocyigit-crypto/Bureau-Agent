@@ -11,6 +11,7 @@ import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination }
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { logAudit } from "./audit";
 import { referencesRefusees, refuserReferences } from "../services/appartenance";
+import { chantierDuDevis } from "../services/devis-facturable";
 
 const router: IRouter = Router();
 
@@ -448,6 +449,9 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
     // La mise a jour du devis entre dans la meme transaction: une facture
     // creee sans que le devis soit marque converti autorisait une seconde
     // conversion du meme devis.
+    // Le chantier dont ce devis est le prix : la facture lui est rattachee, sans
+    // quoi le dossier du chantier ne saurait jamais ce qui a ete facture.
+    const projetId = await chantierDuDevis(orgId, devis.id);
     const facture = await db.transaction(async (tx) => {
     const ref = await nextInvoiceNumber(tx, orgId);
 
@@ -458,6 +462,7 @@ router.post("/devis/:id/convert-to-facture", async (req: Request, res: Response)
       organisationId: orgId,
       contactId: devis.contactId ?? null,
       devisId: devis.id,
+      projetId,
       reference: ref,
       title: devis.title,
       clientName: devis.clientName,

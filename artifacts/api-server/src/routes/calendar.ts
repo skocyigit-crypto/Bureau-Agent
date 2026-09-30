@@ -277,6 +277,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
   const refuseesCreation = await referencesRefusees(orgId, [
     { champ: "relatedContactId", genre: "contact", valeur: parsed.data.relatedContactId },
     { champ: "relatedTaskId", genre: "tache", valeur: parsed.data.relatedTaskId },
+    { champ: "projetId", genre: "projet", valeur: (parsed.data as { projetId?: unknown }).projetId },
   ]);
   if (refuseesCreation.length > 0) { refuserReferences(res, refuseesCreation); return; }
 
@@ -416,6 +417,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   const refuseesMaj = await referencesRefusees(orgId, [
     { champ: "relatedContactId", genre: "contact", valeur: updateData.relatedContactId },
     { champ: "relatedTaskId", genre: "tache", valeur: updateData.relatedTaskId },
+    { champ: "projetId", genre: "projet", valeur: (updateData as { projetId?: unknown }).projetId },
   ]);
   if (refuseesMaj.length > 0) { refuserReferences(res, refuseesMaj); return; }
 

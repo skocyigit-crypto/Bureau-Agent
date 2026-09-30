@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
 import { documentsTable } from "./documents";
+import { projetsTable } from "./projets";
 import { usersTable } from "./users";
 
 // Registre des dépenses (« gider defteri ») — couche client. Chaque ligne est
@@ -49,6 +50,12 @@ export const depensesTable = pgTable("depenses", {
     .references(() => organisationsTable.id, { onDelete: "cascade" }),
   // Justificatif source (NULL si saisie manuelle ou document supprimé).
   documentId: integer("document_id").references(() => documentsTable.id, { onDelete: "set null" }),
+  // Le chantier auquel cette ligne se rattache. Sans ce lien, le dossier d'un
+  // chantier ne peut PAS additionner ce qu'il a coute, facture ou encaisse :
+  // les montants existaient, mais aucun n'etait rattachable a un travail.
+  // Nullable : tout ne releve pas d'un chantier (frais generaux, appel entrant
+  // d'un inconnu, facture hors affaire).
+  projetId: integer("projet_id").references(() => projetsTable.id, { onDelete: "set null" }),
   // Fournisseur / émetteur du justificatif.
   vendor: text("vendor").notNull().default(""),
   title: text("title"),
@@ -91,6 +98,7 @@ export const depensesTable = pgTable("depenses", {
   index("depenses_org_date_idx").on(table.organisationId, table.expenseDate),
   index("depenses_org_category_idx").on(table.organisationId, table.category),
   index("depenses_document_idx").on(table.documentId),
+  index("depenses_projet_idx").on(table.projetId),
 ]);
 
 export const insertDepenseSchema = createInsertSchema(depensesTable).omit({

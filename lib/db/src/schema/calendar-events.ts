@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 import { tasksTable } from "./tasks";
+import { projetsTable } from "./projets";
 import { usersTable } from "./users";
 
 export const calendarEventsTable = pgTable("calendar_events", {
@@ -20,6 +21,10 @@ export const calendarEventsTable = pgTable("calendar_events", {
   color: text("color").default("#f59e0b"),
   relatedContactId: integer("related_contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
   relatedTaskId: integer("related_task_id").references(() => tasksTable.id, { onDelete: "set null" }),
+  // Le chantier dont ce creneau est le travail. C'est ce qui distingue un
+  // rendez-vous de decouverte (aucun chantier : il n'existe pas encore) d'un
+  // creneau du programme de chantier — les deux ne se planifient pas pareil.
+  projetId: integer("projet_id").references(() => projetsTable.id, { onDelete: "set null" }),
   reminder: text("reminder").default("15min"),
   recurrence: text("recurrence"),
   contactName: text("contact_name"),
@@ -49,6 +54,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   index("cal_events_type_idx").on(table.type),
   index("cal_events_org_id_idx").on(table.organisationId),
   index("cal_events_created_by_idx").on(table.createdBy),
+  index("cal_events_projet_idx").on(table.projetId),
   // Accent-insensitive trigram search index used by the Commandant chat
   // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
   // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).

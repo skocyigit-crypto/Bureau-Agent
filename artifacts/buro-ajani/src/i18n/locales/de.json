@@ -211,7 +211,8 @@
       "flows": "Abläufe",
       "runs": "Ausführungen",
       "connections": "Verbindungen",
-      "security": "Sicherheit"
+      "security": "Sicherheit",
+      "businessComparison": "Vergleich je Auftrag"
     },
     "mainNav": "Hauptmenü",
     "sectionTabs": "Seiten von „{{name}}“",
@@ -9931,12 +9932,178 @@
     "sorumlu": "Verantwortlich",
     "tumu": "Alle anzeigen",
     "fazlasi": "Es gibt mehr – alle anzeigen",
-    "kaynakManuel": "Ausgaben manuell auf der Baustelle erfasst",
     "onayToplam": "Aktion(en) warten auf Ihre Entscheidung",
     "sayac": "Letzte 24 h: {{calisiyor}} laufen · {{bekliyor}} übergeben · {{hata}} fehlgeschlagen",
     "yukleniyor": "Tagesübersicht wird geladen",
     "hata": "Die Tagesübersicht konnte nicht geladen werden. Nichts wurde geändert; erneut versuchen.",
     "tekrar": "Erneut versuchen",
-    "gostergeler": "Kennzahlen"
+    "gostergeler": "Kennzahlen",
+    "kaynakOnayliIs": "Gegenüber beauftragter Leistung: angenommenes Angebot und Nachträge vs. tatsächliche Ausgaben"
+  },
+  "etatEcran": {
+    "chargement": {
+      "titre": "Wird geladen…"
+    },
+    "hors_ligne": {
+      "titre": "Keine Verbindung",
+      "detay": "Die Daten konnten nicht gelesen werden. Das ist keine leere Liste: Es wurde nichts gelesen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "interdit": {
+      "titre": "Keine Berechtigung",
+      "detay": "Sie dürfen diesen Datensatz nicht ansehen. Wenden Sie sich bei Bedarf an die Büroverwaltung."
+    },
+    "introuvable": {
+      "titre": "Datensatz nicht gefunden",
+      "detay": "Dieser Datensatz existiert nicht oder wurde gelöscht."
+    },
+    "reessayer": "Erneut versuchen"
+  },
+  "dossierChantier": {
+    "titreMontants": "Zahlen der Baustelle",
+    "montant": {
+      "teklif": "Angebotsbetrag",
+      "ekIsler": "Beauftragte Nachträge",
+      "gider": "Tatsächliche Ausgaben",
+      "faturalanan": "Abgerechnet",
+      "tahsilEdilen": "Eingegangen"
+    },
+    "lignes_one": "{{count}} Eintrag",
+    "lignes_other": "{{count}} Einträge",
+    "aucuneSource": {
+      "teklif": "Diese Baustelle wurde nicht aus einem angenommenen Angebot eröffnet, oder das Angebot ist nicht mehr angenommen.",
+      "ekIsler": "Kein angenommener Nachtrag. Offene Nachträge werden separat aufgeführt und sind hier nicht enthalten.",
+      "gider": "Keine freigegebene Ausgabe dieser Baustelle zugeordnet. Ausgaben in Prüfung zählen nicht.",
+      "faturalanan": "Keine ausgestellte Rechnung dieser Baustelle zugeordnet. Entwürfe und stornierte Rechnungen zählen nicht.",
+      "tahsilEdilen": "Das Zahlungsjournal enthält keine Buchung zu den Rechnungen dieser Baustelle."
+    },
+    "sourcesTronquees": "Liste gekürzt; die Summe umfasst alle Einträge.",
+    "onayliIs": "Beauftragte Leistung (Angebot + Nachträge)",
+    "marj": "Tatsächliche Marge",
+    "faturalanmayan": "Noch abzurechnen",
+    "tahsilEdilmeyen": "Noch einzuziehen",
+    "depassement": "Die tatsächlichen Ausgaben übersteigen die vom Kunden beauftragte Leistung um {{montant}}.",
+    "sansEngage": "Kein angenommener Betrag auf dieser Baustelle: Marge und Überschreitung sind nicht berechenbar.",
+    "noteMarge": "Die Marge ist eine Differenz erfasster Tatsachen (beauftragt − ausgegeben), keine Prognose. Künftige Ausgaben werden nicht geschätzt.",
+    "avenant": {
+      "nouveau": "Neuer Nachtrag",
+      "ouvrir": "Nachtrag anlegen",
+      "explication": "Ein Nachtrag hat ein eigenes Angebot und beginnt als Entwurf. Er ändert den Hauptvertrag nicht; zur beauftragten Leistung zählt er erst, wenn sein Angebot angenommen ist.",
+      "titre": "Bezeichnung",
+      "motif": "Grund",
+      "motifAide": "Was hat der Kunde verlangt, oder was kam beim Öffnen zum Vorschein? Das zeigen Sie, wenn es bei der Abnahme bestritten wird.",
+      "lignes": "Bepreiste Positionen",
+      "designation": "Position {{n}} — Beschreibung",
+      "quantite": "Position {{n}} — Menge",
+      "prixUnitaire": "Position {{n}} — Einzelpreis",
+      "tva": "Position {{n}} — MwSt. %",
+      "retirerLigne": "Position {{n}} entfernen",
+      "ajouterLigne": "Position hinzufügen",
+      "creer": "Nachtrag als Entwurf anlegen",
+      "aucun": "Kein Nachtrag auf dieser Baustelle.",
+      "titreListe": "Nachträge",
+      "enAttente_one": "{{count}} Nachtrag wartet auf Freigabe; er zählt erst nach Annahme zur beauftragten Leistung.",
+      "enAttente_other": "{{count}} Nachträge warten auf Freigabe; sie zählen erst nach Annahme zur beauftragten Leistung.",
+      "statut": {
+        "brouillon": "Entwurf — wartet auf Freigabe",
+        "envoye": "An Kunden gesendet — wartet auf Freigabe",
+        "accepte": "Angenommen",
+        "refuse": "Abgelehnt",
+        "expire": "Abgelaufen"
+      }
+    },
+    "annuler": "Abbrechen",
+    "journal": {
+      "nouvelle": "Bautagebuch-Eintrag",
+      "memeJour": "Kein zweiter Eintrag für denselben Tag: der vorhandene wird ergänzt.",
+      "jour": "Tag",
+      "meteo": "Wetter",
+      "effectif": "Personen vor Ort",
+      "travaux": "Ausgeführte Arbeiten",
+      "incidents": "Behinderungen (Lieferung, Zugang, andere Gewerke…)",
+      "enregistre": "Eintrag gespeichert.",
+      "enregistrer": "Eintrag speichern",
+      "personnes_one": "{{count}} Person",
+      "personnes_other": "{{count}} Personen",
+      "photos_one": "{{count}} Foto",
+      "photos_other": "{{count}} Fotos",
+      "incidentsCourts": "Behinderung",
+      "brouillon": "Entwurf — noch nicht im Tagebuch"
+    },
+    "vide": {
+      "planning": "Kein Kalendertermin dieser Baustelle zugeordnet.",
+      "gorevler": "Keine Aufgabe dieser Baustelle zugeordnet.",
+      "ekip": "Kein Team auf dem Datenblatt, und keine Aufgabe dieser Baustelle ist zugewiesen.",
+      "gunluk": "Noch kein Bautagebuch-Eintrag.",
+      "belgeler": "Kein Dokument dieser Baustelle zugeordnet.",
+      "gorusmeler": "Kein Gespräch dieser Baustelle zugeordnet."
+    },
+    "onglets": "Bereiche der Baustellenakte",
+    "onglet": {
+      "ozet": "Übersicht",
+      "planning": "Planung",
+      "ekip": "Team",
+      "gunluk": "Bautagebuch",
+      "belgeler": "Dokumente",
+      "giderler": "Ausgaben",
+      "faturalar": "Rechnungen",
+      "gorusmeler": "Gespräche"
+    },
+    "retourListe": "Zurück zu den Baustellen",
+    "sorumlu": "Verantwortlich",
+    "durum": {
+      "planifie": "Geplant",
+      "en_cours": "Laufend",
+      "en_pause": "Pausiert",
+      "termine": "Abgeschlossen",
+      "annule": "Storniert"
+    },
+    "kabul": "Abnahme",
+    "kabulYok": "Noch nicht abgenommen",
+    "cekinceli": "mit Vorbehalten",
+    "cekinceler": "Vorbehalte",
+    "devisInitial": "Hauptangebot",
+    "aciklama": "Beschreibung",
+    "planning": {
+      "creneaux": "Bauablauf",
+      "taches": "Aufgaben"
+    },
+    "rol": {
+      "sorumlu": "Bauleitung",
+      "ekip": "Team"
+    },
+    "gorevAdedi_one": "{{count}} Aufgabe",
+    "gorevAdedi_other": "{{count}} Aufgaben"
+  },
+  "financeAffaires": {
+    "titre": "Vergleich je Auftrag",
+    "sousTitre": "Für jede Baustelle: angenommenes Angebot, beauftragte Nachträge, tatsächliche Ausgaben, abgerechnet und eingegangen. Jede Zeile öffnet die Akte, in der jeder Betrag seine Belege zeigt.",
+    "filtres": "Filter",
+    "filtre": {
+      "tous": "Alle",
+      "asim": "Über beauftragter Leistung",
+      "faturalanmayan": "Noch abzurechnen",
+      "tahsilEdilmeyen": "Noch einzuziehen"
+    },
+    "compte_one": "{{count}} Baustelle",
+    "compte_other": "{{count}} Baustellen",
+    "vide": {
+      "tous": "Noch keine Baustellen.",
+      "asim": "Keine Baustelle liegt über der beauftragten Leistung.",
+      "faturalanmayan": "Keine Baustelle hat noch etwas abzurechnen.",
+      "tahsilEdilmeyen": "Keine Baustelle hat noch etwas einzuziehen."
+    },
+    "col": {
+      "chantier": "Baustelle",
+      "teklif": "Angebot",
+      "ekIsler": "Nachträge",
+      "gider": "Ausgaben",
+      "faturalanan": "Abgerechnet",
+      "tahsilEdilen": "Eingegangen",
+      "marj": "Marge"
+    },
+    "sansEngage": "Kein angenommener Betrag",
+    "depasse": "über beauftragter Leistung",
+    "reste": "offen {{montant}}",
+    "note": "Gezählt werden nur angenommene Angebote, freigegebene Ausgaben, ausgestellte Rechnungen und das Zahlungsjournal. Es wird nichts geschätzt."
   }
 }
