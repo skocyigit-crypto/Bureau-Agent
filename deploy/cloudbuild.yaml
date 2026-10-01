@@ -9,6 +9,13 @@ steps:
   - id: quality-gate
     name: 'node:24-bookworm-slim'
     entrypoint: bash
+    # Le typecheck de l'API depasse le tas par defaut de Node (~2 Go) : le build
+    # du 01/10 (#322) est mort en « heap out of memory », alors que le code
+    # passait en CI GitHub et en local. 3 Go par processus : les paquets sont
+    # verifies en parallele (pnpm -r), et l'API est le seul a depasser 2 Go —
+    # la somme tient dans les 8 Go de la machine E2_HIGHCPU_8.
+    env:
+      - 'NODE_OPTIONS=--max-old-space-size=3072'
     args:
       - -ceu
       - |
