@@ -89,6 +89,17 @@ describe("dans l'application reelle, une cle API", () => {
     expect(r.status, `la requete n'atteint pas le code metier : ${r.text.slice(0, 200)}`).toBeLessThan(400);
   });
 
+  it("ne liste pas les appels en direct et ne detourne pas un appel en cours", async () => {
+    // Piloter un appel client en temps reel (redirection Twilio) et lire sa
+    // transcription est le geste d'une personne, pas d'une integration.
+    const liste = await avecCle(request(appli).get("/api/appels-live"));
+    expect(liste.status, liste.text.slice(0, 200)).toBe(403);
+    expect(liste.body.code).toBe("cle_api_interdite");
+    const devral = await avecCle(request(appli).post("/api/appels-live/CAinconnu123/devral")).send({ cible: "moi" });
+    expect(devral.status, devral.text.slice(0, 200)).toBe(403);
+    expect(devral.body.code).toBe("cle_api_interdite");
+  });
+
   it("ne pose pas de secret MFA sur le compte de son createur", async () => {
     const avant = await lireUtilisateur(ids.admin);
     const r = await avecCle(request(appli).post("/api/auth/mfa/setup")).send({});

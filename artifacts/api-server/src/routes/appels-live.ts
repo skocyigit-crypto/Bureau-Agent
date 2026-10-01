@@ -32,6 +32,21 @@ function peutAgir(req: Request): boolean {
   return req.session?.userRole !== "lecture_seule";
 }
 
+/**
+ * Le refus porte un CODE : l'ecran le traduit (« compte en lecture seule »)
+ * au lieu d'afficher l'erreur generique, qui laissait croire a une panne.
+ */
+function refuserLectureSeule(res: Response): void {
+  res.status(403).json({ error: "Lecture seule", code: "lecture_seule" });
+}
+
+/** Hote public de la requete : sert a donner a Twilio une URL ABSOLUE de retour. */
+function urlPublique(req: Request): string {
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+  const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+  return host ? `${proto}://${host}` : "";
+}
+
 function texte(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
@@ -52,7 +67,9 @@ router.get("/appels-live", async (req: Request, res: Response): Promise<void> =>
 // Avant `/:callSid` : sinon « capacite » serait lu comme un CallSid.
 router.get("/appels-live/capacite", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  res.json(await capaciteReprise(orgId, req.session.userId!));
+  // Avec ?callSid= : la capacite de CET appel (son fournisseur, ses equipes).
+  const callSid = req.query.callSid !== undefined ? callSidValide(req.query.callSid) : null;
+  res.json(await capaciteReprise(orgId, req.session.userId!, callSid));
 });
 
 router.get("/appels-live/:callSid", async (req: Request, res: Response): Promise<void> => {
@@ -76,11 +93,11 @@ const STATUT_REPRISE: Record<string, number> = {
 
 router.post("/appels-live/:callSid/devral", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  if (!peutAgir(req)) { res.status(403).json({ error: "Lecture seule" }); return; }
+  if (!peutAgir(req)) { refuserLectureSeule(res); return; }
   const callSid = callSidValide(req.params.callSid);
   if (!callSid) { res.status(404).json({ error: "Appel introuvable" }); return; }
   const cible = texte(req.body?.cible, 80) || "moi";
-  const issue = await reprendreAppel(orgId, req.session.userId!, callSid, cible);
+  const issue = await reprendreAppel(orgId, req.session.userId!, callSid, cible, new Date(), urlPublique(req) || null);
   if (issue.ok) {
     await logAudit(req.session.userId, req.session.userEmail, "appel.repris", "voice_call", callSid, { cible: issue.cible.id }, req.ip, req.get("user-agent"), orgId);
     res.json({ ok: true, cible: issue.cible });
@@ -95,7 +112,7 @@ router.post("/appels-live/:callSid/devral", async (req: Request, res: Response):
 
 router.post("/appels-live/:callSid/tache", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  if (!peutAgir(req)) { res.status(403).json({ error: "Lecture seule" }); return; }
+  if (!peutAgir(req)) { refuserLectureSeule(res); return; }
   const callSid = callSidValide(req.params.callSid);
   const s = callSid ? await sessionDeLOrganisation(orgId, callSid) : null;
   if (!s || !callSid) { res.status(404).json({ error: "Appel introuvable" }); return; }
@@ -116,7 +133,7 @@ router.post("/appels-live/:callSid/tache", async (req: Request, res: Response): 
 
 router.post("/appels-live/:callSid/note", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  if (!peutAgir(req)) { res.status(403).json({ error: "Lecture seule" }); return; }
+  if (!peutAgir(req)) { refuserLectureSeule(res); return; }
   const callSid = callSidValide(req.params.callSid);
   const s = callSid ? await sessionDeLOrganisation(orgId, callSid) : null;
   if (!s || !callSid) { res.status(404).json({ error: "Appel introuvable" }); return; }
@@ -136,7 +153,7 @@ router.post("/appels-live/:callSid/note", async (req: Request, res: Response): P
 
 router.post("/appels-live/:callSid/rdv-decouverte", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  if (!peutAgir(req)) { res.status(403).json({ error: "Lecture seule" }); return; }
+  if (!peutAgir(req)) { refuserLectureSeule(res); return; }
   const callSid = callSidValide(req.params.callSid);
   const s = callSid ? await sessionDeLOrganisation(orgId, callSid) : null;
   if (!s || !callSid) { res.status(404).json({ error: "Appel introuvable" }); return; }

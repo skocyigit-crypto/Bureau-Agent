@@ -10205,14 +10205,21 @@
       "rdv_cree": "Randevu oluşturdu",
       "rappel_cree": "Geri arama talebi oluşturdu",
       "transfert": "Aktarıyor",
+      "reprise_en_cours": "Çalışan aranıyor",
       "reprise_humaine": "Bir çalışan devraldı"
     },
     "actions": "Eylemler",
     "takeover": "Çağrıyı devral",
     "transfer": "Aktar",
     "target": "Kime",
-    "takeoverDone": "Çağrı devralındı: {{num}} çalıyor.",
+    "takeoverDone": "Yönlendiriliyor: {{num}} çalıyor.",
     "takenOverBy": "Devralan: {{name}}",
+    "takeoverState": {
+      "demande": "Devralma istendi…",
+      "en_cours": "Yönlendiriliyor: çalışanın telefonu çalıyor",
+      "reussi": "Çağrı bir çalışan tarafından devralındı",
+      "echoue": "Devralma başarısız: kimse açmadı, geri arama talebi oluşturuldu"
+    },
     "reasons": {
       "aucun_fournisseur": "Telefon sağlayıcı bağlı değil",
       "fournisseur_incomplet": "Telefon sağlayıcı eksik ayarlı (Twilio numarası yok)",
@@ -10220,7 +10227,9 @@
       "deja_repris": "Çağrı zaten devralındı",
       "termine": "Çağrı artık canlı değil",
       "cible_inconnue": "Bu hedef geçerli değil",
-      "twilio": "Twilio reddetti: {{raison}}"
+      "twilio": "Twilio reddetti: {{raison}}",
+      "introuvable": "Çağrı bulunamadı",
+      "lecture_seule": "Salt okunur hesap: çağrıyı izleyebilirsiniz, işlem yapamazsınız"
     },
     "targets": {
       "moi": "Ben ({{num}})",

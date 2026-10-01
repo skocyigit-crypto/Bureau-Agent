@@ -10205,14 +10205,21 @@
       "rdv_cree": "Appointment created",
       "rappel_cree": "Callback request created",
       "transfert": "Transferring",
+      "reprise_en_cours": "Calling the team member",
       "reprise_humaine": "Taken over by a team member"
     },
     "actions": "Actions",
     "takeover": "Take over call",
     "transfer": "Transfer",
     "target": "To",
-    "takeoverDone": "Call taken over: {{num}} is ringing.",
+    "takeoverDone": "Redirecting: {{num}} is ringing.",
     "takenOverBy": "Taken over by: {{name}}",
+    "takeoverState": {
+      "demande": "Takeover requested…",
+      "en_cours": "Redirecting: the team member's phone is ringing",
+      "reussi": "Call taken over by a team member",
+      "echoue": "Takeover failed: nobody answered, a callback request was created"
+    },
     "reasons": {
       "aucun_fournisseur": "No telephony provider connected",
       "fournisseur_incomplet": "Telephony provider incomplete (Twilio number missing)",
@@ -10220,7 +10227,9 @@
       "deja_repris": "The call has already been taken over",
       "termine": "The call is no longer live",
       "cible_inconnue": "Invalid target",
-      "twilio": "Twilio refused: {{raison}}"
+      "twilio": "Twilio refused: {{raison}}",
+      "introuvable": "Call not found",
+      "lecture_seule": "Read-only account: you can follow the call, not act on it"
     },
     "targets": {
       "moi": "Me ({{num}})",

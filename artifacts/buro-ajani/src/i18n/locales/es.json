@@ -10205,14 +10205,21 @@
       "rdv_cree": "Cita creada",
       "rappel_cree": "Solicitud de devolución creada",
       "transfert": "Transfiriendo",
+      "reprise_en_cours": "Llamando al compañero",
       "reprise_humaine": "Atendida por un compañero"
     },
     "actions": "Acciones",
     "takeover": "Tomar la llamada",
     "transfer": "Transferir",
     "target": "A",
-    "takeoverDone": "Llamada tomada: {{num}} está sonando.",
+    "takeoverDone": "Redirigiendo: {{num}} está sonando.",
     "takenOverBy": "Tomada por: {{name}}",
+    "takeoverState": {
+      "demande": "Toma de llamada solicitada…",
+      "en_cours": "Redirigiendo: el teléfono del compañero está sonando",
+      "reussi": "Llamada tomada por un compañero",
+      "echoue": "La toma ha fallado: nadie contestó, se creó una solicitud de devolución de llamada"
+    },
     "reasons": {
       "aucun_fournisseur": "Ningún proveedor telefónico conectado",
       "fournisseur_incomplet": "Proveedor telefónico incompleto (falta el número Twilio)",
@@ -10220,7 +10227,9 @@
       "deja_repris": "La llamada ya ha sido tomada",
       "termine": "La llamada ya no está en curso",
       "cible_inconnue": "Destino no válido",
-      "twilio": "Twilio rechazó: {{raison}}"
+      "twilio": "Twilio rechazó: {{raison}}",
+      "introuvable": "Llamada no encontrada",
+      "lecture_seule": "Cuenta de solo lectura: puede seguir la llamada, no actuar"
     },
     "targets": {
       "moi": "Yo ({{num}})",

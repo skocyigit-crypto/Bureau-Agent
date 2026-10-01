@@ -8,11 +8,11 @@ process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
 process.env.PORT = process.env.PORT ?? "0";
 process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-session-secret-please-change-aaaaaaaa";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import crypto from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import request from "supertest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, like } from "drizzle-orm";
 import {
   auditLogsTable, calendarEventsTable, contactsTable, db, messagesTable, notesInternesTable, organisationsTable,
   tasksTable, telephonyProvidersTable, usersTable, voiceCallSessionsTable,
@@ -57,7 +57,9 @@ vi.mock("../services/email", async (importOriginal) => {
 import appelsLiveRouter from "../routes/appels-live";
 import { voiceReceptionistRouter } from "../routes/voice-receptionist";
 import { encryptProviderConfig } from "../services/telephony-providers";
-import { definirTwilioHttpPourTests, type TwilioHttp } from "../services/appel-live";
+import { CODES_REPRISE, definirTwilioHttpPourTests, type TwilioHttp } from "../services/appel-live";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const stamp = Date.now();
 let seq = 0;
@@ -118,6 +120,9 @@ async function session(orgId: number, v: Partial<typeof voiceCallSessionsTable.$
       callerContext: "Devis cuisine en cours", demande: "Je veux un devis",
       turns: [{ role: "user", text: "Bonjour, je veux un devis" }, { role: "assistant", text: "Bien sur, pour quels travaux ?" }],
       journal: ["Appelant reconnu : Claire Martin", "Demande de devis notee"],
+      // Langue et voix : un etat que le balayage des appels abandonnes (lance
+      // en parallele par d'autres fichiers) sait clore sans tomber.
+      lang: "fr", voice: "Polly.Lea", startedAt: Date.now(), emptyCount: 0,
       ...etat,
     },
     ...v,
@@ -170,6 +175,17 @@ beforeEach(() => {
   definirTwilioHttpPourTests(transportFaux);
 });
 afterEach(() => definirTwilioHttpPourTests(null));
+// Les sessions de ce fichier ont un etat minimal (ni voix ni langue). Laissees
+// ouvertes, elles vieillissent et le balayage des appels abandonnes, lance par
+// d'autres fichiers sur la meme base, les ramassait et tombait dessus. On les
+// clot — y compris celles des executions precedentes (organisations « Live »).
+afterAll(async () => {
+  const orgs = (await db.select({ id: organisationsTable.id }).from(organisationsTable).where(like(organisationsTable.name, "Live org%"))).map((o) => o.id);
+  if (orgs.length) {
+    await db.update(voiceCallSessionsTable).set({ status: "terminee", finalizedAt: new Date() })
+      .where(and(inArray(voiceCallSessionsTable.organisationId, orgs), isNull(voiceCallSessionsTable.finalizedAt)));
+  }
+});
 
 describe("liste et detail des appels en direct", () => {
   it("la liste rend l'appel en cours de l'organisation", async () => {
@@ -291,7 +307,7 @@ describe("capacite et reprise de l'appel", () => {
     expect((await ligne(s)).takeoverStatus).toBeNull();
   });
 
-  it("reprise acceptee par Twilio : redirection <Dial> avec le numero de l'entreprise, statut reussi, audit", async () => {
+  it("reprise acceptee par Twilio : redirection <Dial> avec le numero de l'entreprise, statut en_cours (l'humain sonne), audit", async () => {
     const s = await session(ids.orgA);
     const r = await request(appli()).post(`/api/appels-live/${s}/devral`).send({ cible: "moi" });
     expect(r.status, r.text).toBe(200);
@@ -300,25 +316,26 @@ describe("capacite et reprise de l'appel", () => {
     expect(q.url).toBe(`https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_A}/Calls/${s}.json`);
     expect(q.init.headers.Authorization).toBe("Basic " + Buffer.from(`${ACCOUNT_A}:${TOKEN_A}`).toString("base64"));
     const twiml = new URLSearchParams(q.init.body).get("Twiml")!;
-    expect(twiml).toBe(`<Response><Dial callerId="${NUMERO_A}"><Number>+33612345678</Number></Dial></Response>`);
+    // timeout + action : un collaborateur absent ne laisse plus l'appelant raccroche en silence.
+    expect(twiml.startsWith(`<Response><Dial timeout="20" callerId="${NUMERO_A}" action="http`), twiml).toBe(true);
+    expect(twiml.endsWith(`/api/voice/twilio/reprise-resultat" method="POST"><Number>+33612345678</Number></Dial></Response>`), twiml).toBe(true);
     const l = await ligne(s);
-    expect(l.takeoverStatus).toBe("reussi");
+    expect(l.takeoverStatus).toBe("en_cours");
     expect(l.takenOverByUserId).toBe(ids.adminA);
     expect(l.status).toBe("transfert");
     expect(await audits(s)).toContain("appel.repris");
     expect(r.text).not.toContain(TOKEN_A);
-    expect((await request(appli()).get(`/api/appels-live/${s}`)).body.etape).toBe("reprise_humaine");
+    expect((await request(appli()).get(`/api/appels-live/${s}`)).body.etape).toBe("reprise_en_cours");
   });
 
-  it("Twilio refuse : la revendication est rendue et la vraie raison remontee", async () => {
+  it("Twilio refuse : reprise echoue (l'IA garde la main) et la vraie raison remontee", async () => {
     twilioFaux.reponse = { ok: false, status: 400, corps: { code: 21220, message: "Call is not in-progress. Cannot redirect." } };
     const s = await session(ids.orgA);
     const r = await request(appli()).post(`/api/appels-live/${s}/devral`).send({ cible: "defaut" });
     expect(r.status).toBe(502);
     expect(r.body.raison).toBe("Call is not in-progress. Cannot redirect.");
     const l = await ligne(s);
-    expect(l.takeoverStatus).toBeNull();
-    expect(l.takenOverByUserId).toBeNull();
+    expect(l.takeoverStatus).toBe("echoue");
     expect(l.status).toBe("en_cours");
     expect(await audits(s)).toContain("appel.reprise_echouee");
   });
@@ -329,7 +346,7 @@ describe("capacite et reprise de l'appel", () => {
     const r = await request(appli()).post(`/api/appels-live/${s}/devral`).send({ cible: "moi" });
     expect(r.status).toBe(502);
     expect(r.body.raison).toContain("ECONNREFUSED");
-    expect((await ligne(s)).takeoverStatus).toBeNull();
+    expect((await ligne(s)).takeoverStatus).toBe("echoue");
   });
 
   it("le message d'erreur Twilio ne fait jamais ressortir le jeton", async () => {
@@ -378,6 +395,8 @@ describe("capacite et reprise de l'appel", () => {
     const s = await session(ids.orgA);
     const r = await request(appli(ids.lecteurA, ids.orgA, "lecture_seule")).post(`/api/appels-live/${s}/devral`).send({ cible: "defaut" });
     expect(r.status).toBe(403);
+    // Le code permet a l'ecran de dire POURQUOI (et pas « echec de l'operation »).
+    expect(r.body.code).toBe("lecture_seule");
     expect(twilioFaux.requetes).toHaveLength(0);
   });
 
@@ -544,5 +563,107 @@ describe("une reprise arrete aussi l'agenda et le rappel de l'IA", () => {
     const s = await session(ids.orgA, { takeoverStatus: "reussi" } as any);
     expect(await revendiquerAction(s, ids.orgA, "rappel", true, { siNonRepris: true })).toBe(false);
     expect(await revendiquerAction(s, ids.orgA, "finalisation")).toBe(true);
+  });
+});
+
+describe("revue lot 2 : reprise honnete, issue du <Dial>, finalisation", () => {
+  async function appelReel(): Promise<string> {
+    const callSid = sid();
+    const r = await twilio("/api/voice/twilio/incoming", { AccountSid: ACCOUNT_A, CallSid: callSid, From: "+33611223344", To: NUMERO_A });
+    expect(r.status, r.text).toBe(200);
+    return callSid;
+  }
+  const devral = async (s: string) => expect((await request(appli()).post(`/api/appels-live/${s}/devral`).send({ cible: "moi" })).status).toBe(200);
+  const rappels = async () => (await db.select({ id: messagesTable.id }).from(messagesTable)
+    .where(and(eq(messagesTable.organisationId, ids.orgA), eq(messagesTable.type, "rappel")))).length;
+
+  it("issue du <Dial> de reprise : decroche → reussi, et l'appel est finalise", async () => {
+    const s = await appelReel();
+    await devral(s);
+    const r = await twilio("/api/voice/twilio/reprise-resultat", { AccountSid: ACCOUNT_A, CallSid: s, DialCallStatus: "completed", DialCallDuration: "42" });
+    expect(r.status).toBe(200);
+    const l = await ligne(s);
+    expect(l.takeoverStatus).toBe("reussi");
+    expect(l.finalizedAt).not.toBeNull();
+    expect(JSON.stringify(l.state)).toContain("Appel repris par un collaborateur");
+  });
+
+  it("issue du <Dial> de reprise : sans reponse → echoue, rappel cree, excuses dites, puis fin", async () => {
+    const s = await appelReel();
+    await devral(s);
+    const avant = await rappels();
+    const r = await twilio("/api/voice/twilio/reprise-resultat", { AccountSid: ACCOUNT_A, CallSid: s, DialCallStatus: "no-answer" });
+    expect(r.text).toContain("Toutes nos excuses");
+    expect(r.text).toContain("<Hangup/>");
+    expect(await rappels()).toBe(avant + 1);
+    const l = await ligne(s);
+    expect(l.takeoverStatus).toBe("echoue");
+    expect(l.finalizedAt).not.toBeNull();
+    // Rejeu Twilio : meme reponse, pas de second rappel.
+    const r2 = await twilio("/api/voice/twilio/reprise-resultat", { AccountSid: ACCOUNT_A, CallSid: s, DialCallStatus: "no-answer" });
+    expect(r2.text).toBe(r.text);
+    expect(await rappels()).toBe(avant + 1);
+  });
+
+  it("issue du <Dial> de reprise non signee : 403, rien ne change", async () => {
+    const s = await appelReel();
+    await devral(s);
+    const r = await request(voix).post("/api/voice/twilio/reprise-resultat").set("x-forwarded-proto", "https").set("x-forwarded-host", "test.local")
+      .set("x-twilio-signature", "faux").type("form").send({ AccountSid: ACCOUNT_A, CallSid: s, DialCallStatus: "no-answer" });
+    expect(r.status).toBe(403);
+    expect((await ligne(s)).takeoverStatus).toBe("en_cours");
+  });
+
+  it("reprise pendant un transfert IA : le transfert est clos (repris) et /status finalise", async () => {
+    const s = await session(ids.orgA, { status: "transfert" }, { transfert: { cible: CONSEILLER, statut: "en_cours", raison: "x" }, startedAt: Date.now(), turns: [], journal: [], lang: "fr" });
+    await devral(s);
+    expect(((await ligne(s)).state as any).transfert.statut).toBe("repris");
+    const avant = await rappels();
+    const t = await twilio("/api/voice/twilio/transfert-resultat", { AccountSid: ACCOUNT_A, CallSid: s, DialCallStatus: "canceled" });
+    expect(t.text).toContain("<Pause");
+    expect((await ligne(s)).finalizedAt).toBeNull();
+    await twilio("/api/voice/twilio/status", { AccountSid: ACCOUNT_A, CallSid: s, CallStatus: "completed" });
+    expect((await ligne(s)).finalizedAt).not.toBeNull();
+    expect(await rappels()).toBe(avant);
+  });
+
+  it("l'IA ne finalise pas un appel repris pendant que le modele reflechissait ; le journal de reprise survit", async () => {
+    const s = await appelReel();
+    simu.reponses.push(reponse({ done: true, say: "Au revoir" }));
+    simu.pendantModele = async () => { simu.pendantModele = null; await devral(s); };
+    await twilio("/api/voice/twilio/respond", { AccountSid: ACCOUNT_A, CallSid: s, From: "+33611223344", To: NUMERO_A, SpeechResult: "merci au revoir" });
+    const l = await ligne(s);
+    expect(l.finalizedAt).toBeNull();
+    expect(l.status).toBe("transfert");
+    expect(JSON.stringify(l.state)).toContain("Appel repris par un collaborateur");
+    await twilio("/api/voice/twilio/status", { AccountSid: ACCOUNT_A, CallSid: s, CallStatus: "completed" });
+    expect((await ligne(s)).finalizedAt).not.toBeNull();
+  });
+
+  it("la capacite est calculee pour le fournisseur de l'appel (callSid)", async () => {
+    const [p] = await db.insert(telephonyProvidersTable).values({
+      organisationId: ids.orgA, provider: "twilio", label: "Live A2", isActive: true, isDefault: false,
+      config: encryptProviderConfig("twilio", {
+        accountSid: `ACla2${stamp}`, authToken: `tok_a2_${stamp}`, fromNumber: "+33100000079",
+        aiReceptionist: { enabled: true, equipesTransfert: [{ nom: "Chantier", numeros: ["+33700000079"], motsCles: [] }] },
+      }),
+    }).returning({ id: telephonyProvidersTable.id });
+    try {
+      const s = await session(ids.orgA, { providerId: p!.id });
+      const pour = await request(appli()).get(`/api/appels-live/capacite?callSid=${s}`);
+      const defaut = await request(appli()).get("/api/appels-live/capacite");
+      expect(pour.body.cibles.map((c: any) => c.id)).toContain("equipe:Chantier");
+      expect(defaut.body.cibles.map((c: any) => c.id)).not.toContain("equipe:Chantier");
+    } finally {
+      await db.update(telephonyProvidersTable).set({ isActive: false }).where(eq(telephonyProvidersTable.id, p!.id));
+    }
+  });
+
+  it("chaque code de refus que l'API peut rendre est traduit dans les 6 langues", () => {
+    for (const l of ["fr", "en", "tr", "es", "de", "ar"]) {
+      const j = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "..", "buro-ajani", "src", "i18n", "locales", `${l}.json`), "utf8"));
+      for (const c of CODES_REPRISE) expect(j.appelLive.reasons[c], `${l}:${c}`).toBeTruthy();
+      for (const st of ["demande", "en_cours", "reussi", "echoue"]) expect(j.appelLive.takeoverState[st], `${l}:${st}`).toBeTruthy();
+    }
   });
 });

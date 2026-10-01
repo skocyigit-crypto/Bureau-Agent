@@ -10205,14 +10205,21 @@
       "rdv_cree": "Rendez-vous créé",
       "rappel_cree": "Demande de rappel créée",
       "transfert": "Transfert en cours",
+      "reprise_en_cours": "Le collaborateur est appelé",
       "reprise_humaine": "Repris par un collaborateur"
     },
     "actions": "Actions",
     "takeover": "Reprendre l'appel",
     "transfer": "Transférer",
     "target": "Vers",
-    "takeoverDone": "Appel repris : {{num}} sonne.",
+    "takeoverDone": "Redirection en cours : {{num}} sonne.",
     "takenOverBy": "Repris par : {{name}}",
+    "takeoverState": {
+      "demande": "Reprise demandée…",
+      "en_cours": "Redirection en cours : le collaborateur sonne",
+      "reussi": "Appel repris par un collaborateur",
+      "echoue": "La reprise a échoué : personne n'a décroché, une demande de rappel est créée"
+    },
     "reasons": {
       "aucun_fournisseur": "Aucun fournisseur téléphonique connecté",
       "fournisseur_incomplet": "Fournisseur téléphonique incomplet (numéro Twilio manquant)",
@@ -10220,7 +10227,9 @@
       "deja_repris": "L'appel a déjà été repris",
       "termine": "L'appel n'est plus en cours",
       "cible_inconnue": "Destinataire invalide",
-      "twilio": "Twilio a refusé : {{raison}}"
+      "twilio": "Twilio a refusé : {{raison}}",
+      "introuvable": "Appel introuvable",
+      "lecture_seule": "Compte en lecture seule : vous pouvez suivre l'appel, pas agir"
     },
     "targets": {
       "moi": "Moi ({{num}})",

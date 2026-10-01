@@ -19,7 +19,7 @@
  * confirmation ne creent jamais deux rendez-vous, deux rappels, deux notes.
  */
 import crypto from "node:crypto";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
   voiceCallSessionsTable,
@@ -88,10 +88,34 @@ export async function chargerSessionAppel(callSid: string): Promise<SessionAppel
  * temps. La condition est donc dans le MEME UPDATE que l'ecriture du tour :
  * soit le tour passe avant la revendication, soit il n'existe pas.
  */
+/**
+ * Etats de reprise : `demande` (revendique), `en_cours` (Twilio a accepte la
+ * redirection, l'humain sonne), `reussi` (l'humain a decroche), `echoue`
+ * (personne n'a decroche, ou Twilio a refuse la redirection).
+ *
+ * `echoue` veut dire « aucun humain ne tient l'appel » : l'IA garde (ou
+ * reprend) la main et une nouvelle reprise reste possible. Toutes les gardes
+ * « non repris » passent donc par cette condition, jamais par un simple
+ * `IS NULL` : sinon un echec de redirection rendrait l'IA muette pour de bon.
+ */
+export const REPRISE_ECHOUEE = "echoue";
+
+export function conditionNonRepris(): SQL {
+  return or(isNull(voiceCallSessionsTable.takeoverStatus), eq(voiceCallSessionsTable.takeoverStatus, REPRISE_ECHOUEE))!;
+}
+
+/** Un humain tient (ou est en train de prendre) l'appel. */
+export function estRepris(takeoverStatus: string | null | undefined): boolean {
+  return !!takeoverStatus && takeoverStatus !== REPRISE_ECHOUEE;
+}
+
 export async function sauverSessionAppel(callSid: string, orgId: number, etat: Record<string, unknown>, extra: {
-  status?: string; requestKey?: string | null; response?: string | null;
+  status?: string; requestKey?: string | null; response?: string | null; siNonRepris?: boolean;
 } = {}): Promise<boolean> {
-  const tourIa = extra.requestKey !== undefined;
+  // Un tour de parole (requestKey) ou une ecriture explicitement IA
+  // (siNonRepris) ne passe plus apres la reprise : l'etat en memoire de l'IA
+  // est perime et effacerait la ligne de journal ecrite par la reprise.
+  const tourIa = extra.requestKey !== undefined || extra.siNonRepris === true;
   const rows = await db.update(voiceCallSessionsTable).set({
     state: etat,
     updatedAt: new Date(),
@@ -101,7 +125,7 @@ export async function sauverSessionAppel(callSid: string, orgId: number, etat: R
   }).where(and(
     eq(voiceCallSessionsTable.callSid, callSid),
     eq(voiceCallSessionsTable.organisationId, orgId),
-    ...(tourIa ? [isNull(voiceCallSessionsTable.takeoverStatus)] : []),
+    ...(tourIa ? [conditionNonRepris()] : []),
   )).returning({ id: voiceCallSessionsTable.id });
   return rows.length > 0;
 }
@@ -126,7 +150,7 @@ export async function revendiquerAction(callSid: string, orgId: number, cle: str
     eq(voiceCallSessionsTable.callSid, callSid),
     eq(voiceCallSessionsTable.organisationId, orgId),
     sql`not (${voiceCallSessionsTable.actions} ? ${cle})`,
-    ...(opts.siNonRepris ? [isNull(voiceCallSessionsTable.takeoverStatus)] : []),
+    ...(opts.siNonRepris ? [conditionNonRepris()] : []),
   )).returning({ id: voiceCallSessionsTable.id });
   return rows.length > 0;
 }
@@ -323,6 +347,16 @@ export const PHRASES: Record<string, Record<LangueAppel, (v: Record<string, stri
     es: () => "No hay nadie disponible en este momento.",
     de: () => "Im Moment ist niemand erreichbar.",
     ar: () => "لا أحد متاح في الوقت الحالي.",
+  },
+  // Un collaborateur a repris l'appel depuis l'ecran mais n'a pas decroche :
+  // l'appelant entend des excuses AVANT la promesse de rappel, jamais un silence.
+  repriseEchouee: {
+    fr: () => "Toutes nos excuses, votre interlocuteur n'a pas pu décrocher.",
+    en: () => "We apologise, the person you were being put through to could not answer.",
+    tr: () => "Özür dileriz, aktarıldığınız kişi telefonu açamadı.",
+    es: () => "Le pedimos disculpas, la persona con la que le comunicábamos no ha podido contestar.",
+    de: () => "Entschuldigen Sie bitte, Ihr Gesprächspartner konnte nicht abheben.",
+    ar: () => "نعتذر، لم يتمكن الشخص الذي حولناك إليه من الرد.",
   },
 };
 
@@ -524,7 +558,7 @@ export async function creerRendezVousConfirme(input: {
   if (!(await revendiquerAction(input.callSid, input.orgId, "rdv_ia", true, { siNonRepris: true }))) {
     const [s] = await db.select({ repris: voiceCallSessionsTable.takeoverStatus }).from(voiceCallSessionsTable)
       .where(and(eq(voiceCallSessionsTable.callSid, input.callSid), eq(voiceCallSessionsTable.organisationId, input.orgId))).limit(1);
-    if (s?.repris) return { repris: true };
+    if (estRepris(s?.repris)) return { repris: true };
     // Revendication deja posee par une confirmation simultanee du meme appel :
     // le chemin ordinaire (cle unique externalRef) tranche plus bas.
   }

@@ -84,6 +84,7 @@ import {
   chargerSessionAppel,
   sauverSessionAppel,
   revendiquerAction,
+  estRepris,
   libererAction,
   poserAction,
   cleRequete,
@@ -252,7 +253,7 @@ interface CallSession {
   rdvCree: { eventId: number; debutIso: string; fuseau: string } | null;
   /** Transfert vers un conseiller et son issue. */
   /** `cible` = premier numero appele (journal) ; `numeros` = tous ceux qui sonnent ; `equipe` = equipe choisie. */
-  transfert: { cible: string; statut: "en_cours" | "reussi" | "echoue"; raison: string; numeros?: string[]; equipe?: string | null } | null;
+  transfert: { cible: string; statut: "en_cours" | "reussi" | "echoue" | "repris"; raison: string; numeros?: string[]; equipe?: string | null } | null;
   /** Demande de rappel creee (id du message « rappel »). */
   rappelMessageId: number | null;
   /** Ce que l'appelant demande, en ses mots (pour la note et le rappel). */
@@ -292,11 +293,12 @@ async function chargerSession(callSid: string, providerConfig: Record<string, un
     _status: row.status,
     _lastKey: row.lastRequestKey,
     _lastResponse: row.lastResponse,
-    _reprise: row.takeoverStatus,
+    // `echoue` = aucun humain ne tient l'appel : pour l'IA, ce n'est pas une reprise.
+    _reprise: estRepris(row.takeoverStatus) ? row.takeoverStatus : null,
   };
 }
 
-async function sauverSession(s: CallSession, extra: { status?: string; requestKey?: string | null; response?: string | null } = {}): Promise<boolean> {
+async function sauverSession(s: CallSession, extra: { status?: string; requestKey?: string | null; response?: string | null; siNonRepris?: boolean } = {}): Promise<boolean> {
   const etat = etatPersiste(s);
   for (const k of ["_status", "_lastKey", "_lastResponse", "_reprise"]) delete etat[k];
   return sauverSessionAppel(s.callSid, s.orgId, etat, extra);
@@ -1731,9 +1733,15 @@ function noteDossier(session: CallSession, callId: number | null): string {
  * revendication « finalisation » en base tient face aux retries Twilio et aux
  * autres instances (elle etait en memoire).
  */
-async function finalizeCall(callSid: string, session: CallSession): Promise<void> {
+async function finalizeCall(callSid: string, session: CallSession, opts: { ia?: boolean } = {}): Promise<void> {
   if (!callSid) return;
-  if (!(await revendiquerAction(callSid, session.orgId, "finalisation"))) return;
+  // Une cloture decidee PAR L'IA (fin de conversation, rappel, echec du
+  // modele) ne passe plus une fois l'appel repris : un humain parle peut-etre
+  // encore au client. La cloture se fera a la vraie fin de l'appel (/status,
+  // /reprise-resultat, balayage), qui passent `ia: false`. La garde est dans
+  // le MEME UPDATE que la revendication : la base ordonne reprise et cloture.
+  const ia = opts.ia !== false;
+  if (!(await revendiquerAction(callSid, session.orgId, "finalisation", true, { siNonRepris: ia }))) return;
   const caller = session.callerNumber || "inconnu";
   const duration = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   const transcript = transcriptText(session);
@@ -1742,7 +1750,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
   if (session.urgent) tags.push("urgent");
   if (session.sentiment === "negatif" || session.sentiment === "tres_negatif") tags.push("mecontent");
   if (session.rdvCree) tags.push("rendez-vous");
-  if (session.transfert) tags.push(session.transfert.statut === "reussi" ? "transfere" : "transfert-echoue");
+  if (session.transfert) tags.push(session.transfert.statut === "reussi" ? "transfere" : session.transfert.statut === "repris" ? "repris" : "transfert-echoue");
   if (session.rappelMessageId) tags.push("rappel-demande");
   const notes =
     (summary ? `[Resume IA] ${summary}\n\n` : "") +
@@ -1875,7 +1883,9 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     transfert: session.transfert?.statut ?? null,
   });
   if (contactId) session.callerContactId = contactId;
-  await sauverSession(session, { status: "terminee" });
+  // Cloture IA : l'etat en memoire ne doit pas ecraser une reprise tombee
+  // entre-temps (il effacerait sa ligne de journal) — meme garde que la revendication.
+  await sauverSession(session, { status: "terminee", siNonRepris: ia });
   await db.update(voiceCallSessionsTable).set({ finalizedAt: new Date() })
     .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, session.orgId)));
 }
@@ -1907,9 +1917,14 @@ async function transferer(session: CallSession, raison: string, intro?: string, 
  * vous rappellera » : elle etait dite apres une panne du modele sans que rien
  * ne soit cree. Une seule demande par appel (revendication « rappel »).
  */
-async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): Promise<string> {
+async function rappelEtFin(session: CallSession, raison: string, prefixe = "", opts: { apresReprise?: boolean } = {}): Promise<string> {
   const caller = session.callerNumber || "inconnu";
-  if (await revendiquerAction(session.callSid, session.orgId, "rappel", true, { siNonRepris: true })) {
+  // Apres une reprise ratee (le collaborateur n'a pas decroche), le rappel est
+  // celui de l'HUMAIN, pas de l'IA : cle distincte, sans la garde « non
+  // repris » — sinon personne ne rappellerait jamais ce client.
+  const apresReprise = opts.apresReprise === true;
+  const cleRappel = apresReprise ? "rappel_reprise" : "rappel";
+  if (await revendiquerAction(session.callSid, session.orgId, cleRappel, true, { siNonRepris: !apresReprise })) {
     try {
       const contactId = await contactDeLAppelant(session.orgId, caller, session.callerName, true);
       if (contactId) session.callerContactId = contactId;
@@ -1919,15 +1934,15 @@ async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): 
       });
       if (tacheId) (session.tachesIds ??= []).push(tacheId);
       session.rappelMessageId = id;
-      await poserAction(session.callSid, session.orgId, "rappel", id);
+      await poserAction(session.callSid, session.orgId, cleRappel, id);
       session.journal.push(`Demande de rappel #${id} créée : ${raison}`);
       await journaliserAppel(session.orgId, session.callSid, "callback.created", { messageId: id, raison, contactId: session.callerContactId });
     } catch (err) {
       logger.error({ err, orgId: session.orgId }, "[voice] demande de rappel non creee");
-      await libererAction(session.callSid, session.orgId, "rappel");
+      await libererAction(session.callSid, session.orgId, cleRappel);
     }
   }
-  await finalizeCall(session.callSid, session);
+  await finalizeCall(session.callSid, session, { ia: !apresReprise });
   return hangupTwiml(`${prefixe} ${phrase("rappelCree", session.lang)}`.trim(), session.lang, session.voice);
 }
 
@@ -1963,7 +1978,7 @@ export async function finaliserAppelsAbandonnes(): Promise<number> {
       await journaliserAppel(s.orgId, r.callSid, "transfer.unknown", {});
       await rappelEtFin(s, "issue du transfert inconnue");
     } else {
-      await finalizeCall(r.callSid, s);
+      await finalizeCall(r.callSid, s, { ia: false });
     }
     n++;
   }
@@ -2374,6 +2389,72 @@ voiceReceptionistRouter.post("/voice/twilio/transfert-resultat", async (req: Req
   await repondre(twiml);
 });
 
+/**
+ * Issue du <Dial> de REPRISE (ecran « appel en direct »). Meme controle que
+ * /transfert-resultat : signature Twilio, puis organisation de la session.
+ *
+ * Decroche (completed/answered) → `reussi` : c'est seulement ici qu'on peut
+ * dire « repris ». Sinon (no-answer, busy, failed, canceled) → `echoue` : le
+ * collaborateur n'a pas pris l'appel, une demande de rappel est creee pour
+ * l'equipe, l'appelant entend des excuses dans sa langue et l'appel se ferme.
+ * Avant, sans `action`, il etait raccroche en silence et personne ne le savait.
+ */
+voiceReceptionistRouter.post("/voice/twilio/reprise-resultat", async (req: Request, res: Response): Promise<void> => {
+  res.type("text/xml");
+  const body = (req.body ?? {}) as Record<string, string>;
+  const callSid = body.CallSid;
+  const tenants = await resolveTenants(body.AccountSid ?? "");
+  const tenant = tenants.find((t) => validateTwilioSignature(req, t.authToken));
+  if (!tenant || !callSid) {
+    res.status(403).send(emptyTwiml());
+    return;
+  }
+  const session = await chargerSession(callSid, tenant.config);
+  if (!session || session.orgId !== tenant.orgId) {
+    res.status(session ? 403 : 200).send(session ? emptyTwiml() : twimlVide());
+    return;
+  }
+  // Issue rejouee par Twilio : meme reponse, rien de refait (ni second rappel).
+  const cle = cleRequete(body);
+  if (session._lastKey === cle && session._lastResponse) {
+    res.status(200).send(session._lastResponse);
+    return;
+  }
+  const statut = String(body.DialCallStatus ?? "");
+  const decroche = statut === "completed" || statut === "answered";
+  // Seule une reprise en vol (`demande`/`en_cours`) change d'issue : une issue
+  // tardive ne reecrit pas un etat deja tranche.
+  const [maj] = await db.update(voiceCallSessionsTable)
+    .set({ takeoverStatus: decroche ? "reussi" : "echoue", updatedAt: new Date() })
+    .where(and(
+      eq(voiceCallSessionsTable.callSid, callSid),
+      eq(voiceCallSessionsTable.organisationId, session.orgId),
+      inArray(voiceCallSessionsTable.takeoverStatus, ["demande", "en_cours"]),
+    ))
+    .returning({ id: voiceCallSessionsTable.id });
+  if (!maj) {
+    res.status(200).send(twimlVide());
+    return;
+  }
+
+  let twiml: string;
+  if (decroche) {
+    session.journal.push(`Appel pris par le collaborateur (${body.DialCallDuration ?? "?"} s)`);
+    await journaliserAppel(session.orgId, callSid, "takeover.succeeded", { dialCallStatus: statut, duree: body.DialCallDuration ?? null });
+    await finalizeCall(callSid, session, { ia: false });
+    twiml = twimlVide();
+  } else {
+    session.journal.push(`Reprise sans réponse du collaborateur (${statut || "statut inconnu"})`);
+    await journaliserAppel(session.orgId, callSid, "takeover.failed", { dialCallStatus: statut || null });
+    twiml = await rappelEtFin(session, `reprise sans réponse (${statut || "inconnu"})`, phrase("repriseEchouee", session.lang), { apresReprise: true });
+  }
+  // Empreinte posee SANS la garde « non repris » : cette reponse appartient a
+  // la reprise elle-meme, et doit pouvoir etre rejouee a l'identique.
+  await db.update(voiceCallSessionsTable).set({ lastRequestKey: cle, lastResponse: twiml })
+    .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, session.orgId)));
+  res.status(200).send(twiml);
+});
+
 voiceReceptionistRouter.post("/voice/twilio/status", async (req: Request, res: Response): Promise<void> => {
   res.type("text/xml");
   const body = (req.body ?? {}) as Record<string, string>;
@@ -2387,8 +2468,11 @@ voiceReceptionistRouter.post("/voice/twilio/status", async (req: Request, res: R
     // Signature valide ET meme organisation que la session (anti cross-tenant).
     // Un transfert en cours est clos par /transfert-resultat, qui cree le
     // rappel si personne n'a repondu.
+    // Apres une reprise, le transfert de l'IA est clos (`repris`) : /status
+    // finalise, meme si l'issue du <Dial> de reprise n'est pas encore arrivee
+    // (/reprise-resultat creera alors le rappel si l'humain n'a pas decroche).
     if (tenant && session && tenant.orgId === session.orgId && session.transfert?.statut !== "en_cours") {
-      await finalizeCall(callSid, session);
+      await finalizeCall(callSid, session, { ia: false });
     }
   }
   res.status(200).send(emptyTwiml());

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@/i18n";
+import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { AppelLiveEcran } from "@/pages/appel-live";
 import { IndicateurAppelEnDirect } from "@/components/appel-en-direct";
 
@@ -16,6 +17,8 @@ let detail: any;
 let capacite: any;
 let liste: any;
 let reponsePost: { status: number; corps: any };
+let lectures: string[] = [];
+let role = "administrateur";
 
 const DETAIL = {
   callSid: SID, status: "en_cours", enDirect: true, debut: "2026-10-01T08:00:00Z", derniereActivite: "2026-10-01T08:01:00Z",
@@ -29,6 +32,8 @@ const CAP_AUCUN = { fournisseur: null, reprisePossible: false, raison: "aucun_fo
 
 beforeEach(() => {
   posts = [];
+  lectures = [];
+  role = "administrateur";
   detail = structuredClone(DETAIL);
   capacite = CAP_OK;
   liste = { appels: [] };
@@ -40,7 +45,8 @@ beforeEach(() => {
       posts.push({ url: u, body: init.body ? JSON.parse(String(init.body)) : null });
       return { ok: reponsePost.status < 400, status: reponsePost.status, json: async () => reponsePost.corps } as Response;
     }
-    if (u.endsWith("/api/appels-live/capacite")) return { ok: true, status: 200, json: async () => capacite } as Response;
+    lectures.push(u);
+    if (u.includes("/api/appels-live/capacite")) return { ok: true, status: 200, json: async () => capacite } as Response;
     if (u.endsWith("/api/appels-live")) return { ok: true, status: 200, json: async () => liste } as Response;
     if (u.includes(`/api/appels-live/${SID}`)) {
       if (!detail) return { ok: false, status: 404, json: async () => ({}) } as Response;
@@ -53,7 +59,13 @@ afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
 
 function monter(el: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><I18nProvider>{el}</I18nProvider></QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={qc}>
+      <I18nProvider>
+        <WorkspaceUserProvider apiUser={{ id: 1, email: "a@b.fr", nom: "T", prenom: "A", role }} onLogout={() => {}}>{el}</WorkspaceUserProvider>
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
 }
 const ecran = () => monter(<AppelLiveEcran callSid={SID} />);
 
@@ -108,7 +120,9 @@ describe("l'ecran d'appel en direct", () => {
     await waitFor(() => expect(b).toBeEnabled());
     fireEvent.click(b);
     await waitFor(() => expect(posts.some((p) => p.url.endsWith(`/api/appels-live/${SID}/devral`) && p.body.cible === "moi")).toBe(true));
-    expect(await screen.findByTestId("message-action")).toHaveTextContent("Çağrı devralındı: +33••••78 çalıyor.");
+    expect(await screen.findByTestId("message-action")).toHaveTextContent("Yönlendiriliyor: +33••••78 çalıyor.");
+    // Accepte par Twilio ne veut pas dire decroche : jamais « devralındı » ici.
+    expect(screen.getByTestId("message-action")).not.toHaveTextContent("devralındı");
   });
 
   it("refus de Twilio : la vraie raison s'affiche, pas un faux succes", async () => {
@@ -166,6 +180,53 @@ describe("l'ecran d'appel en direct", () => {
     ecran();
     expect(await screen.findByTestId("appel-introuvable", {}, { timeout: 5000 })).toHaveTextContent("Bu çağrı bulunamadı.");
     expect(screen.queryByTestId("colonne-transcription")).toBeNull();
+  });
+
+  it("la capacite est demandee pour CET appel (callSid dans la requete)", async () => {
+    ecran();
+    await screen.findByRole("button", { name: "Çağrıyı devral" }, { timeout: 5000 });
+    await waitFor(() => expect(lectures.some((u) => u.includes(`/api/appels-live/capacite?callSid=${SID}`))).toBe(true));
+  });
+
+  it("reprise en_cours : « yönlendiriliyor », jamais « devralındı »", async () => {
+    detail.reprise = { statut: "en_cours", le: "2026-10-01T08:02:00Z", par: "Ali Yilmaz" };
+    detail.etape = "reprise_en_cours";
+    ecran();
+    const etat = await screen.findByTestId("etat-reprise", {}, { timeout: 5000 });
+    expect(etat).toHaveTextContent("Yönlendiriliyor: çalışanın telefonu çalıyor");
+    expect(etat).not.toHaveTextContent("devralındı");
+    expect(screen.getByTestId("etape-agent")).toHaveTextContent("Çalışan aranıyor");
+  });
+
+  it("reprise reussi : « devralındı »", async () => {
+    detail.reprise = { statut: "reussi", le: "2026-10-01T08:02:00Z", par: "Ali Yilmaz" };
+    ecran();
+    expect(await screen.findByTestId("etat-reprise", {}, { timeout: 5000 })).toHaveTextContent("Çağrı bir çalışan tarafından devralındı");
+  });
+
+  it("reprise echoue : l'echec est dit, et une nouvelle reprise est possible", async () => {
+    detail.reprise = { statut: "echoue", le: "2026-10-01T08:02:00Z", par: "Ali Yilmaz" };
+    ecran();
+    expect(await screen.findByTestId("etat-reprise", {}, { timeout: 5000 })).toHaveTextContent("Devralma başarısız: kimse açmadı");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Çağrıyı devral" })).toBeEnabled());
+  });
+
+  it("lecture seule : reprise et actions desactivees, avec la raison", async () => {
+    role = "lecture_seule";
+    ecran();
+    const b = await screen.findByRole("button", { name: "Çağrıyı devral" }, { timeout: 5000 });
+    await waitFor(() => expect(screen.getByTestId("raison-reprise")).toHaveTextContent("Salt okunur hesap"));
+    expect(b).toBeDisabled();
+    for (const tid of ["bouton-aktar", "bouton-tache", "bouton-note", "bouton-rdv"]) expect(screen.getByTestId(tid), tid).toBeDisabled();
+  });
+
+  it("un refus 403 lecture_seule du serveur est traduit, pas une erreur generique", async () => {
+    reponsePost = { status: 403, corps: { error: "Lecture seule", code: "lecture_seule" } };
+    ecran();
+    const champ = await screen.findByLabelText("Not içeriği", {}, { timeout: 5000 });
+    fireEvent.change(champ, { target: { value: "x" } });
+    fireEvent.click(screen.getByTestId("bouton-note"));
+    expect(await screen.findByTestId("message-action")).toHaveTextContent("Salt okunur hesap");
   });
 
   it("un appel termine le dit et n'offre plus la reprise", async () => {

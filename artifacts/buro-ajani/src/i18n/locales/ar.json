@@ -10211,14 +10211,21 @@
       "rdv_cree": "أنشأ موعدًا",
       "rappel_cree": "أنشأ طلب معاودة اتصال",
       "transfert": "يحوّل المكالمة",
+      "reprise_en_cours": "جارٍ الاتصال بالموظف",
       "reprise_humaine": "تولاها أحد الموظفين"
     },
     "actions": "إجراءات",
     "takeover": "تولي المكالمة",
     "transfer": "تحويل",
     "target": "إلى",
-    "takeoverDone": "تم تولي المكالمة: {{num}} يرن.",
+    "takeoverDone": "جارٍ التحويل: {{num}} يرن.",
     "takenOverBy": "تولاها: {{name}}",
+    "takeoverState": {
+      "demande": "تم طلب تولي المكالمة…",
+      "en_cours": "جارٍ التحويل: هاتف الموظف يرن",
+      "reussi": "تولى أحد الموظفين المكالمة",
+      "echoue": "فشل التولي: لم يرد أحد، وتم إنشاء طلب معاودة اتصال"
+    },
     "reasons": {
       "aucun_fournisseur": "لا يوجد مزود اتصالات متصل",
       "fournisseur_incomplet": "إعداد مزود الاتصالات غير مكتمل (رقم Twilio مفقود)",
@@ -10226,7 +10233,9 @@
       "deja_repris": "تم تولي المكالمة بالفعل",
       "termine": "المكالمة لم تعد جارية",
       "cible_inconnue": "وجهة غير صالحة",
-      "twilio": "رفض Twilio: {{raison}}"
+      "twilio": "رفض Twilio: {{raison}}",
+      "introuvable": "المكالمة غير موجودة",
+      "lecture_seule": "حساب للقراءة فقط: يمكنك متابعة المكالمة دون التصرف"
     },
     "targets": {
       "moi": "أنا ({{num}})",

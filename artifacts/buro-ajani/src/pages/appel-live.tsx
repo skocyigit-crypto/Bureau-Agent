@@ -13,6 +13,7 @@
  * s'affiche comme « en direct ».
  */
 import { EtatEcran, depuisReponse, type Etat } from "@/components/etat-ecran";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { useTranslation } from "@/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -66,7 +67,13 @@ export function AppelLiveEcran({ callSid }: { callSid: string }) {
     refetchIntervalInBackground: false,
     retry: false,
   });
-  const capacite = useQuery<Capacite, ErreurHttp>({ queryKey: ["appels-live-capacite"], queryFn: () => lire("/appels-live/capacite"), retry: false });
+  // La capacite de CET appel (son fournisseur, ses equipes) : celle du
+  // fournisseur par defaut proposait des cibles que la reprise refusait.
+  const capacite = useQuery<Capacite, ErreurHttp>({
+    queryKey: ["appels-live-capacite", callSid],
+    queryFn: () => lire(`/appels-live/capacite?callSid=${encodeURIComponent(callSid)}`),
+    retry: false,
+  });
 
   if (detail.isPending || detail.isError) {
     const etat: Etat = detail.isPending ? "chargement" : depuisReponse(detail.error.statut);
@@ -158,6 +165,9 @@ function ColonneTranscription({ d }: { d: Detail }) {
 
 function ColonneActions({ callSid, d, capacite, onFait }: { callSid: string; d: Detail; capacite: Capacite | null; onFait: () => void }) {
   const { t } = useTranslation();
+  // Un compte en lecture seule suit l'appel mais n'agit pas : le serveur le
+  // refuse (403 lecture_seule), l'ecran ne doit donc rien offrir qui semble marcher.
+  const lectureSeule = useWorkspaceUser().user.role === "lecture_seule";
   const id = useId();
   const base = `/appels-live/${encodeURIComponent(callSid)}`;
   const [cible, setCible] = useState("");
@@ -184,13 +194,16 @@ function ColonneActions({ callSid, d, capacite, onFait }: { callSid: string; d: 
   });
 
   const cibles = capacite?.cibles ?? [];
-  const dejaRepris = !!d.reprise.statut;
-  // La raison du serveur d'abord ; sinon l'etat de l'appel.
-  const raison = !capacite ? null
+  // `echoue` : personne ne tient l'appel, une nouvelle reprise reste possible.
+  const dejaRepris = !!d.reprise.statut && d.reprise.statut !== "echoue";
+  // Lecture seule d'abord, puis la raison du serveur ; sinon l'etat de l'appel.
+  const raison = lectureSeule ? t("appelLive.reasons.lecture_seule")
+    : !capacite ? null
     : !capacite.reprisePossible ? t(`appelLive.reasons.${capacite.raison ?? "aucun_fournisseur"}`)
     : dejaRepris ? t("appelLive.reasons.deja_repris")
     : !d.enDirect ? t("appelLive.reasons.termine") : null;
-  const repriseImpossible = !capacite || raison !== null || reprise.isPending;
+  const repriseImpossible = lectureSeule || !capacite || raison !== null || reprise.isPending;
+  const actionsBloquees = lectureSeule || action.isPending;
   const cibleMoi = cibles.find((c) => c.id === "moi") ?? cibles[0];
   const cibleChoisie = cible || cibles.find((c) => c.id !== "moi")?.id || cibles[0]?.id || "";
 
@@ -210,6 +223,12 @@ function ColonneActions({ callSid, d, capacite, onFait }: { callSid: string; d: 
           {t("appelLive.takeover")}
         </button>
         {raison && <p id={`${id}-raison`} className="text-sm text-muted-foreground" data-testid="raison-reprise">{raison}</p>}
+        {d.reprise.statut && (
+          // L'etat REEL de la reprise : « devralindi » seulement si l'humain a decroche.
+          <p role="status" className={`text-sm ${d.reprise.statut === "echoue" ? "text-red-700 dark:text-red-300" : ""}`} data-testid="etat-reprise">
+            {t(`appelLive.takeoverState.${d.reprise.statut}`)}
+          </p>
+        )}
         {d.reprise.par && <p className="text-sm">{t("appelLive.takenOverBy", { name: d.reprise.par })}</p>}
         <div className="flex gap-2 items-end">
           <div className="flex-1">
@@ -230,21 +249,21 @@ function ColonneActions({ callSid, d, capacite, onFait }: { callSid: string; d: 
         <input id={`${id}-rdv`} type="datetime-local" required className="w-full rounded-md border bg-background px-2 py-1 text-sm" value={debutRdv} onChange={(e) => setDebutRdv(e.target.value)} />
         <label htmlFor={`${id}-lieu`} className="text-xs block">{t("appelLive.location")}</label>
         <input id={`${id}-lieu`} className="w-full rounded-md border bg-background px-2 py-1 text-sm" value={lieu} onChange={(e) => setLieu(e.target.value)} />
-        <button type="submit" className="rounded-md border px-3 py-1 text-sm" data-testid="bouton-rdv">{t("appelLive.create")}</button>
+        <button type="submit" className="rounded-md border px-3 py-1 text-sm disabled:opacity-50" disabled={actionsBloquees} aria-describedby={lectureSeule ? `${id}-raison` : undefined} data-testid="bouton-rdv">{t("appelLive.create")}</button>
       </form>
 
       <form className="space-y-1" onSubmit={(e) => { e.preventDefault(); if (titreTache.trim()) action.mutate({ chemin: "tache", corps: { titre: titreTache.trim() } }); }}>
         <h3 className="text-sm font-semibold">{t("appelLive.task")}</h3>
         <label htmlFor={`${id}-tache`} className="text-xs block">{t("appelLive.taskTitle")}</label>
         <input id={`${id}-tache`} required className="w-full rounded-md border bg-background px-2 py-1 text-sm" value={titreTache} onChange={(e) => setTitreTache(e.target.value)} />
-        <button type="submit" className="rounded-md border px-3 py-1 text-sm" data-testid="bouton-tache">{t("appelLive.create")}</button>
+        <button type="submit" className="rounded-md border px-3 py-1 text-sm disabled:opacity-50" disabled={actionsBloquees} aria-describedby={lectureSeule ? `${id}-raison` : undefined} data-testid="bouton-tache">{t("appelLive.create")}</button>
       </form>
 
       <form className="space-y-1" onSubmit={(e) => { e.preventDefault(); if (note.trim()) action.mutate({ chemin: "note", corps: { contenu: note.trim() } }); }}>
         <h3 className="text-sm font-semibold">{t("appelLive.note")}</h3>
         <label htmlFor={`${id}-note`} className="text-xs block">{t("appelLive.noteContent")}</label>
         <textarea id={`${id}-note`} required rows={3} className="w-full rounded-md border bg-background px-2 py-1 text-sm" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button type="submit" className="rounded-md border px-3 py-1 text-sm" data-testid="bouton-note">{t("appelLive.save")}</button>
+        <button type="submit" className="rounded-md border px-3 py-1 text-sm disabled:opacity-50" disabled={actionsBloquees} aria-describedby={lectureSeule ? `${id}-raison` : undefined} data-testid="bouton-note">{t("appelLive.save")}</button>
       </form>
 
       {message && <p role="status" className="text-sm" data-testid="message-action">{message}</p>}

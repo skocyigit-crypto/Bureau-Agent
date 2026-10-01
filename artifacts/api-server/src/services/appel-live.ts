@@ -23,6 +23,7 @@ import { and, desc, eq, gt, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { db, telephonyProvidersTable, usersTable, voiceCallSessionsTable } from "@workspace/db";
 import { decryptProviderConfig } from "./telephony-providers";
 import { cibleDeTransfert, lireEquipes } from "./equipes-transfert";
+import { conditionNonRepris, estRepris, REPRISE_ECHOUEE } from "./standard-telephonique";
 
 /** Le balayage (voice-receptionist) clot les sessions muettes depuis 30 min. */
 export const FENETRE_APPEL_DIRECT_MS = 30 * 60 * 1000;
@@ -64,7 +65,9 @@ export function masquerNumero(n: unknown): string | null {
 }
 
 function etapeCourante(etat: Etat, takeoverStatus: string | null): string | null {
-  if (takeoverStatus === "reussi" || takeoverStatus === "en_cours") return "reprise_humaine";
+  // « Repris » seulement quand l'humain a decroche ; avant, il SONNE encore.
+  if (takeoverStatus === "reussi") return "reprise_humaine";
+  if (estRepris(takeoverStatus)) return "reprise_en_cours";
   if (etat.transfert?.statut === "en_cours") return "transfert";
   if (etat.rdvPropose) return "rdv_propose";
   if (etat.rdvCree) return "rdv_cree";
@@ -211,8 +214,22 @@ async function ciblesDisponibles(orgId: number, userId: number, ia: Record<strin
   return out;
 }
 
-export async function capaciteReprise(orgId: number, userId: number) {
-  const f = await fournisseurTwilio(orgId);
+/**
+ * Capacite de reprise. Avec un CallSid, elle est calculee pour CET appel : le
+ * fournisseur qui le porte (meme resolution que reprendreAppel), sinon l'ecran
+ * proposerait les equipes du fournisseur par defaut et la reprise serait
+ * refusee (cible_inconnue) — un bouton qui semble marcher et ne marche pas.
+ * Un CallSid inconnu de l'organisation retombe sur le fournisseur par defaut :
+ * on n'apprend rien sur les appels des autres.
+ */
+export async function capaciteReprise(orgId: number, userId: number, callSid?: string | null) {
+  let providerId: number | null = null;
+  if (callSid) {
+    const [s] = await db.select({ providerId: voiceCallSessionsTable.providerId }).from(voiceCallSessionsTable)
+      .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId))).limit(1);
+    providerId = s?.providerId ?? null;
+  }
+  const f = await fournisseurTwilio(orgId, providerId);
   if (f === null) return { fournisseur: null, reprisePossible: false, raison: "aucun_fournisseur" as RaisonImpossible, cibles: [] as CibleReprise[] };
   if (f === "incomplet") return { fournisseur: "twilio", reprisePossible: false, raison: "fournisseur_incomplet" as RaisonImpossible, cibles: [] as CibleReprise[] };
   const cibles = (await ciblesDisponibles(orgId, userId, f.ia)).map(({ numero: _n, ...c }) => c);
@@ -226,17 +243,38 @@ function xml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/**
+ * TOUS les codes qu'une reponse des routes appels-live peut porter (refus de
+ * reprise, capacite, lecture seule). La liste est la source du test qui exige
+ * une traduction de chacun dans les 6 langues : un code sans cle s'affichait
+ * comme le message d'erreur generique (« introuvable » l'etait).
+ */
+export const CODES_REPRISE = [
+  "introuvable", "deja_repris", "termine", "aucun_fournisseur", "fournisseur_incomplet",
+  "aucun_numero", "cible_inconnue", "twilio", "lecture_seule",
+] as const;
+
 export type IssueReprise =
   | { ok: true; cible: CibleReprise }
   | { ok: false; code: "introuvable" | "deja_repris" | "termine" | RaisonImpossible | "cible_inconnue" | "twilio"; raison?: string };
 
-async function ajouterJournal(orgId: number, callSid: string, ligne: string) {
-  await db.update(voiceCallSessionsTable).set({
-    state: sql`jsonb_set(${voiceCallSessionsTable.state}, '{journal}', coalesce(${voiceCallSessionsTable.state}->'journal', '[]'::jsonb) || to_jsonb(${ligne}::text))`,
-  }).where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId)));
+/** Chemin du webhook ou Twilio rapporte l'issue du <Dial> de reprise. */
+export const CHEMIN_REPRISE_RESULTAT = "/api/voice/twilio/reprise-resultat";
+
+/**
+ * TwiML de reprise. `timeout` + `action` : sans eux, un collaborateur qui ne
+ * decroche pas laissait Twilio passer au verbe suivant — il n'y en avait pas,
+ * l'appelant etait raccroche sans un mot et sans rappel. L'issue arrive sur
+ * /reprise-resultat. L'URL est ABSOLUE quand on connait l'hote public : ce
+ * TwiML est envoye par l'API REST, il n'a pas de document de reference contre
+ * lequel Twilio resoudrait un chemin relatif.
+ */
+export function twimlReprise(callerId: string, numero: string, baseUrl?: string | null): string {
+  const action = `${(baseUrl ?? "").replace(/\/+$/, "")}${CHEMIN_REPRISE_RESULTAT}`;
+  return `<Response><Dial timeout="20" callerId="${xml(callerId)}" action="${xml(action)}" method="POST"><Number>${xml(numero)}</Number></Dial></Response>`;
 }
 
-export async function reprendreAppel(orgId: number, userId: number, callSid: string, cibleId: string, maintenant: Date = new Date()): Promise<IssueReprise> {
+export async function reprendreAppel(orgId: number, userId: number, callSid: string, cibleId: string, maintenant: Date = new Date(), baseUrl: string | null = null): Promise<IssueReprise> {
   const [s] = await db.select({ providerId: voiceCallSessionsTable.providerId })
     .from(voiceCallSessionsTable)
     .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId))).limit(1);
@@ -251,22 +289,24 @@ export async function reprendreAppel(orgId: number, userId: number, callSid: str
   const cible = cibles.find((c) => c.id === cibleId);
   if (!cible) return { ok: false, code: "cible_inconnue" };
 
+  // `demande` : revendique, la redirection n'est pas encore acceptee. Une
+  // reprise precedente `echoue` ne bloque pas une nouvelle tentative.
   const pris = await db.update(voiceCallSessionsTable).set({
-    takeoverStatus: "en_cours", takenOverByUserId: userId, takenOverAt: maintenant,
+    takeoverStatus: "demande", takenOverByUserId: userId, takenOverAt: maintenant,
   }).where(and(
     eq(voiceCallSessionsTable.callSid, callSid),
     conditionAppelEnDirect(orgId, maintenant),
-    isNull(voiceCallSessionsTable.takeoverStatus),
+    conditionNonRepris(),
   )).returning({ id: voiceCallSessionsTable.id });
   if (!pris.length) {
     const [etat] = await db.select({ t: voiceCallSessionsTable.takeoverStatus }).from(voiceCallSessionsTable)
       .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId))).limit(1);
-    return { ok: false, code: etat?.t ? "deja_repris" : "termine" };
+    return { ok: false, code: estRepris(etat?.t) ? "deja_repris" : "termine" };
   }
 
   // L'appelant voit le numero de l'entreprise (callerId = numero Twilio),
   // jamais le portable personnel du collaborateur.
-  const twiml = `<Response><Dial callerId="${xml(f.fromNumber)}"><Number>${xml(cible.numero)}</Number></Dial></Response>`;
+  const twiml = twimlReprise(f.fromNumber, cible.numero, baseUrl);
   let raison: string | null = null;
   try {
     const resp = await twilioHttp(
@@ -291,13 +331,28 @@ export async function reprendreAppel(orgId: number, userId: number, callSid: str
   if (raison) raison = raison.split(f.authToken).join("***");
 
   if (raison) {
-    await db.update(voiceCallSessionsTable).set({ takeoverStatus: null, takenOverByUserId: null, takenOverAt: null })
-      .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId), eq(voiceCallSessionsTable.takeoverStatus, "en_cours")));
+    // `echoue`, pas un retour a NULL : l'ecran dit que la reprise a rate (au
+    // lieu d'effacer toute trace), et `echoue` laisse l'IA garder la main —
+    // toutes les gardes « non repris » l'acceptent (conditionNonRepris).
+    await db.update(voiceCallSessionsTable).set({ takeoverStatus: REPRISE_ECHOUEE })
+      .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId), eq(voiceCallSessionsTable.takeoverStatus, "demande")));
     return { ok: false, code: "twilio", raison };
   }
-  await db.update(voiceCallSessionsTable).set({ takeoverStatus: "reussi", status: "transfert", updatedAt: new Date() })
-    .where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId)));
-  await ajouterJournal(orgId, callSid, `Appel repris par un collaborateur (${cible.numeroMasque})`);
+  // `en_cours` : Twilio a accepte la redirection, l'humain SONNE. « Repris »
+  // ne sera dit (`reussi`) que lorsque /reprise-resultat rapportera qu'il a
+  // decroche. Si l'IA etait en train de transferer, son transfert est clos
+  // (`repris`) dans le MEME UPDATE : sinon /status croirait le transfert
+  // toujours en cours et ne finaliserait jamais (appel fantome 30 min).
+  // La ligne de journal est ecrite ici aussi, atomiquement.
+  const ligne = `Appel repris par un collaborateur (${cible.numeroMasque})`;
+  await db.update(voiceCallSessionsTable).set({
+    takeoverStatus: "en_cours", status: "transfert", updatedAt: new Date(),
+    state: sql`jsonb_set(
+      case when ${voiceCallSessionsTable.state}->'transfert'->>'statut' = 'en_cours'
+        then jsonb_set(${voiceCallSessionsTable.state}, '{transfert,statut}', '"repris"'::jsonb)
+        else ${voiceCallSessionsTable.state} end,
+      '{journal}', coalesce(${voiceCallSessionsTable.state}->'journal', '[]'::jsonb) || to_jsonb(${ligne}::text))`,
+  }).where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId), eq(voiceCallSessionsTable.takeoverStatus, "demande")));
   const { numero: _n, ...publique } = cible;
   return { ok: true, cible: publique };
 }
