@@ -212,7 +212,8 @@
       "runs": "Ejecuciones",
       "connections": "Conexiones",
       "security": "Seguridad",
-      "businessComparison": "Comparación por obra"
+      "businessComparison": "Comparación por obra",
+      "planningViews": "Planificación (3 vistas)"
     },
     "mainNav": "Menú principal",
     "sectionTabs": "Páginas de «{{name}}»",
@@ -10129,6 +10130,52 @@
       "en_attente": "Pendiente",
       "approuve": "Aprobada",
       "rejete": "Rechazada"
+    }
+  },
+  "planning": {
+    "titre": "Planificación",
+    "sousTitre": "Citas, plan de equipo y plan de obra por separado: una visita de presupuesto no es un programa de obra.",
+    "semaine": "Semana",
+    "precedente": "← Anterior",
+    "suivante": "Siguiente →",
+    "onglet": {
+      "rdv": "Citas",
+      "equipe": "Plan de equipo",
+      "travaux": "Plan de obra"
+    },
+    "vide": {
+      "rdv": "No hay citas fuera de obra esta semana.",
+      "equipe": "Ninguna tarea asignada esta semana.",
+      "travaux": "Ninguna tarea vinculada a una obra."
+    },
+    "conflits_one": "{{count}} solapamiento",
+    "conflits_other": "{{count}} solapamientos",
+    "glissementResume_one": "{{count}} tarea se retrasa porque lo que espera va con retraso. No se cambiaron las fechas: la decisión es suya.",
+    "glissementResume_other": "{{count}} tareas se retrasan porque lo que esperan va con retraso. No se cambiaron las fechas: la decisión es suya.",
+    "boucle": "Algunas tareas se esperan mutuamente (bucle): ninguna puede empezar.",
+    "col": {
+      "tache": "Tarea",
+      "chantier": "Obra",
+      "responsable": "Responsable",
+      "dates": "Fechas",
+      "attend": "Espera",
+      "glissement": "Retraso"
+    },
+    "retirerLien": "Quitar el vínculo con {{tache}}",
+    "ajouterLien": "Tarea a esperar para {{tache}}",
+    "attendre": "+ esperar…",
+    "glisse_one": "+{{count}} día",
+    "glisse_other": "+{{count}} días",
+    "cause": "causa: {{taches}}",
+    "tient": "a tiempo",
+    "notePropose": "El retraso se calcula y se propone; las fechas nunca se cambian automáticamente.",
+    "debutDe": "Inicio de {{tache}}",
+    "finDe": "Fin de {{tache}}",
+    "nouvelle": {
+      "titre": "Añadir una tarea de obra",
+      "debut": "Inicio",
+      "fin": "Fin",
+      "ajouter": "Añadir tarea"
     }
   }
 }

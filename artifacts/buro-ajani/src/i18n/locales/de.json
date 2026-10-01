@@ -212,7 +212,8 @@
       "runs": "Ausführungen",
       "connections": "Verbindungen",
       "security": "Sicherheit",
-      "businessComparison": "Vergleich je Auftrag"
+      "businessComparison": "Vergleich je Auftrag",
+      "planningViews": "Planung (3 Ansichten)"
     },
     "mainNav": "Hauptmenü",
     "sectionTabs": "Seiten von „{{name}}“",
@@ -10129,6 +10130,52 @@
       "en_attente": "Ausstehend",
       "approuve": "Freigegeben",
       "rejete": "Abgelehnt"
+    }
+  },
+  "planning": {
+    "titre": "Planung",
+    "sousTitre": "Termine, Teamplan und Bauablauf getrennt: ein Angebotstermin ist kein Bauprogramm.",
+    "semaine": "Woche",
+    "precedente": "← Vorherige",
+    "suivante": "Nächste →",
+    "onglet": {
+      "rdv": "Termine",
+      "equipe": "Teamplan",
+      "travaux": "Bauablauf"
+    },
+    "vide": {
+      "rdv": "Diese Woche keine Termine ohne Baustelle.",
+      "equipe": "Diese Woche keine zugewiesenen Aufgaben.",
+      "travaux": "Keine Aufgabe einer Baustelle zugeordnet."
+    },
+    "conflits_one": "{{count}} Überschneidung",
+    "conflits_other": "{{count}} Überschneidungen",
+    "glissementResume_one": "{{count}} Aufgabe verschiebt sich, weil ihre Vorgängerin verspätet ist. Die Termine wurden nicht geändert: Sie entscheiden.",
+    "glissementResume_other": "{{count}} Aufgaben verschieben sich, weil ihre Vorgänger verspätet sind. Die Termine wurden nicht geändert: Sie entscheiden.",
+    "boucle": "Einige Aufgaben warten aufeinander (Schleife): keine kann beginnen.",
+    "col": {
+      "tache": "Aufgabe",
+      "chantier": "Baustelle",
+      "responsable": "Verantwortlich",
+      "dates": "Termine",
+      "attend": "Wartet auf",
+      "glissement": "Verschiebung"
+    },
+    "retirerLien": "Verknüpfung zu {{tache}} entfernen",
+    "ajouterLien": "Vorgänger für {{tache}}",
+    "attendre": "+ warten auf…",
+    "glisse_one": "+{{count}} Tag",
+    "glisse_other": "+{{count}} Tage",
+    "cause": "Ursache: {{taches}}",
+    "tient": "im Plan",
+    "notePropose": "Die Verschiebung wird berechnet und vorgeschlagen; Termine werden nie automatisch geändert.",
+    "debutDe": "Beginn von {{tache}}",
+    "finDe": "Ende von {{tache}}",
+    "nouvelle": {
+      "titre": "Baustellenaufgabe hinzufügen",
+      "debut": "Beginn",
+      "fin": "Ende",
+      "ajouter": "Aufgabe hinzufügen"
     }
   }
 }

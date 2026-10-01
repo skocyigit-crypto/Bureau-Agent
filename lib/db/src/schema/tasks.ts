@@ -13,6 +13,11 @@ export const tasksTable = pgTable("tasks", {
   description: text("description"),
   status: text("status").notNull().default("en_attente"),
   priority: text("priority").notNull().default("moyenne"),
+  // Debut prevu. Le plan de travaux (Planning > Plan de travaux) a besoin
+  // d une duree, pas seulement d une echeance : sans debut, une tache ne peut
+  // ni glisser quand celle qui la precede prend du retard, ni se placer sur
+  // un diagramme. Nullable : les taches de bureau n en ont pas besoin.
+  startDate: timestamp("start_date", { withTimezone: true }),
   dueDate: timestamp("due_date", { withTimezone: true }),
   assignedTo: text("assigned_to"),
   relatedContactId: integer("related_contact_id"),

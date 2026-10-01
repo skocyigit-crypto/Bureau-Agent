@@ -107,6 +107,7 @@ const ActiviteRecentePage = lazy(() => import("@/pages/activite-recente"));
 const ProjetsPage = lazy(() => import("@/pages/projets"));
 const DossierChantierPage = lazy(() => import("@/pages/dossier-chantier"));
 const FinanceAffairesPage = lazy(() => import("@/pages/finance-affaires"));
+const PlanningPage = lazy(() => import("@/pages/planning"));
 const SecuritePage = lazy(() => import("@/pages/securite"));
 const AssistantProactifPage = lazy(() => import("@/pages/assistant-proactif"));
 const IaApprentissagePage = lazy(() => import("@/pages/ia-apprentissage"));
@@ -344,6 +345,8 @@ function AppRoutes() {
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
+        {/* Planning en trois vues : rendez-vous, equipe, travaux. */}
+        <Route path="/planning" component={withLicenseGate(PlanningPage)} />
         <Route path="/audit" component={() => <RedirectTo to="/auto-audit" />} />
         <Route path="/automatisations" component={withRoleGate(AutomationsPage, ADMIN_ROLES)} />
         <Route path="/studio-flux" component={withRoleGate(StudioFluxPage, ADMIN_ROLES)} />

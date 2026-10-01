@@ -46,6 +46,8 @@ export const TENANT_TABLES = [
   // Dossier de chantier (30/09) : le journal et les avenants sont des donnees
   // du client — le journal est ce qu il oppose a un litige de chantier.
   "journal_chantier", "avenants",
+  // Les liens « attend la fin de » du plan de travaux.
+  "task_dependances",
   "demo_handoffs", "depenses", "devis", "documents", "email_providers",
   "face_profiles", "face_recognition_logs", "factures_client", "google_oauth_tokens",
   "google_app_credentials", "integration_connections", "invitations", "invoices",

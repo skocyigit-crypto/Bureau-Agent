@@ -71,6 +71,7 @@ import prospectsRouter from "./prospects";
 import trashRouter from "./trash";
 import devisRouter from "./devis";
 import chantierRouter from "./chantier";
+import planningRouter from "./planning";
 import facturesClientRouter from "./factures-client";
 import plateformeAgreeeRouter from "./plateforme-agreee";
 import chorusProRouter from "./chorus-pro";
@@ -286,6 +287,8 @@ router.use(devisRouter);
 // Dossier de chantier, avenants, journal de chantier et comparaison par
 // affaire : contenu CLIENT, borne a l organisation de la session.
 router.use(chantierRouter);
+// Planning en trois vues (rendez-vous, equipe, travaux) : contenu CLIENT.
+router.use(planningRouter);
 router.use(facturesClientRouter);
 router.use(plateformeAgreeeRouter);
 router.use(chorusProRouter);

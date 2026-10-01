@@ -212,7 +212,8 @@
       "runs": "Runs",
       "connections": "Connections",
       "security": "Security",
-      "businessComparison": "Per-job comparison"
+      "businessComparison": "Per-job comparison",
+      "planningViews": "Planning (3 views)"
     },
     "mainNav": "Main menu",
     "sectionTabs": "“{{name}}” pages",
@@ -10129,6 +10130,52 @@
       "en_attente": "Pending",
       "approuve": "Approved",
       "rejete": "Rejected"
+    }
+  },
+  "planning": {
+    "titre": "Planning",
+    "sousTitre": "Appointments, team plan and works plan kept apart: a quote visit is not a site programme.",
+    "semaine": "Week",
+    "precedente": "← Previous",
+    "suivante": "Next →",
+    "onglet": {
+      "rdv": "Appointments",
+      "equipe": "Team plan",
+      "travaux": "Works plan"
+    },
+    "vide": {
+      "rdv": "No off-site appointment this week.",
+      "equipe": "No task assigned this week.",
+      "travaux": "No task attached to a job."
+    },
+    "conflits_one": "{{count}} overlap",
+    "conflits_other": "{{count}} overlaps",
+    "glissementResume_one": "{{count}} task slips because what it waits for is late. Dates were not changed: the decision is yours.",
+    "glissementResume_other": "{{count}} tasks slip because what they wait for is late. Dates were not changed: the decision is yours.",
+    "boucle": "Some tasks wait for each other (loop): none can start.",
+    "col": {
+      "tache": "Task",
+      "chantier": "Job",
+      "responsable": "Owner",
+      "dates": "Dates",
+      "attend": "Waits for",
+      "glissement": "Slip"
+    },
+    "retirerLien": "Remove link to {{tache}}",
+    "ajouterLien": "Task to wait for, for {{tache}}",
+    "attendre": "+ wait for…",
+    "glisse_one": "+{{count}} day",
+    "glisse_other": "+{{count}} days",
+    "cause": "because of: {{taches}}",
+    "tient": "on time",
+    "notePropose": "Slip is computed and proposed; task dates are never changed automatically.",
+    "debutDe": "Start of {{tache}}",
+    "finDe": "End of {{tache}}",
+    "nouvelle": {
+      "titre": "Add a job task",
+      "debut": "Start",
+      "fin": "End",
+      "ajouter": "Add task"
     }
   }
 }
