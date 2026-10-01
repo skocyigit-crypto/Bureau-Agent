@@ -115,7 +115,7 @@ async function seedOrg(label: string) {
 }
 
 async function runTool(name: string, args: Record<string, unknown>) {
-  const res = await executeTool(name, args, ctxA, { skipConfirmation: true });
+  const res = await executeTool(name, args, ctxA, { agent: "assistant", skipConfirmation: true });
   if (!res.ok) throw new Error(`Tool ${name} failed: ${res.error}`);
   return res.result as Record<string, unknown>;
 }

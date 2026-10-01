@@ -6,6 +6,13 @@ export const assistantConversationsTable = pgTable("assistant_conversations", {
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull(),
   title: text("title").notNull().default("Nouvelle conversation"),
+  /**
+   * Profil d'agent sous lequel la conversation tourne (services/profils-agents.ts),
+   * fixe a la creation. Null = assistant universel restreint. Relu a chaque
+   * tour ET a chaque confirmation : changer de profil en cours de route
+   * permettrait d'approuver avec un profil une action proposee sous un autre.
+   */
+  profilAgent: text("profil_agent"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

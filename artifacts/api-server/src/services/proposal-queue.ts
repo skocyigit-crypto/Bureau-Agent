@@ -30,6 +30,7 @@ import { logger } from "../lib/logger";
 import { broadcaster } from "./broadcaster";
 import { getTool, validateArgs } from "./assistant-tools";
 import { getSaasTool } from "./saas-tools";
+import { AGENT_FILE_APPROBATION, outilAutorisePourAgent, raisonRefus } from "./profils-agents";
 
 export interface EnqueueProposalInput {
   orgId: number;
@@ -77,6 +78,13 @@ export async function enqueueProposal(input: EnqueueProposalInput): Promise<Enqu
       // serait inapprouvable, autant le signaler au producteur maintenant.
       logger.error({ toolName: input.toolName, orgId: input.orgId }, "[Queue] Outil inconnu, proposition refusée");
       return { ok: false, error: `Outil inconnu: ${input.toolName}` };
+    }
+    // La meme liste qu'a l'execution (agent « file-approbation », appliquee par
+    // `executeTool`) : une proposition qu'on ne pourrait jamais executer est
+    // refusee a l'entree, plutot que d'echouer apres un clic « Approuver ».
+    if (!saasTool && !outilAutorisePourAgent(AGENT_FILE_APPROBATION, input.toolName)) {
+      logger.error({ toolName: input.toolName, orgId: input.orgId }, "[Queue] Outil hors de la file d'approbation, proposition refusée");
+      return { ok: false, error: raisonRefus(AGENT_FILE_APPROBATION, input.toolName) };
     }
 
     const parsed = validateArgs(tool.fields, input.args ?? {});

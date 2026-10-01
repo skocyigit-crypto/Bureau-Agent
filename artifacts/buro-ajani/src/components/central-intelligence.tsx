@@ -47,7 +47,7 @@ import { Link } from "wouter";
 const VALID_ROUTES = [
   "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",
   "/rapports", "/rapport-executif", "/analyse", "/performance",
-  "/agents-ia", "/agents-catalogue", "/bureau-taches", "/commandant-ia", "/document-ia", "/documents",
+  "/agents-ia", "/ajan-bureau", "/agents-catalogue", "/bureau-taches", "/commandant-ia", "/document-ia", "/documents",
   "/import", "/pointage", "/telephonie", "/telefon", "/google-workspace",
   "/logiciels", "/utilisateurs", "/audit", "/automatisations", "/studio-flux",
   "/organisations", "/abonnement", "/parametres", "/notifications",

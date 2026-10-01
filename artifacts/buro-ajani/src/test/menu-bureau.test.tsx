@@ -167,7 +167,7 @@ describe("le titre de la page est le nom du menu", () => {
     "fileApprobation.title": "approvalQueue", "assistantProactif.title": "proactiveAssistant", "corbeille.title": "trash",
     "calls.title": "calls", "gmailAgent.title": "mailAgent", "prospects.title": "prospects", "projets.title": "projects",
     "voiceSiteOps.title": "siteVoice", "checkins.title": "checkin", "encaissements.titre": "encaissements",
-    "agentsCatalogue.title": "agentCatalog", "aiAgents.title": "aiAgents", "equipeIa.title": "aiTeam",
+    "agentBureau.title": "agentHub", "agentsCatalogue.title": "agentCatalog", "aiAgents.title": "aiAgents", "equipeIa.title": "aiTeam",
     "commandantIa.title": "aiCommander", "automationsPage.title": "automations", "bureauTaches.title": "taskDesk",
     "documentAi.title": "documentAi", "software.title": "connectors", "diagnosticPoste.titre": "postDiagnostic",
   };

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, jsonb, real, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, jsonb, real, index, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 import { usersTable } from "./users";
 
@@ -74,5 +74,35 @@ export const agentRunStepsTable = pgTable("agent_run_steps", {
   index("agent_run_steps_org_idx").on(t.organisationId),
 ]);
 
+/**
+ * Etat d'un profil d'agent metier (services/profils-agents.ts) POUR UNE
+ * organisation : essaye, publie, desactive.
+ *
+ * Pourquoi une table et pas un drapeau dans `organisations` : chaque profil a
+ * son propre cycle (essai a blanc -> publication par un responsable ->
+ * desactivation), et la publication doit pouvoir citer l'essai qui l'a
+ * precedee. `last_dry_run_id` pointe vers ce run d'essai ; la route de
+ * publication verifie qu'il appartient a la MEME organisation.
+ *
+ * Absence de ligne = profil ACTIF (services/profils-org.ts) : un client
+ * existant ne perd rien au deploiement. Une ligne n'existe que si un
+ * responsable a desactive/publie le profil ou qu'un essai valide a ete note ;
+ * chaque ecriture fixe `enabled` explicitement (le defaut SQL n'est jamais lu).
+ */
+export const agentProfileSettingsTable = pgTable("agent_profile_settings", {
+  id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
+  /** Identifiant du profil (telephone, crm, planning, chantier, finance, coordinateur). */
+  agentId: text("agent_id").notNull(),
+  enabled: boolean("enabled").notNull().default(false),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  publishedBy: integer("published_by").references(() => usersTable.id, { onDelete: "set null" }),
+  lastDryRunId: integer("last_dry_run_id").references(() => agentRunsTable.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("agent_profile_settings_org_agent_uniq").on(t.organisationId, t.agentId),
+]);
+
+export type AgentProfileSettings = typeof agentProfileSettingsTable.$inferSelect;
 export type AgentRun = typeof agentRunsTable.$inferSelect;
 export type AgentRunStep = typeof agentRunStepsTable.$inferSelect;

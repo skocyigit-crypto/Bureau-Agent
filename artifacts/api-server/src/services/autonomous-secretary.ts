@@ -29,6 +29,7 @@ import { logger } from "../lib/logger";
 import { tryWithLock } from "../lib/cron-lock";
 import { noterDecisionApprobation } from "./journal-agents";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
+import { AGENT_FILE_APPROBATION, outilAutorisePourAgent } from "./profils-agents";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
 import { SOURCE_RELANCE, consignerRelance, lireRefRelance, relanceEncoreDue } from "./relances-factures";
@@ -274,7 +275,13 @@ export interface ExecuteProposalResult {
   status: AgentProposal["status"];
   result?: unknown;
   error?: string;
+  /** Code stable, traduit par l'ecran (ex. action_anterieure_profils). */
+  code?: string;
 }
+
+/** Proposition deposee avant les profils, pour un outil que la file n'execute plus. */
+export const CODE_PROPOSITION_ANTERIEURE = "action_anterieure_profils";
+const MESSAGE_PROPOSITION_ANTERIEURE = "Cette action a ete proposee avant les profils d'agents : elle n'a pas ete executee. Rouvrez la demande sous le profil adapte.";
 
 // Espace de verrous consultatifs Postgres pour l'execution des propositions.
 // Il valait 4310 avec la promesse « distinct des namespaces de cron » — mais
@@ -351,12 +358,28 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
     }
   }
 
+  // Proposition deposee AVANT les profils : enqueueProposal refuse aujourd'hui
+  // a l'entree tout outil hors de la file d'approbation, donc un tel outil en
+  // attente date d'avant. Sans ce garde, « Approuver » la passait en
+  // « echouee » avec une raison technique : consommee sans explication. On la
+  // ferme comme expiree, avec un code que l'ecran traduit et la raison en
+  // base, pour que la decision soit lisible apres coup.
+  if (!isSaasTool(proposal.toolName) && !outilAutorisePourAgent(AGENT_FILE_APPROBATION, proposal.toolName)) {
+    await db.update(agentProposalsTable).set({
+      status: "expiree",
+      result: { error: MESSAGE_PROPOSITION_ANTERIEURE, code: CODE_PROPOSITION_ANTERIEURE },
+      decidedBy: ctx.userId,
+      decidedAt: new Date(),
+    }).where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, ctx.orgId)));
+    return { ok: false, status: "expiree", error: MESSAGE_PROPOSITION_ANTERIEURE, code: CODE_PROPOSITION_ANTERIEURE };
+  }
+
   // Les propositions SaaS (cross-organisation) passent par un executeur
   // distinct qui applique sa propre garde super-admin. Le chemin org-scoped
   // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
   const exec = isSaasTool(proposal.toolName)
     ? await executeSaasTool(proposal.toolName, proposal.args, ctx)
-    : await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
+    : await executeTool(proposal.toolName, proposal.args, ctx, { agent: AGENT_FILE_APPROBATION, skipConfirmation: true });
   const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
 
   await db.update(agentProposalsTable).set({

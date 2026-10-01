@@ -132,6 +132,7 @@ export const SECTIONS_BUREAU: readonly Section[] = [
         cle: "agents",
         icone: Bot,
         pages: [
+          { cle: "agentHub", href: "/ajan-bureau", acces: "ia" },
           { cle: "agentCatalog", href: "/agents-catalogue", acces: "ia" },
           { cle: "aiAgents", href: "/agents-ia", acces: "ia" },
           { cle: "aiTeam", href: "/equipe-ia", acces: "ia" },

@@ -16,6 +16,7 @@ import { listSaasTools } from "../services/saas-tools";
 import { ALLOWED_TOOLS as OUTILS_SECRETAIRE } from "../services/autonomous-secretary";
 import { ALLOWED_TOOLS as OUTILS_AUTO_AUDIT } from "../services/app-audit";
 import { KB_CATEGORIES_PUBLIQUES } from "../services/knowledge-base";
+import { OUTILS_ASSISTANT_UNIVERSEL, OUTILS_FILE_APPROBATION, PROFILS_METIER } from "../services/profils-agents";
 
 const noms = (id: string) => new Set(agentDuCatalogue(id)!.outils.map((o) => o.nom));
 
@@ -52,8 +53,21 @@ describe("les agents existants : le catalogue lit leur module", () => {
     expect(noms("auto-audit")).toEqual(new Set(OUTILS_AUTO_AUDIT));
   });
 
-  it("assistant = tout le registre (c'est son etat reel, a restreindre)", () => {
-    expect(noms("assistant")).toEqual(new Set(getAllTools().map((t) => t.name)));
+  it("assistant = l'assistant universel restreint, plus le registre entier", () => {
+    expect(noms("assistant")).toEqual(new Set(OUTILS_ASSISTANT_UNIVERSEL));
+    expect(noms("assistant").size).toBeLessThan(getAllTools().length);
+    for (const interdit of ["send_email", "send_sms", "create_contact", "update_contact", "create_prospect", "log_call", "create_call", "delete_call", "get_financial_summary"]) {
+      expect(noms("assistant").has(interdit), interdit).toBe(false);
+    }
+  });
+
+  it("chaque outil du registre appartient a au moins un profil (aucun oubli)", () => {
+    const couverts = new Set([...OUTILS_ASSISTANT_UNIVERSEL, ...PROFILS_METIER.flatMap((p) => p.outils)]);
+    for (const t of getAllTools()) expect(couverts.has(t.name), t.name).toBe(true);
+  });
+
+  it("la file d'approbation accepte tout ce que la secretaire et l'auto-audit proposent", () => {
+    for (const o of [...OUTILS_SECRETAIRE, ...OUTILS_AUTO_AUDIT]) expect(OUTILS_FILE_APPROBATION, o).toContain(o);
   });
 
   it("agent plateforme = les outils SaaS", () => {

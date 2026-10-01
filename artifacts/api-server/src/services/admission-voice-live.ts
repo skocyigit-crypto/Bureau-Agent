@@ -21,6 +21,24 @@
 import { checkLicense } from "../middleware/license-check";
 import { AiQuotaExceededError, assertAiQuota } from "./ai-quota";
 import { getGeminiToolDeclarations, getTool } from "./assistant-tools";
+import { PROFIL_ASSISTANT } from "./profils-agents";
+import { choisirProfil, type ChoixProfil } from "./profils-org";
+
+/**
+ * Profil de la session vocale (?profil= dans l'URL d'upgrade), valide
+ * EXACTEMENT comme a l'ouverture d'une conversation ecrite (choisirProfil :
+ * connu, actif, permis au role) ; absent = assistant universel. Sans cela la
+ * voix serait soit plus pauvre que l'ecrit (aucun profil metier), soit une
+ * porte derobee (un profil refuse a l'ecrit ouvert a la voix).
+ */
+export async function profilVoiceLive(
+  organisationId: number,
+  role: string | undefined,
+  demande: string | null | undefined,
+  choisir: typeof choisirProfil = choisirProfil,
+): Promise<ChoixProfil> {
+  return choisir(organisationId, role, demande ?? undefined);
+}
 
 /** Meme plancher que `requireMutationRole("super_admin", "administrateur", "agent")`. */
 const ROLES_QUI_ECRIVENT = new Set(["agent", "administrateur", "super_admin"]);
@@ -61,9 +79,13 @@ export async function admettreVoiceLive(
   return { ok: true };
 }
 
-/** Les outils proposes au modele : tous pour qui ecrit, la lecture seule sinon. */
-export function declarationsPourRole(role: string | undefined) {
-  const toutes = getGeminiToolDeclarations().functionDeclarations ?? [];
+/**
+ * Les outils proposes au modele : ceux du profil de la session (assistant
+ * universel restreint par defaut, services/profils-agents.ts) pour qui ecrit,
+ * leurs lectures sinon.
+ */
+export function declarationsPourRole(role: string | undefined, agent: string = PROFIL_ASSISTANT) {
+  const toutes = getGeminiToolDeclarations(agent).functionDeclarations ?? [];
   if (peutEcrire(role)) return toutes;
   // `requiresConfirmation` est ABSENT (pas `false`) sur les outils de lecture.
   return toutes.filter((d) => {

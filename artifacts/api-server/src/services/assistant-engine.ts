@@ -1,6 +1,8 @@
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "./ai-providers";
 import { executeTool, getGeminiToolDeclarations, getTool, type ToolContext } from "./assistant-tools";
+import { outilAutorisePourAgent } from "./profils-agents";
+import { agentDeConversation } from "./profils-org";
 import { db } from "@workspace/db";
 import { assistantMessagesTable, assistantConversationsTable } from "@workspace/db/schema";
 import { eq, desc, and, gt, isNull } from "drizzle-orm";
@@ -21,7 +23,7 @@ export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "pending_action"; messageId: number; toolName: string; toolArgs: unknown; summary: string }
   | { type: "done" }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string; code?: string };
 
 interface GeminiPart {
   text?: string;
@@ -144,6 +146,15 @@ export async function runAssistantTurn(
     throw e;
   }
 
+  // Profil de la conversation, relu a chaque tour : il borne a la fois les
+  // outils proposes au modele et ceux qu'`executeTool` acceptera.
+  const profil = await agentDeConversation(conversationId, ctx.orgId, ctx.userId);
+  if (!profil.ok) {
+    emit({ type: "error", error: profil.error, code: profil.code });
+    return;
+  }
+  const agent = profil.agent;
+
   const contents = await loadHistoryForGemini(conversationId, ctx.orgId);
   // Pilier B: mémoire de l'organisation injectée dans l'instruction système (fail-soft).
   const learnedBlock = await buildLearnedContextBlock(ctx.orgId, ctx.userId);
@@ -172,7 +183,7 @@ export async function runAssistantTurn(
           systemInstruction,
           // Gemini SDK's Tool type uses Schema for properties; our declarations
           // use plain JSON-Schema-style records, so we cast through unknown.
-          tools: [getGeminiToolDeclarations()] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,
+          tools: [getGeminiToolDeclarations(agent)] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,
         },
       }));
       response = raw as unknown as GeminiResponse;
@@ -219,7 +230,9 @@ export async function runAssistantTurn(
     // on STOP (la reprise se fait via /confirm). Conserve la sémantique
     // séquentielle d'avant: les lectures situées APRÈS un outil de confirmation
     // ne sont pas exécutées ce hop.
-    const firstConfirmIdx = toolCallRows.findIndex(c => getTool(c.name)?.requiresConfirmation);
+    // Un outil hors profil ne borne rien et ne demande aucune confirmation : il
+    // passe par `executeTool`, qui le refuse, et le modele recoit la raison.
+    const firstConfirmIdx = toolCallRows.findIndex(c => getTool(c.name)?.requiresConfirmation && outilAutorisePourAgent(agent, c.name));
     const readCalls = firstConfirmIdx === -1 ? toolCallRows : toolCallRows.slice(0, firstConfirmIdx);
 
     // Exécution PARALLÈLE des lectures de ce hop. Les `step` de début sont émis
@@ -230,7 +243,7 @@ export async function runAssistantTurn(
       const key = readCacheKey(call.name, call.args);
       let basePayload = readResultCache.get(key);
       if (!basePayload) {
-        const result = await executeTool(call.name, call.args, ctx);
+        const result = await executeTool(call.name, call.args, ctx, { agent });
         basePayload = result.ok
           ? (result.result as Record<string, unknown>) ?? {}
           : { error: result.error ?? "Erreur" };
@@ -288,6 +301,10 @@ export async function runAssistantTurn(
   emit({ type: "done" });
 }
 
+/** Code (traduit par l'ecran) d'une action en attente proposee avant les profils. */
+export const CODE_ACTION_ANTERIEURE = "action_anterieure_profils";
+export const MESSAGE_ACTION_ANTERIEURE = "Cette action a ete proposee avant les profils d'agents : elle n'a pas ete executee. Rouvrez la demande sous le profil adapte.";
+
 /** Resume a paused conversation after the user approves or rejects a pending tool call. */
 export async function resolvePendingAction(
   conversationId: number,
@@ -312,6 +329,45 @@ export async function resolvePendingAction(
   // n'a rien a approuver, et la rejouer ici contournerait la boucle.
   if (!getTool(callRow.toolName)?.requiresConfirmation) {
     emit({ type: "error", error: "Cette action ne demande pas de confirmation." });
+    return;
+  }
+
+  // Le profil sous lequel l'action s'executera est celui de la conversation
+  // AUJOURD'HUI, pour le role ACTUEL de l'utilisateur : desactive ou role
+  // retrograde, rien n'est revendique ni execute.
+  const profil = await agentDeConversation(conversationId, ctx.orgId, ctx.userId);
+  if (!profil.ok) {
+    emit({ type: "error", error: profil.error, code: profil.code });
+    return;
+  }
+  const agent = profil.agent;
+
+  // Action proposee AVANT les profils : une conversation de l'epoque (profil
+  // nul = assistant universel) peut porter un send_email ou un create_contact
+  // en attente, outil que l'assistant restreint n'a plus. Aujourd'hui un outil
+  // hors profil ne devient jamais une action en attente (il est refuse des la
+  // proposition), donc ce cas ne vient que de la. On ne l'execute pas, et on
+  // ne le « consomme » pas en silence : la ligne est marquee avec la raison,
+  // l'historique la montre, et l'ecran traduit le code.
+  // Un refus (« Annuler ») reste un refus ordinaire : rien a executer.
+  if (decision === "approve" && !outilAutorisePourAgent(agent, callRow.toolName)) {
+    const marque = await db.update(assistantMessagesTable)
+      .set({ toolResult: { resolution: "refusee_profil", code: CODE_ACTION_ANTERIEURE, resolvedBy: ctx.userId, resolvedAt: new Date().toISOString() } })
+      .where(and(
+        eq(assistantMessagesTable.id, callRow.id),
+        eq(assistantMessagesTable.organisationId, ctx.orgId),
+        eq(assistantMessagesTable.role, "tool_call"),
+        isNull(assistantMessagesTable.toolResult),
+      ))
+      .returning({ id: assistantMessagesTable.id });
+    if (marque.length > 0) {
+      await db.insert(assistantMessagesTable).values({
+        conversationId, organisationId: ctx.orgId, role: "tool_pending_resolved",
+        toolName: callRow.toolName, toolArgs: (callRow.toolArgs as Record<string, unknown>) ?? {},
+        toolResult: { error: MESSAGE_ACTION_ANTERIEURE, code: CODE_ACTION_ANTERIEURE, executee: false }, content: "",
+      });
+    }
+    emit({ type: "error", error: MESSAGE_ACTION_ANTERIEURE, code: CODE_ACTION_ANTERIEURE });
     return;
   }
 
@@ -351,7 +407,7 @@ export async function resolvePendingAction(
 
   if (decision === "approve") {
     emit({ type: "step", toolName: callRow.toolName, toolArgs: args });
-    const result = await executeTool(callRow.toolName, args, ctx, { skipConfirmation: true });
+    const result = await executeTool(callRow.toolName, args, ctx, { agent, skipConfirmation: true });
     payload = result.ok
       ? (result.result as Record<string, unknown>) ?? { success: true }
       : { error: result.error ?? "Erreur" };

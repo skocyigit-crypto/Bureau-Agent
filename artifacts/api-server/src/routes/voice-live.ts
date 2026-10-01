@@ -37,7 +37,8 @@ import {
   getTool,
   type ToolContext,
 } from "../services/assistant-tools";
-import { admettreVoiceLive, CompteurConsommation, declarationsPourRole, peutEcrire } from "../services/admission-voice-live";
+import { admettreVoiceLive, CompteurConsommation, declarationsPourRole, peutEcrire, profilVoiceLive } from "../services/admission-voice-live";
+import { outilAutorisePourAgent, raisonRefus } from "../services/profils-agents";
 import { recordAiUsage } from "../services/ai-utils";
 
 const TEXTE_STATUT: Record<number, string> = { 403: "Forbidden", 429: "Too Many Requests", 503: "Service Unavailable" };
@@ -470,6 +471,17 @@ export function attachVoiceLiveWs(server: Server): void {
         socket.destroy();
         return;
       }
+      // Profil de la session : meme controle que le chat (actif + role).
+      let profilDemande: string | null = null;
+      try { profilDemande = new URL(url, "http://localhost").searchParams.get("profil"); } catch { /* ignore */ }
+      const choix = await profilVoiceLive(session.organisationId, session.userRole, profilDemande);
+      if (!choix.ok) {
+        logger.warn({ url, userId: session.userId, raison: choix.code }, "[VoiceLive] Upgrade refuse (profil)");
+        socket.write(`HTTP/1.1 ${choix.statut} ${choix.statut === 400 ? "Bad Request" : "Forbidden"}\r\n\r\n`);
+        socket.destroy();
+        return;
+      }
+      const agent = choix.agent;
       // Permet de choisir la voix via ?voice=Aoede dans l'URL d'upgrade
       // et de reprendre une session via ?resume=<handle>.
       let voice: VoiceName = DEFAULT_VOICE;
@@ -498,7 +510,7 @@ export function attachVoiceLiveWs(server: Server): void {
       } catch { /* ignore */ }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
-        bridgeConnection(ws, session.userId, session.organisationId, voice, resumeHandle, session.userRole);
+        bridgeConnection(ws, session.userId, session.organisationId, voice, resumeHandle, session.userRole, agent);
       });
     }
   });
@@ -513,6 +525,7 @@ function bridgeConnection(
   voice: VoiceName,
   resumeHandle: string | undefined,
   role: string | undefined,
+  agent: string,
 ): void {
   const liveClient = buildLiveClient();
   if ("error" in liveClient) {
@@ -580,6 +593,15 @@ function bridgeConnection(
     if (!gSession || closed) return;
     sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolCallId: callId });
     const tool = getTool(name);
+    // Hors du profil de la session : refus immediat, AVANT la mise
+    // en attente — sinon l'utilisateur verrait une confirmation pour une
+    // action qu'`executeTool` refuserait de toute facon.
+    if (tool && !outilAutorisePourAgent(agent, name)) {
+      const refus = { error: raisonRefus(agent, name) };
+      sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolResult: refus, toolCallId: callId });
+      try { gSession.sendToolResponse({ functionResponses: [{ id: callId, name, response: refus }] }); } catch { /* ignore */ }
+      return;
+    }
     // Confirmation utilisateur pour les outils risques (envoi externe,
     // suppression). On stocke la call, on previent l'UI, et on attend
     // un message `confirm_tool` du client avant d'executer.
@@ -596,7 +618,7 @@ function bridgeConnection(
       sendFrame(ws, { type: "tool_pending", toolCallId: callId, toolName: name, toolArgs: args, summary });
       return;
     }
-    const result = await executeTool(name, args, toolCtx, { skipConfirmation: false });
+    const result = await executeTool(name, args, toolCtx, { agent, skipConfirmation: false });
     const payload: Record<string, unknown> = result.ok
       ? (result.result as Record<string, unknown>) ?? { ok: true }
       : { error: result.error ?? "Erreur" };
@@ -616,7 +638,7 @@ function bridgeConnection(
     liveClient.client,
     voice,
     resumeHandle,
-    declarationsPourRole(role),
+    declarationsPourRole(role, agent),
     (msg: LiveServerMessage) => {
       // Garde global: si on est en train de fermer, on ignore tout
       // message Gemini residual (audio en vol, tool_call tardif).
@@ -842,7 +864,7 @@ function bridgeConnection(
           return;
         }
         // Approve: on execute reellement, en bypassant le gate confirmation.
-        executeTool(pending.name, pending.args, toolCtx, { skipConfirmation: true })
+        executeTool(pending.name, pending.args, toolCtx, { agent, skipConfirmation: true })
           .then((result) => {
             const payload: Record<string, unknown> = result.ok
               ? (result.result as Record<string, unknown>) ?? { ok: true }

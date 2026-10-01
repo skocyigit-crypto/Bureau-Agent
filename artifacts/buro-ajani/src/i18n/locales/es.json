@@ -213,7 +213,8 @@
       "connections": "Conexiones",
       "security": "Seguridad",
       "businessComparison": "Comparación por obra",
-      "planningViews": "Planificación (3 vistas)"
+      "planningViews": "Planificación (3 vistas)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Menú principal",
     "sectionTabs": "Páginas de «{{name}}»",
@@ -4794,6 +4795,11 @@
       "error": "Error",
       "assistantError": "Error del asistente",
       "connectionLost": "Conexión perdida"
+    },
+    "profile": {
+      "label": "Agente",
+      "assistant": "Asistente general",
+      "hint": "Se elige al crear la conversación; cada agente solo tiene sus propias herramientas."
     }
   },
   "equipeIa": {
@@ -10247,5 +10253,137 @@
     "save": "Guardar",
     "saved": "Guardado",
     "error": "La operación ha fallado"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Seis agentes de negocio, cada uno con sus herramientas, sus fuentes y el momento en que pasa el relevo a una persona.",
+    "tabs": {
+      "agents": "Agentes",
+      "flows": "Flujos",
+      "runs": "Ejecuciones",
+      "test": "Prueba y publicación"
+    },
+    "tabsLabel": "Secciones de Ajan Bureau",
+    "loading": "Cargando agentes…",
+    "error": "No se pudieron cargar los agentes.",
+    "active": "Activo",
+    "inactive": "Desactivado",
+    "reservedManagers": "Solo responsables",
+    "tools": "Herramientas permitidas",
+    "sources": "Fuentes",
+    "knowledgeBase": "Base de conocimientos",
+    "none": "ninguna",
+    "handoff": "Pasa el relevo a una persona",
+    "handoffTo": {
+      "responsable": "a un responsable",
+      "utilisateur": "al usuario"
+    },
+    "flowsIntro": "Los flujos deciden qué agente atiende una solicitud entrante y en qué orden.",
+    "flowsAdminOnly": "Solo los responsables modifican los flujos.",
+    "openFlows": "Abrir el estudio de flujos",
+    "openAutomations": "Abrir las automatizaciones",
+    "runsIntro": "Cada ejecución de agente, sus pasos, lo que espera aprobación y lo que costó.",
+    "openRuns": "Abrir las ejecuciones de agentes",
+    "test": {
+      "intro": "Pruebe un agente con un ejemplo: muestra lo que haría sin escribir ni enviar nada. Después, un responsable puede publicarlo para la organización.",
+      "profile": "Agente a probar",
+      "sample": "Solicitud de ejemplo",
+      "run": "Lanzar la prueba en seco",
+      "running": "Prueba en curso…",
+      "actions": "Lo que el agente habría hecho",
+      "noActions": "El agente no habría llamado a ninguna herramienta.",
+      "answer": "Respuesta del agente",
+      "publish": "Activar para la organización",
+      "disable": "Desactivar",
+      "publishHint": "Los agentes están activos por defecto. Se recomienda una prueba en blanco antes de reactivar un agente.",
+      "managersOnly": "Solo un responsable puede publicar un agente.",
+      "published": "Agente activado para la organización.",
+      "disabled": "Agente desactivado.",
+      "done_one": "Prueba terminada: {{count}} acción descrita.",
+      "done_other": "Prueba terminada: {{count}} acciones descritas.",
+      "status": {
+        "simulee": "se habría hecho",
+        "approbation": "habría esperado aprobación",
+        "refusee": "rechazado (fuera del perfil)"
+      },
+      "roleRefused": "Su rol no permite probar este agente.",
+      "invalid": "Esta prueba no mostró ninguna acción que el agente pudiera realizar: no cuenta como prueba válida.",
+      "incomplete": "El agente seguía llamando herramientas cuando la prueba se detuvo (3 rondas como máximo)."
+    },
+    "profiles": {
+      "telephone": {
+        "nom": "Agente telefónico",
+        "mission": "Gestiona las llamadas y mensajes entrantes: identifica a quien llama, registra la llamada, propone una devolución o franjas horarias.",
+        "exemple": "La Sra. Durand llamó a las 9 h por una fuga bajo el fregadero; devuélvale la llamada y propóngale una franja mañana.",
+        "handoff": {
+          "0": "persona descontenta o urgencia",
+          "1": "solicitud de presupuesto o precio",
+          "2": "contacto no encontrado",
+          "3": "cualquier eliminación de llamada"
+        }
+      },
+      "crm": {
+        "nom": "Agente CRM",
+        "mission": "Mantiene actualizados los contactos y clientes potenciales, y prepara los seguimientos comerciales.",
+        "exemple": "Nuevo cliente potencial: SCI Les Tilleuls, rehabilitación de fachada, contacto Paul Martin paul@tilleuls.fr. Créelo y programe un seguimiento.",
+        "handoff": {
+          "0": "cliente potencial de más de 20 000 EUR",
+          "1": "reclamación de cliente",
+          "2": "contacto posiblemente duplicado",
+          "3": "cualquier correo saliente"
+        }
+      },
+      "planning": {
+        "nom": "Agente de planificación",
+        "mission": "Organiza la agenda y las tareas: crea, mueve o cancela una cita, propone franjas horarias.",
+        "exemple": "Mueva la visita de obra del jueves a las 10 h al viernes a las 14 h y cree una tarea de preparación.",
+        "handoff": {
+          "0": "conflicto entre dos citas confirmadas",
+          "1": "cualquier cancelación",
+          "2": "equipo no disponible"
+        }
+      },
+      "chantier": {
+        "nom": "Agente de obra",
+        "mission": "Sigue las obras: actualiza el avance, crea las tareas, redacta los informes.",
+        "exemple": "Obra Dupont: el alicatado está terminado, ponga el avance al 60 % y cree la tarea de juntas para el lunes.",
+        "handoff": {
+          "0": "incidente de seguridad",
+          "1": "sobrecoste",
+          "2": "trabajos adicionales sin firmar"
+        }
+      },
+      "finance": {
+        "nom": "Agente financiero",
+        "mission": "Lee la situación financiera, prepara los estados y los recordatorios de facturas impagadas.",
+        "exemple": "Revise las facturas impagadas del mes y prepare un recordatorio para la más antigua.",
+        "handoff": {
+          "0": "cualquier recordatorio de pago (correo saliente)",
+          "1": "litigio sobre una factura",
+          "2": "importe superior a 5 000 EUR"
+        }
+      },
+      "coordinateur": {
+        "nom": "Coordinador",
+        "mission": "Visión de conjunto: lee la actividad de todas las áreas y reparte el trabajo mediante tareas. No actúa en lugar de los demás agentes.",
+        "exemple": "¿Qué hay que tratar primero hoy? Reparta las urgencias en tareas.",
+        "handoff": {
+          "0": "cualquier acción que corresponda a otro perfil (envío, CRM, finanzas)",
+          "1": "prioridades contradictorias"
+        }
+      }
+    }
+  },
+  "agentErrors": {
+    "quota_ia": "Cuota de IA agotada: la prueba no se ha iniciado. Aumente la cuota o espere al próximo periodo.",
+    "essai_requis": "Ejecute primero una prueba en blanco correcta.",
+    "profil_role": "Este perfil está reservado a los responsables: su rol no permite usarlo.",
+    "profil_desactive": "Este perfil está desactivado en su organización. Abra una nueva conversación con otro perfil.",
+    "profil_inconnu": "Perfil de agente desconocido.",
+    "essai_trop_frequent": "Demasiadas pruebas. Inténtelo de nuevo en unos minutos.",
+    "essai_invalide": "Ejemplo no válido.",
+    "essai_echoue": "La prueba ha fallado: el modelo no ha respondido.",
+    "action_anterieure_profils": "Esta acción se propuso antes de los perfiles de agentes: no se ha ejecutado. Vuelva a abrir la solicitud con el perfil adecuado.",
+    "generic": "La solicitud ha fallado (HTTP {{status}})."
   }
 }

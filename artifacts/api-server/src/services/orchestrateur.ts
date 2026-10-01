@@ -309,7 +309,9 @@ export async function executerSpecialiste(input: {
     }
 
     const t0 = Date.now();
-    const exec = await executeTool(action.outil, args.data as Record<string, unknown>, { orgId, userId }, { skipConfirmation: true });
+    // Le meme controle que tous les appelants : l agent du catalogue EST l agent
+    // nomme a `executeTool`, qui refuse a son tour un outil hors de sa liste.
+    const exec = await executeTool(action.outil, args.data as Record<string, unknown>, { orgId, userId }, { agent: specialiste.id, skipConfirmation: true });
     if (exec.ok) r.actionsExecutees++;
     await ajouterEtape(enfantId, orgId, {
       kind: "outil", name: action.outil, status: exec.ok ? "ok" : "echec",

@@ -22,7 +22,10 @@
  *   externe    : quitte l'organisation (e-mail, SMS) — toujours en approbation ;
  *   destructif : supprime ou annule — toujours en approbation.
  */
-import { getAllTools, getTool } from "./assistant-tools";
+import { getTool } from "./assistant-tools";
+import {
+  OUTILS_AGENT_SUPPORT, OUTILS_AGENT_VENTE, OUTILS_ASSISTANT_UNIVERSEL, PROFILS_METIER,
+} from "./profils-agents";
 import { listSaasTools } from "./saas-tools";
 import { ALLOWED_TOOLS as OUTILS_SECRETAIRE } from "./autonomous-secretary";
 import { ALLOWED_TOOLS as OUTILS_AUTO_AUDIT } from "./app-audit";
@@ -74,6 +77,10 @@ export interface AgentDuCatalogue {
   execution: "orchestrateur" | "assistant" | "cron" | "cron-plateforme";
   /** Ce que l'agent rend. */
   sortie: string;
+  /** Profils metier : quand l'agent passe la main a un humain. Absent sinon. */
+  transfertHumain?: { conditions: readonly string[]; cible: "responsable" | "utilisateur" };
+  /** Profils metier : publies par organisation (onglet « Test et publication »). */
+  profilMetier?: true;
 }
 
 function outils(noms: readonly string[]): OutilDeclare[] {
@@ -100,7 +107,7 @@ export const CATALOGUE_AGENTS: readonly AgentDuCatalogue[] = [
     // Il repond a un TIERS : seuls les documents classes « Public » l'alimentent,
     // comme le standard telephonique (services/knowledge-base.ts).
     sources: { baseConnaissances: KB_CATEGORIES_PUBLIQUES, donnees: ["la demande", "l'expediteur"] },
-    outils: outils(["create_task", "send_email"]),
+    outils: outils(OUTILS_AGENT_SUPPORT),
     limites: { coutMaxUsdParExecution: 0.05, appelsModeleMax: 1, actionsMax: 3 },
     execution: "orchestrateur",
     sortie: "brouillon de reponse et actions proposees (tache, e-mail)",
@@ -111,7 +118,7 @@ export const CATALOGUE_AGENTS: readonly AgentDuCatalogue[] = [
     mission: "Qualifie une demande commerciale : cree le prospect, prepare la reponse et la relance.",
     modele: GEMINI_FLASH_MODEL,
     sources: { baseConnaissances: KB_CATEGORIES_PUBLIQUES, donnees: ["la demande", "l'expediteur"] },
-    outils: outils(["create_prospect", "create_task", "send_email"]),
+    outils: outils(OUTILS_AGENT_VENTE),
     limites: { coutMaxUsdParExecution: 0.05, appelsModeleMax: 1, actionsMax: 3 },
     execution: "orchestrateur",
     sortie: "brouillon de reponse et actions proposees (prospect, tache, e-mail)",
@@ -119,10 +126,13 @@ export const CATALOGUE_AGENTS: readonly AgentDuCatalogue[] = [
   {
     id: "assistant",
     nom: "Assistant",
-    mission: "Repond en conversation et agit sur demande : chaque ecriture est confirmee par l'utilisateur.",
+    mission: "Repond en conversation et organise le travail interne (taches, agenda, documents) : chaque ecriture est confirmee par l'utilisateur.",
     modele: process.env.ASSISTANT_MODEL || GEMINI_PRO_MODEL,
     sources: { baseConnaissances: ["toutes (utilisateur connecte)"], donnees: ["contacts", "taches", "agenda", "prospects", "appels", "messages"] },
-    outils: outils(getAllTools().map((t) => t.name)),
+    // Plus le registre entier : l'assistant universel restreint
+    // (services/profils-agents.ts). Les pouvoirs CRM, telephone, finance et
+    // les envois appartiennent aux profils metier ci-dessous.
+    outils: outils(OUTILS_ASSISTANT_UNIVERSEL),
     limites: null,
     execution: "assistant",
     sortie: "reponse en conversation ; les ecritures passent par une confirmation",
@@ -160,6 +170,21 @@ export const CATALOGUE_AGENTS: readonly AgentDuCatalogue[] = [
     execution: "cron-plateforme",
     sortie: "relances appliquees, gestes commerciaux proposes au super-administrateur",
   },
+  // Les six profils metier : leurs outils, sources et regles de transfert sont
+  // ceux de services/profils-agents.ts, appliques par `executeTool`.
+  ...PROFILS_METIER.map((p): AgentDuCatalogue => ({
+    id: p.id,
+    nom: p.nom,
+    mission: p.mission,
+    modele: process.env.ASSISTANT_MODEL || GEMINI_PRO_MODEL,
+    sources: p.sources,
+    outils: outils(p.outils),
+    limites: null,
+    execution: "assistant",
+    sortie: "reponse en conversation ; ecritures confirmees, envois et suppressions en approbation",
+    transfertHumain: p.transfertHumain,
+    profilMetier: true,
+  })),
 ];
 
 export function agentDuCatalogue(id: string): AgentDuCatalogue | undefined {

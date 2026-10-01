@@ -58,7 +58,8 @@ export const REGISTRE_IA: Record<string, SystemeIA> = {
     classe: "transparence", obligation: "Art. 50(1) : caractere IA evident pour l'utilisateur de l'outil",
     tenue: "Presente comme assistant IA dans l'interface ; actions sensibles soumises a confirmation (services/assistant-engine.ts)",
     personnesExposees: "Collaborateurs du client",
-    fichiers: ["services/assistant-engine.ts", "routes/ai-commandant.ts", "routes/voice-command.ts", "routes/voice-site-ops.ts", "routes/ai-inline-suggest.ts"],
+    // essai-profil : essai a blanc d un profil metier, outils en simulation.
+    fichiers: ["services/assistant-engine.ts", "services/essai-profil.ts", "routes/ai-commandant.ts", "routes/voice-command.ts", "routes/voice-site-ops.ts", "routes/ai-inline-suggest.ts"],
   },
   agents_demandes: {
     nom: "Agents de traitement des demandes", usage: "Classent les demandes entrantes (e-mail, WhatsApp, formulaire) et redigent des brouillons",
