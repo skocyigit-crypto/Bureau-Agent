@@ -21,6 +21,7 @@
 import { checkLicense } from "../middleware/license-check";
 import { AiQuotaExceededError, assertAiQuota } from "./ai-quota";
 import { getGeminiToolDeclarations, getTool } from "./assistant-tools";
+import { PROFIL_ASSISTANT } from "./profils-agents";
 
 /** Meme plancher que `requireMutationRole("super_admin", "administrateur", "agent")`. */
 const ROLES_QUI_ECRIVENT = new Set(["agent", "administrateur", "super_admin"]);
@@ -61,9 +62,13 @@ export async function admettreVoiceLive(
   return { ok: true };
 }
 
-/** Les outils proposes au modele : tous pour qui ecrit, la lecture seule sinon. */
+/**
+ * Les outils proposes au modele : ceux de l'assistant universel restreint
+ * (services/profils-agents.ts) pour qui ecrit, leurs lectures sinon. La
+ * session vocale n'a pas de profil metier : elle est l'assistant universel.
+ */
 export function declarationsPourRole(role: string | undefined) {
-  const toutes = getGeminiToolDeclarations().functionDeclarations ?? [];
+  const toutes = getGeminiToolDeclarations(PROFIL_ASSISTANT).functionDeclarations ?? [];
   if (peutEcrire(role)) return toutes;
   // `requiresConfirmation` est ABSENT (pas `false`) sur les outils de lecture.
   return toutes.filter((d) => {

@@ -63,7 +63,7 @@ export const DESTIN_DES_TABLES: Record<TableLocataire, Destin> = {
   violations_donnees: { conserver: "registre des violations : obligation de l'editeur (RGPD art. 33.2 et 33.5)" },
 
   // ── Efface ────────────────────────────────────────────────────────────────
-  admin_reports: "effacer", agent_proposals: "effacer", agent_run_steps: "effacer", agent_runs: "effacer",
+  admin_reports: "effacer", agent_profile_settings: "effacer", agent_proposals: "effacer", agent_run_steps: "effacer", agent_runs: "effacer",
   ai_agent_reports: "effacer", ai_inline_suggest_events: "effacer", ai_insights: "effacer",
   ai_learned_preferences: "effacer", ai_recurring_patterns: "effacer", ai_user_profile_facts: "effacer",
   ai_providers: "effacer", ai_usage: "effacer", api_keys: "effacer", app_audit_findings: "effacer",

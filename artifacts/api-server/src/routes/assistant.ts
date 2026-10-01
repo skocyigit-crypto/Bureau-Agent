@@ -5,6 +5,8 @@ import { and, eq, desc, asc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { runAssistantTurn, resolvePendingAction, type StreamEvent } from "../services/assistant-engine";
 import { getAllTools } from "../services/assistant-tools";
+import { PROFIL_ASSISTANT, outilsAutorises, estProfilMetier } from "../services/profils-agents";
+import { choisirProfil } from "../services/profils-org";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -13,9 +15,15 @@ function getUserId(req: Request): number | null {
   return (req.session as { userId?: number } | undefined)?.userId ?? null;
 }
 
-router.get("/assistant/tools", (_req, res) => {
+// Les outils d'UN profil (?profil=, assistant universel par defaut) : annoncer
+// les 36 ferait promettre a l'ecran ce qu'`executeTool` refusera.
+router.get("/assistant/tools", (req, res) => {
+  const demande = typeof req.query.profil === "string" ? req.query.profil : PROFIL_ASSISTANT;
+  const profil = demande === PROFIL_ASSISTANT || estProfilMetier(demande) ? demande : PROFIL_ASSISTANT;
+  const autorises = outilsAutorises(profil);
   res.json({
-    tools: getAllTools().map(t => ({
+    profil,
+    tools: getAllTools().filter(t => autorises.has(t.name)).map(t => ({
       name: t.name,
       description: t.description,
       requiresConfirmation: Boolean(t.requiresConfirmation),
@@ -31,6 +39,7 @@ router.get("/assistant/conversations", async (req: Request, res: Response): Prom
     const rows = await db.select({
       id: assistantConversationsTable.id,
       title: assistantConversationsTable.title,
+      profilAgent: assistantConversationsTable.profilAgent,
       updatedAt: assistantConversationsTable.updatedAt,
     }).from(assistantConversationsTable)
       .where(and(eq(assistantConversationsTable.organisationId, orgId), eq(assistantConversationsTable.userId, userId)))
@@ -113,9 +122,15 @@ router.post("/assistant/chat", async (req: Request, res: Response): Promise<void
         .where(and(eq(assistantConversationsTable.id, conversationId), eq(assistantConversationsTable.organisationId, orgId), eq(assistantConversationsTable.userId, userId)));
       if (!conv) { res.status(404).json({ error: "Conversation introuvable." }); return; }
     } else {
+      // Le profil se choisit a la creation et ne change plus : une action en
+      // attente est toujours confirmee sous le profil qui l'a proposee.
+      const role = (req.session as { userRole?: string } | undefined)?.userRole;
+      const choix = await choisirProfil(orgId, role, (req.body as { profil?: unknown })?.profil);
+      if (!choix.ok) { res.status(choix.statut).json({ error: choix.error, code: choix.code }); return; }
       const title = message.slice(0, 60);
       const [created] = await db.insert(assistantConversationsTable).values({
         organisationId: orgId, userId, title,
+        profilAgent: choix.agent === PROFIL_ASSISTANT ? null : choix.agent,
       }).returning({ id: assistantConversationsTable.id });
       conversationId = created.id;
     }

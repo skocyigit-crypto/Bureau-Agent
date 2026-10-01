@@ -121,14 +121,14 @@ describe("l'outil send_email dit l'echec", () => {
   it("un envoi qui echoue n'est pas un outil « ok »", async () => {
     const { executeTool } = await import("../services/assistant-tools");
     f.plateforme.push(refus("internal_server_error", 500));
-    const r = await executeTool("send_email", { to: "client@exemple-client.fr", subject: "Relance", body: "Bonjour" }, { orgId: 2, userId: 1 }, { skipConfirmation: true });
+    const r = await executeTool("send_email", { to: "client@exemple-client.fr", subject: "Relance", body: "Bonjour" }, { orgId: 2, userId: 1 }, { agent: "crm", skipConfirmation: true });
     expect(r.ok).toBe(false);
     expect(r.error).toContain("Envoi incertain");
   });
   it("un envoi reussi reste « ok »", async () => {
     const { executeTool } = await import("../services/assistant-tools");
     f.plateforme.push(ok);
-    const r = await executeTool("send_email", { to: "client@exemple-client.fr", subject: "Relance", body: "Bonjour" }, { orgId: 2, userId: 1 }, { skipConfirmation: true });
+    const r = await executeTool("send_email", { to: "client@exemple-client.fr", subject: "Relance", body: "Bonjour" }, { orgId: 2, userId: 1 }, { agent: "crm", skipConfirmation: true });
     expect(r.ok).toBe(true);
   });
 });

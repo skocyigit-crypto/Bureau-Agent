@@ -19,6 +19,7 @@ import { computeFreeSlots } from "./availability";
 import { createOffer, sendOfferMessage, resolveContactForOffer, offerLink } from "./appointment-offers";
 import { logAudit } from "../routes/audit";
 import { logger } from "../lib/logger";
+import { outilAutorisePourAgent, outilsAutorises, raisonRefus } from "./profils-agents";
 
 export interface ToolContext {
   orgId: number;
@@ -1678,16 +1679,42 @@ export interface ToolExecutionResult {
   /** When the tool requires confirmation, no execution happens; engine
    *  must emit pending_action and wait for user approval. */
   pending?: { summary: string };
+  /** Outil hors du profil de l'agent appelant : refuse, jamais execute. */
+  refus?: boolean;
+  /** Essai a blanc : ce que l'outil AURAIT fait, rien n'a ete execute. */
+  simulation?: { summary: string };
+}
+
+export interface ExecuteToolOptions {
+  /**
+   * Agent au nom duquel l'outil s'execute — OBLIGATOIRE. C'est la cle de la
+   * liste d'outils autorises (services/profils-agents.ts). Le rendre
+   * facultatif laisserait un appelant oublie (assistant vocal, file
+   * d'approbation, orchestrateur...) executer les 36 outils.
+   */
+  agent: string;
+  skipConfirmation?: boolean;
+  /** Essai a blanc : controles appliques, aucun `execute()` appele. */
+  simulation?: boolean;
 }
 
 export async function executeTool(
   name: string,
   rawArgs: unknown,
   ctx: ToolContext,
-  opts: { skipConfirmation?: boolean } = {},
+  opts: ExecuteToolOptions,
 ): Promise<ToolExecutionResult> {
   const tool = TOOL_MAP.get(name);
   if (!tool) return { ok: false, error: `Outil inconnu: ${name}` };
+
+  // Le point de passage unique de la liste d'outils par profil. Avant la
+  // validation, avant la confirmation : un outil hors profil n'atteint jamais
+  // une file d'attente ni une demande de confirmation qu'un humain pourrait
+  // approuver par reflexe.
+  if (!outilAutorisePourAgent(opts.agent, name)) {
+    logger.warn({ tool: name, agent: opts.agent, orgId: ctx.orgId }, "[assistant] outil hors profil refuse");
+    return { ok: false, refus: true, error: raisonRefus(opts.agent, name) };
+  }
 
   // Validate args against the tool's field spec
   const parsed = validateArgs(tool.fields, rawArgs ?? {});
@@ -1695,6 +1722,15 @@ export async function executeTool(
     return { ok: false, error: `Argument invalide pour ${name}: ${parsed.error}` };
   }
   const args = parsed.data;
+
+  // Essai a blanc : on decrit, on n'execute pas — pas meme une lecture (une
+  // lecture peut journaliser, compter un usage, appeler un fournisseur). Ce
+  // retour precede le gate de confirmation : l'essai montre aussi ce qui
+  // aurait demande une approbation, sans rien mettre en file.
+  if (opts.simulation) {
+    const summary = tool.summarize ? tool.summarize(args) : `Executer ${name}`;
+    return { ok: true, simulation: { summary }, result: { simulation: true, outil: name, resume: summary } };
+  }
 
   // Confirmation gate for high-impact tools (server-enforced, NOT prompt-only)
   if (tool.requiresConfirmation && !opts.skipConfirmation) {
@@ -1723,9 +1759,15 @@ export async function executeTool(
   }
 }
 
-export function getGeminiToolDeclarations(): { functionDeclarations: Array<{ name: string; description: string; parameters: ToolDef["parameters"] }> } {
+/**
+ * Declarations proposees au modele POUR UN AGENT : seulement ses outils. Ne
+ * remplace pas le controle d'`executeTool` (un modele peut inventer un nom) ;
+ * evite qu'il propose ce qu'il ne pourra pas faire.
+ */
+export function getGeminiToolDeclarations(agent: string): { functionDeclarations: Array<{ name: string; description: string; parameters: ToolDef["parameters"] }> } {
+  const autorises = outilsAutorises(agent);
   return {
-    functionDeclarations: ALL_TOOLS.map(t => ({
+    functionDeclarations: ALL_TOOLS.filter(t => autorises.has(t.name)).map(t => ({
       name: t.name,
       description: t.description,
       parameters: t.parameters,

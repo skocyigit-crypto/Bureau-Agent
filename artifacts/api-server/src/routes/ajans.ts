@@ -6,6 +6,8 @@
  *   GET  /ajans/executions/:id    detail : etapes, execution enfant, approbations
  *   GET  /ajans/couts             cout et jetons par agent sur la periode, quota
  *   POST /ajans/demandes          soumet une demande a l'orchestrateur
+ *   GET  /ajans/profils           profils metier, etat publie dans l organisation
+ *   POST /ajans/profils/:id/essai|publier|desactiver  essai a blanc, publication
  *
  * Tout est borne a l'organisation de la session. Les couts sont reserves aux
  * responsables : ce sont des montants que l'entreprise paie.
@@ -22,7 +24,13 @@ import { CATALOGUE_AGENTS } from "../services/catalogue-agents";
 import { STATUTS_EXECUTION, marquerExecutionsInterrompues, refExecution } from "../services/journal-agents";
 import { traiterDemande, CANAUX_DEMANDE } from "../services/orchestrateur";
 import { executerFluxDemande, regleDemandeActive } from "../services/flux-demande";
-import { getQuotaStatus } from "../services/ai-quota";
+import { getQuotaStatus, AiQuotaExceededError } from "../services/ai-quota";
+import { agentProfileSettingsTable } from "@workspace/db";
+import { palierOutil } from "../services/catalogue-agents";
+import { PROFILS_METIER, profilMetier } from "../services/profils-agents";
+import { etatsProfils } from "../services/profils-org";
+import { essayerProfil, essaiValide } from "../services/essai-profil";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 const requireResponsable = requireRole("super_admin", "administrateur");
@@ -207,6 +215,119 @@ router.post("/ajans/demandes", demandeLimiter, async (req: Request, res: Respons
   } catch (err) {
     req.log.error({ err }, "[ajans] demande");
     res.status(500).json({ error: "La demande n'a pas pu etre traitee." });
+  }
+});
+
+// ── Profils metier : liste, essai a blanc, publication ─────────────────────
+//
+//   GET  /ajans/profils                  les six profils et leur etat ici
+//   POST /ajans/profils/:id/essai        essai a blanc (aucun effet de bord)
+//   POST /ajans/profils/:id/publier      responsable ; exige un essai abouti
+//   POST /ajans/profils/:id/desactiver   responsable
+//
+// Un profil inconnu repond 404, comme un identifiant d'une autre organisation :
+// l'etat est lu et ecrit uniquement sous l'organisation de la session.
+
+const requireEcriture = requireRole("super_admin", "administrateur", "agent");
+
+// Un essai consomme le quota IA reel : meme plafond par personne que les demandes.
+const essaiLimiter = rateLimit({
+  keyGenerator: rateLimitKey,
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'essais. Reessayez dans quelques minutes." },
+});
+
+function profilDeRequete(req: Request, res: Response) {
+  const p = profilMetier(String(req.params.id));
+  if (!p) res.status(404).json({ error: "Profil introuvable." });
+  return p;
+}
+
+router.get("/ajans/profils", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const etats = await etatsProfils(orgId);
+    res.json({
+      profils: PROFILS_METIER.map((p) => {
+        const e = etats.get(p.id);
+        return {
+          id: p.id, nom: p.nom, mission: p.mission, sources: p.sources, transfertHumain: p.transfertHumain,
+          exemple: p.exemple, reserveResponsables: p.roles !== null,
+          outils: p.outils.map((nom) => ({ nom, palier: palierOutil(nom) })),
+          active: e?.enabled === true, publieLe: e?.publishedAt ?? null, dernierEssai: e?.lastDryRunId ?? null,
+        };
+      }),
+    });
+  } catch (err) {
+    req.log.error({ err }, "[ajans] profils");
+    res.status(500).json({ error: "Profils indisponibles." });
+  }
+});
+
+const CorpsEssai = z.object({ entree: z.string().trim().min(1).max(4000) });
+
+router.post("/ajans/profils/:id/essai", requireEcriture, essaiLimiter, async (req: Request, res: Response): Promise<void> => {
+  const p = profilDeRequete(req, res);
+  if (!p) return;
+  const lu = CorpsEssai.safeParse(req.body);
+  if (!lu.success) { res.status(400).json({ error: "Exemple invalide." }); return; }
+  try {
+    const r = await essayerProfil(getOrgId(req), req.session?.userId as number, p.id, lu.data.entree);
+    res.json(r);
+  } catch (err) {
+    // Quota epuise : dit tel quel, avec un code que l'ecran affiche. Un essai
+    // muet laisserait croire que l'agent n'a simplement rien a faire.
+    if (err instanceof AiQuotaExceededError) {
+      res.status(429).json({ code: "quota_ia", error: "Quota IA epuise : l'essai n'a pas ete lance. Augmentez le quota ou attendez la prochaine periode." });
+      return;
+    }
+    req.log.error({ err }, "[ajans] essai");
+    res.status(502).json({ error: "L'essai a echoue : le modele n'a pas repondu." });
+  }
+});
+
+router.post("/ajans/profils/:id/publier", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const p = profilDeRequete(req, res);
+  if (!p) return;
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId as number;
+    // L'essai cite doit etre de CETTE organisation et de CE profil, et avoir
+    // abouti : on ne publie pas un agent qu'on n'a pas vu travailler.
+    const essai = await essaiValide(orgId, p.id);
+    if (!essai) { res.status(409).json({ code: "essai_requis", error: "Lancez un essai a blanc reussi avant de publier ce profil." }); return; }
+    const maintenant = new Date();
+    await db.insert(agentProfileSettingsTable)
+      .values({ organisationId: orgId, agentId: p.id, enabled: true, publishedAt: maintenant, publishedBy: userId, lastDryRunId: essai })
+      .onConflictDoUpdate({
+        target: [agentProfileSettingsTable.organisationId, agentProfileSettingsTable.agentId],
+        set: { enabled: true, publishedAt: maintenant, publishedBy: userId, updatedAt: maintenant },
+      });
+    await logAudit(userId, req.session?.userEmail, "agent.profil_publie", "agent_profile", p.id, { essai }, req.ip, req.get("user-agent"), orgId);
+    res.json({ id: p.id, active: true, publieLe: maintenant });
+  } catch (err) {
+    req.log.error({ err }, "[ajans] publier");
+    res.status(500).json({ error: "Publication impossible." });
+  }
+});
+
+router.post("/ajans/profils/:id/desactiver", requireResponsable, async (req: Request, res: Response): Promise<void> => {
+  const p = profilDeRequete(req, res);
+  if (!p) return;
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId as number;
+    await db.update(agentProfileSettingsTable)
+      .set({ enabled: false, updatedAt: new Date() })
+      .where(and(eq(agentProfileSettingsTable.organisationId, orgId), eq(agentProfileSettingsTable.agentId, p.id)));
+    await logAudit(userId, req.session?.userEmail, "agent.profil_desactive", "agent_profile", p.id, {}, req.ip, req.get("user-agent"), orgId);
+    res.json({ id: p.id, active: false });
+  } catch (err) {
+    req.log.error({ err }, "[ajans] desactiver");
+    res.status(500).json({ error: "Desactivation impossible." });
   }
 });
 

@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 733,
+    "runtimeOperations": 737,
     "documentedOperations": 96,
-    "undocumentedOperations": 637
+    "undocumentedOperations": 641
   },
   "operations": [
     {
@@ -697,6 +697,38 @@
     {
       "method": "get",
       "path": "/ajans/executions/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ajans.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/ajans/profils",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ajans.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ajans/profils/{id}/desactiver",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ajans.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ajans/profils/{id}/essai",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/ajans.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/ajans/profils/{id}/publier",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/ajans.ts"

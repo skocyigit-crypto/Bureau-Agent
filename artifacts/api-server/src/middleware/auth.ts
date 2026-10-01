@@ -140,6 +140,10 @@ export async function hydrateFromBearer(req: Request): Promise<void> {
  */
 const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin|billing|stripe|google-oauth|appels-live)(\/|$)/;
 const LECTURE_SEULE_AUX_CLES = /^\/api\/data-protection(\/|$)/;
+// Publier ou desactiver un profil d'agent metier, c'est donner (ou retirer) a
+// l'IA des pouvoirs CRM, telephone ou finance sur toute l'organisation : le
+// geste d'un responsable devant l'ecran, jamais celui d'une integration.
+const PUBLICATION_AGENTS = /^\/api\/ajans\/profils\/[^/]+\/(publier|desactiver)(\/|$)/;
 
 /**
  * Le chemin tel qu'Express le ROUTE, pas tel qu'il est ecrit.
@@ -156,7 +160,7 @@ function cheminNormalise(chemin: string): string {
 
 export function routeInterditeAuxCles(methode: string, chemin: string): boolean {
   const p = cheminNormalise(chemin);
-  if (INTERDIT_AUX_CLES.test(p)) return true;
+  if (INTERDIT_AUX_CLES.test(p) || PUBLICATION_AGENTS.test(p)) return true;
   return LECTURE_SEULE_AUX_CLES.test(p) && methode.toUpperCase() !== "GET";
 }
 

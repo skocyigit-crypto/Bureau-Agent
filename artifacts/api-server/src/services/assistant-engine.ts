@@ -1,6 +1,8 @@
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "./ai-providers";
 import { executeTool, getGeminiToolDeclarations, getTool, type ToolContext } from "./assistant-tools";
+import { outilAutorisePourAgent } from "./profils-agents";
+import { agentDeConversation } from "./profils-org";
 import { db } from "@workspace/db";
 import { assistantMessagesTable, assistantConversationsTable } from "@workspace/db/schema";
 import { eq, desc, and, gt, isNull } from "drizzle-orm";
@@ -144,6 +146,15 @@ export async function runAssistantTurn(
     throw e;
   }
 
+  // Profil de la conversation, relu a chaque tour : il borne a la fois les
+  // outils proposes au modele et ceux qu'`executeTool` acceptera.
+  const profil = await agentDeConversation(conversationId, ctx.orgId);
+  if (!profil.ok) {
+    emit({ type: "error", error: profil.error });
+    return;
+  }
+  const agent = profil.agent;
+
   const contents = await loadHistoryForGemini(conversationId, ctx.orgId);
   // Pilier B: mémoire de l'organisation injectée dans l'instruction système (fail-soft).
   const learnedBlock = await buildLearnedContextBlock(ctx.orgId, ctx.userId);
@@ -172,7 +183,7 @@ export async function runAssistantTurn(
           systemInstruction,
           // Gemini SDK's Tool type uses Schema for properties; our declarations
           // use plain JSON-Schema-style records, so we cast through unknown.
-          tools: [getGeminiToolDeclarations()] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,
+          tools: [getGeminiToolDeclarations(agent)] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,
         },
       }));
       response = raw as unknown as GeminiResponse;
@@ -219,7 +230,9 @@ export async function runAssistantTurn(
     // on STOP (la reprise se fait via /confirm). Conserve la sémantique
     // séquentielle d'avant: les lectures situées APRÈS un outil de confirmation
     // ne sont pas exécutées ce hop.
-    const firstConfirmIdx = toolCallRows.findIndex(c => getTool(c.name)?.requiresConfirmation);
+    // Un outil hors profil ne borne rien et ne demande aucune confirmation : il
+    // passe par `executeTool`, qui le refuse, et le modele recoit la raison.
+    const firstConfirmIdx = toolCallRows.findIndex(c => getTool(c.name)?.requiresConfirmation && outilAutorisePourAgent(agent, c.name));
     const readCalls = firstConfirmIdx === -1 ? toolCallRows : toolCallRows.slice(0, firstConfirmIdx);
 
     // Exécution PARALLÈLE des lectures de ce hop. Les `step` de début sont émis
@@ -230,7 +243,7 @@ export async function runAssistantTurn(
       const key = readCacheKey(call.name, call.args);
       let basePayload = readResultCache.get(key);
       if (!basePayload) {
-        const result = await executeTool(call.name, call.args, ctx);
+        const result = await executeTool(call.name, call.args, ctx, { agent });
         basePayload = result.ok
           ? (result.result as Record<string, unknown>) ?? {}
           : { error: result.error ?? "Erreur" };
@@ -315,6 +328,15 @@ export async function resolvePendingAction(
     return;
   }
 
+  // Le profil sous lequel l'action s'executera est celui de la conversation
+  // AUJOURD'HUI : desactive, rien n'est revendique ni execute.
+  const profil = await agentDeConversation(conversationId, ctx.orgId);
+  if (!profil.ok) {
+    emit({ type: "error", error: profil.error });
+    return;
+  }
+  const agent = profil.agent;
+
   // Appels resolus avant que la resolution soit inscrite sur l'appel lui-meme :
   // leur `tool_pending_resolved` est la seule trace. On le cherche APRES cet
   // appel precis — l'ancienne verification par seul nom d'outil refusait tout
@@ -351,7 +373,7 @@ export async function resolvePendingAction(
 
   if (decision === "approve") {
     emit({ type: "step", toolName: callRow.toolName, toolArgs: args });
-    const result = await executeTool(callRow.toolName, args, ctx, { skipConfirmation: true });
+    const result = await executeTool(callRow.toolName, args, ctx, { agent, skipConfirmation: true });
     payload = result.ok
       ? (result.result as Record<string, unknown>) ?? { success: true }
       : { error: result.error ?? "Erreur" };

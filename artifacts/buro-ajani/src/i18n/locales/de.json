@@ -213,7 +213,8 @@
       "connections": "Verbindungen",
       "security": "Sicherheit",
       "businessComparison": "Vergleich je Auftrag",
-      "planningViews": "Planung (3 Ansichten)"
+      "planningViews": "Planung (3 Ansichten)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Hauptmenü",
     "sectionTabs": "Seiten von „{{name}}“",
@@ -10247,5 +10248,59 @@
     "save": "Speichern",
     "saved": "Gespeichert",
     "error": "Vorgang fehlgeschlagen"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Sechs Fachagenten, jeder mit eigenen Werkzeugen, Quellen und dem Moment, in dem er an einen Menschen übergibt.",
+    "tabs": {
+      "agents": "Agenten",
+      "flows": "Abläufe",
+      "runs": "Ausführungen",
+      "test": "Test und Veröffentlichung"
+    },
+    "tabsLabel": "Bereiche von Ajan Bureau",
+    "loading": "Agenten werden geladen…",
+    "error": "Die Agenten konnten nicht geladen werden.",
+    "active": "Veröffentlicht",
+    "inactive": "Nicht veröffentlicht",
+    "reservedManagers": "Nur Verantwortliche",
+    "tools": "Erlaubte Werkzeuge",
+    "sources": "Quellen",
+    "knowledgeBase": "Wissensdatenbank",
+    "none": "keine",
+    "handoff": "Übergibt an einen Menschen",
+    "handoffTo": {
+      "responsable": "an einen Verantwortlichen",
+      "utilisateur": "an den Benutzer"
+    },
+    "flowsIntro": "Abläufe entscheiden, welcher Agent eine eingehende Anfrage in welcher Reihenfolge bearbeitet.",
+    "flowsAdminOnly": "Nur Verantwortliche ändern Abläufe.",
+    "openFlows": "Ablauf-Studio öffnen",
+    "openAutomations": "Automatisierungen öffnen",
+    "runsIntro": "Jede Agentenausführung, ihre Schritte, was auf Freigabe wartet und was es gekostet hat.",
+    "openRuns": "Agentenausführungen öffnen",
+    "test": {
+      "intro": "Testen Sie einen Agenten an einem Beispiel: Er zeigt, was er tun würde, ohne etwas zu schreiben oder zu senden. Danach kann ein Verantwortlicher ihn für die Organisation veröffentlichen.",
+      "profile": "Zu testender Agent",
+      "sample": "Beispielanfrage",
+      "run": "Probelauf starten",
+      "running": "Probelauf läuft…",
+      "actions": "Was der Agent getan hätte",
+      "noActions": "Der Agent hätte kein Werkzeug aufgerufen.",
+      "answer": "Antwort des Agenten",
+      "publish": "Für die Organisation veröffentlichen",
+      "disable": "Deaktivieren",
+      "publishHint": "Führen Sie zuerst einen erfolgreichen Probelauf durch.",
+      "managersOnly": "Nur ein Verantwortlicher kann einen Agenten veröffentlichen.",
+      "published": "Agent für die Organisation veröffentlicht.",
+      "disabled": "Agent deaktiviert.",
+      "done_one": "Probelauf beendet: {{count}} Aktion beschrieben.",
+      "done_other": "Probelauf beendet: {{count}} Aktionen beschrieben.",
+      "status": {
+        "simulee": "wäre ausgeführt worden",
+        "approbation": "hätte auf Freigabe gewartet",
+        "refusee": "abgelehnt (außerhalb des Profils)"
+      }
+    }
   }
 }

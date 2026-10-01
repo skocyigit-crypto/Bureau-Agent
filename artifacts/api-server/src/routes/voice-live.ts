@@ -38,6 +38,7 @@ import {
   type ToolContext,
 } from "../services/assistant-tools";
 import { admettreVoiceLive, CompteurConsommation, declarationsPourRole, peutEcrire } from "../services/admission-voice-live";
+import { PROFIL_ASSISTANT, outilAutorisePourAgent, raisonRefus } from "../services/profils-agents";
 import { recordAiUsage } from "../services/ai-utils";
 
 const TEXTE_STATUT: Record<number, string> = { 403: "Forbidden", 429: "Too Many Requests", 503: "Service Unavailable" };
@@ -580,6 +581,15 @@ function bridgeConnection(
     if (!gSession || closed) return;
     sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolCallId: callId });
     const tool = getTool(name);
+    // Hors du profil de l'assistant universel : refus immediat, AVANT la mise
+    // en attente — sinon l'utilisateur verrait une confirmation pour une
+    // action qu'`executeTool` refuserait de toute facon.
+    if (tool && !outilAutorisePourAgent(PROFIL_ASSISTANT, name)) {
+      const refus = { error: raisonRefus(PROFIL_ASSISTANT, name) };
+      sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolResult: refus, toolCallId: callId });
+      try { gSession.sendToolResponse({ functionResponses: [{ id: callId, name, response: refus }] }); } catch { /* ignore */ }
+      return;
+    }
     // Confirmation utilisateur pour les outils risques (envoi externe,
     // suppression). On stocke la call, on previent l'UI, et on attend
     // un message `confirm_tool` du client avant d'executer.
@@ -596,7 +606,7 @@ function bridgeConnection(
       sendFrame(ws, { type: "tool_pending", toolCallId: callId, toolName: name, toolArgs: args, summary });
       return;
     }
-    const result = await executeTool(name, args, toolCtx, { skipConfirmation: false });
+    const result = await executeTool(name, args, toolCtx, { agent: PROFIL_ASSISTANT, skipConfirmation: false });
     const payload: Record<string, unknown> = result.ok
       ? (result.result as Record<string, unknown>) ?? { ok: true }
       : { error: result.error ?? "Erreur" };
@@ -842,7 +852,7 @@ function bridgeConnection(
           return;
         }
         // Approve: on execute reellement, en bypassant le gate confirmation.
-        executeTool(pending.name, pending.args, toolCtx, { skipConfirmation: true })
+        executeTool(pending.name, pending.args, toolCtx, { agent: PROFIL_ASSISTANT, skipConfirmation: true })
           .then((result) => {
             const payload: Record<string, unknown> = result.ok
               ? (result.result as Record<string, unknown>) ?? { ok: true }

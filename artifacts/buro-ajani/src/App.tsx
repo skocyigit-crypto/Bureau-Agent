@@ -116,6 +116,7 @@ const RechercheWebPage = lazy(() => import("@/pages/recherche-web"));
 const EquipeLocalisationPage = lazy(() => import("@/pages/equipe-localisation"));
 const FileApprobationPage = lazy(() => import("@/pages/file-approbation"));
 const AgentsCataloguePage = lazy(() => import("@/pages/agents-catalogue"));
+const AjanBureauPage = lazy(() => import("@/pages/ajan-bureau"));
 const BureauTachesPage = lazy(() => import("@/pages/bureau-taches"));
 const EquipeIaPage = lazy(() => import("@/pages/equipe-ia"));
 const AuditDenetimPage = lazy(() => import("@/pages/audit-denetim"));
@@ -401,6 +402,7 @@ function AppRoutes() {
         <Route path="/recherche-web" component={withLicenseGate(RechercheWebPage)} />
         <Route path="/equipe/localisation" component={withRoleGate(EquipeLocalisationPage, ADMIN_ROLES)} />
         <Route path="/file-approbation" component={withLicenseGate(FileApprobationPage)} />
+        <Route path="/ajan-bureau" component={withLicenseGate(AjanBureauPage)} />
         <Route path="/agents-catalogue" component={withLicenseGate(AgentsCataloguePage)} />
         <Route path="/bureau-taches" component={withLicenseGate(BureauTachesPage)} />
         <Route path="/equipe-ia" component={withLicenseGate(EquipeIaPage)} />

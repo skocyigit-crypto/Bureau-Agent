@@ -213,7 +213,8 @@
       "connections": "Bağlantılar",
       "security": "Güvenlik",
       "businessComparison": "İş bazında karşılaştırma",
-      "planningViews": "Planlama (3 görünüm)"
+      "planningViews": "Planlama (3 görünüm)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Ana menü",
     "sectionTabs": "“{{name}}” sayfaları",
@@ -10247,5 +10248,59 @@
     "save": "Kaydet",
     "saved": "Kaydedildi",
     "error": "İşlem başarısız"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Altı iş ajanı: her birinin kendi araçları, kaynakları ve işi bir insana devrettiği anlar.",
+    "tabs": {
+      "agents": "Ajanlar",
+      "flows": "Akışlar",
+      "runs": "Çalışmalar",
+      "test": "Test ve Yayın"
+    },
+    "tabsLabel": "Ajan Bureau bölümleri",
+    "loading": "Ajanlar yükleniyor…",
+    "error": "Ajanlar yüklenemedi.",
+    "active": "Yayında",
+    "inactive": "Yayında değil",
+    "reservedManagers": "Yalnız yöneticiler",
+    "tools": "İzin verilen araçlar",
+    "sources": "Kaynaklar",
+    "knowledgeBase": "Bilgi bankası",
+    "none": "yok",
+    "handoff": "İşi bir insana devreder",
+    "handoffTo": {
+      "responsable": "bir yöneticiye",
+      "utilisateur": "kullanıcıya"
+    },
+    "flowsIntro": "Akışlar, gelen bir talebi hangi ajanın hangi sırayla işleyeceğine karar verir.",
+    "flowsAdminOnly": "Akışları yalnız yöneticiler değiştirir.",
+    "openFlows": "Akış stüdyosunu aç",
+    "openAutomations": "Otomasyonları aç",
+    "runsIntro": "Her ajan çalışması, adımları, onay bekleyenler ve maliyeti.",
+    "openRuns": "Ajan çalışmalarını aç",
+    "test": {
+      "intro": "Bir ajanı örnek bir talep üzerinde deneyin: hiçbir şey yazmadan veya göndermeden ne yapacağını gösterir. Ardından bir yönetici onu kuruluş için yayınlayabilir.",
+      "profile": "Denenecek ajan",
+      "sample": "Örnek talep",
+      "run": "Kuru denemeyi başlat",
+      "running": "Deneme sürüyor…",
+      "actions": "Ajanın yapacakları",
+      "noActions": "Ajan hiçbir araç çağırmazdı.",
+      "answer": "Ajanın yanıtı",
+      "publish": "Kuruluş için yayınla",
+      "disable": "Devre dışı bırak",
+      "publishHint": "Önce başarılı bir deneme yapın.",
+      "managersOnly": "Bir ajanı yalnız bir yönetici yayınlayabilir.",
+      "published": "Ajan kuruluş için yayınlandı.",
+      "disabled": "Ajan devre dışı bırakıldı.",
+      "done_one": "Deneme bitti: {{count}} eylem açıklandı.",
+      "done_other": "Deneme bitti: {{count}} eylem açıklandı.",
+      "status": {
+        "simulee": "yapılırdı",
+        "approbation": "onay beklerdi",
+        "refusee": "reddedildi (profil dışı)"
+      }
+    }
   }
 }

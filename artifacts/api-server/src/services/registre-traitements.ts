@@ -218,7 +218,7 @@ export const ACTIVITE_DES_TABLES: Record<TableLocataire, IdActivite> = {
   commandant_conversations: "assistance_ia", commandant_messages: "assistance_ia", ai_usage: "assistance_ia",
   ai_insights: "assistance_ia", ai_learned_preferences: "assistance_ia", ai_recurring_patterns: "assistance_ia",
   ai_user_profile_facts: "assistance_ia", ai_inline_suggest_events: "assistance_ia", agent_runs: "assistance_ia",
-  agent_run_steps: "assistance_ia", agent_proposals: "assistance_ia", proactive_suggestions: "assistance_ia",
+  agent_run_steps: "assistance_ia", agent_profile_settings: "assistance_ia", agent_proposals: "assistance_ia", proactive_suggestions: "assistance_ia",
   super_agent_state: "assistance_ia", super_agent_logs: "assistance_ia",
   audit_logs: "securite", security_scans: "securite", security_lists: "securite", app_audit_findings: "securite",
   bulk_scan_jobs: "securite",

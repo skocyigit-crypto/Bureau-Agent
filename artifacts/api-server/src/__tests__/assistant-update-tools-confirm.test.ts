@@ -37,6 +37,7 @@ import {
   calendarEventsTable,
   assistantConversationsTable,
   assistantMessagesTable,
+  agentProfileSettingsTable,
 } from "@workspace/db";
 
 // ---------------------------------------------------------------------------
@@ -104,9 +105,12 @@ async function makeOrg(suffix: string): Promise<{ orgId: number; userId: number 
   return { orgId: org.id, userId: user.id };
 }
 
-async function newConversation(orgId: number, userId: number): Promise<number> {
+// advance_prospect est un outil du profil CRM (services/profils-agents.ts) :
+// l assistant universel ne l a plus. Ces conversations tournent sous ce profil,
+// publie pour les deux organisations du test.
+async function newConversation(orgId: number, userId: number, profil: string | null = null): Promise<number> {
   const [conv] = await db.insert(assistantConversationsTable).values({
-    organisationId: orgId, userId, title: `conv ${Date.now()}-${Math.random()}`,
+    organisationId: orgId, userId, title: `conv ${Date.now()}-${Math.random()}`, profilAgent: profil,
   }).returning({ id: assistantConversationsTable.id });
   return conv.id;
 }
@@ -157,6 +161,7 @@ beforeAll(async () => {
   const b = await makeOrg("b");
   orgA = a.orgId; userA = a.userId;
   orgB = b.orgId; userB = b.userId;
+  await db.insert(agentProfileSettingsTable).values([orgA, orgB].map((organisationId) => ({ organisationId, agentId: "crm", enabled: true })));
 });
 
 afterAll(async () => {
@@ -249,7 +254,7 @@ describe("advance_prospect — flux de confirmation de bout en bout", () => {
       organisationId: orgA, title: "Deal ACME", stage: "negociation",
     }).returning({ id: prospectsTable.id });
 
-    const conv = await newConversation(orgA, userA);
+    const conv = await newConversation(orgA, userA, "crm");
     const args = { id: prospect.id, stage: "gagne" };
     const pending = await triggerPending(conv, { orgId: orgA, userId: userA }, "advance_prospect", args);
 
@@ -268,7 +273,7 @@ describe("advance_prospect — flux de confirmation de bout en bout", () => {
       organisationId: orgA, title: "Deal a garder", stage: "qualification",
     }).returning({ id: prospectsTable.id });
 
-    const conv = await newConversation(orgA, userA);
+    const conv = await newConversation(orgA, userA, "crm");
     const pending = await triggerPending(conv, { orgId: orgA, userId: userA }, "advance_prospect", { id: prospect.id, stage: "perdu", lostReason: "Budget" });
     await resolve(conv, pending.messageId, "reject", { orgId: orgA, userId: userA });
 
@@ -282,7 +287,7 @@ describe("advance_prospect — flux de confirmation de bout en bout", () => {
       organisationId: orgB, title: "Prospect de l'org B", stage: "nouveau",
     }).returning({ id: prospectsTable.id });
 
-    const conv = await newConversation(orgA, userA);
+    const conv = await newConversation(orgA, userA, "crm");
     const pending = await triggerPending(conv, { orgId: orgA, userId: userA }, "advance_prospect", { id: prospect.id, stage: "gagne" });
     await resolve(conv, pending.messageId, "approve", { orgId: orgA, userId: userA });
 

@@ -29,6 +29,7 @@ import { logger } from "../lib/logger";
 import { tryWithLock } from "../lib/cron-lock";
 import { noterDecisionApprobation } from "./journal-agents";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
+import { AGENT_FILE_APPROBATION } from "./profils-agents";
 import { isSaasTool, executeSaasTool } from "./saas-tools";
 import { enqueueProposals } from "./proposal-queue";
 import { SOURCE_RELANCE, consignerRelance, lireRefRelance, relanceEncoreDue } from "./relances-factures";
@@ -356,7 +357,7 @@ async function executerSousVerrou(proposalId: number, ctx: ToolContext): Promise
   // `executeTool` ne connait pas ces outils et ne peut donc pas les executer.
   const exec = isSaasTool(proposal.toolName)
     ? await executeSaasTool(proposal.toolName, proposal.args, ctx)
-    : await executeTool(proposal.toolName, proposal.args, ctx, { skipConfirmation: true });
+    : await executeTool(proposal.toolName, proposal.args, ctx, { agent: AGENT_FILE_APPROBATION, skipConfirmation: true });
   const newStatus: AgentProposal["status"] = exec.ok ? "executee" : "echouee";
 
   await db.update(agentProposalsTable).set({

@@ -213,7 +213,8 @@
       "connections": "Connections",
       "security": "Security",
       "businessComparison": "Per-job comparison",
-      "planningViews": "Planning (3 views)"
+      "planningViews": "Planning (3 views)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Main menu",
     "sectionTabs": "“{{name}}” pages",
@@ -10247,5 +10248,59 @@
     "save": "Save",
     "saved": "Saved",
     "error": "Operation failed"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Six business agents, each with its own tools, sources and the moment it hands over to a human.",
+    "tabs": {
+      "agents": "Agents",
+      "flows": "Flows",
+      "runs": "Runs",
+      "test": "Test and publish"
+    },
+    "tabsLabel": "Ajan Bureau sections",
+    "loading": "Loading agents…",
+    "error": "The agents could not be loaded.",
+    "active": "Published",
+    "inactive": "Not published",
+    "reservedManagers": "Managers only",
+    "tools": "Allowed tools",
+    "sources": "Sources",
+    "knowledgeBase": "Knowledge base",
+    "none": "none",
+    "handoff": "Hands over to a human",
+    "handoffTo": {
+      "responsable": "to a manager",
+      "utilisateur": "to the user"
+    },
+    "flowsIntro": "Flows decide which agent handles an incoming request, and in what order.",
+    "flowsAdminOnly": "Only managers can edit flows.",
+    "openFlows": "Open the flow studio",
+    "openAutomations": "Open automations",
+    "runsIntro": "Every agent run, its steps, what awaits approval and what it cost.",
+    "openRuns": "Open agent runs",
+    "test": {
+      "intro": "Try an agent on a sample: it shows what it would do without writing or sending anything. A manager can then publish it for the organisation.",
+      "profile": "Agent to try",
+      "sample": "Sample request",
+      "run": "Run the dry run",
+      "running": "Dry run in progress…",
+      "actions": "What the agent would have done",
+      "noActions": "The agent would not have called any tool.",
+      "answer": "Agent answer",
+      "publish": "Publish for the organisation",
+      "disable": "Disable",
+      "publishHint": "Run a successful dry run first.",
+      "managersOnly": "Only a manager can publish an agent.",
+      "published": "Agent published for the organisation.",
+      "disabled": "Agent disabled.",
+      "done_one": "Dry run finished: {{count}} action described.",
+      "done_other": "Dry run finished: {{count}} actions described.",
+      "status": {
+        "simulee": "would have been done",
+        "approbation": "would have awaited approval",
+        "refusee": "refused (outside profile)"
+      }
+    }
   }
 }

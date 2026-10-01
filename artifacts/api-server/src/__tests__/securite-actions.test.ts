@@ -13,6 +13,7 @@ import path from "node:path";
 import { admettreVoiceLive, CompteurConsommation, declarationsPourRole, peutEcrire } from "../services/admission-voice-live";
 import { AiQuotaExceededError } from "../services/ai-quota";
 import { getAllTools } from "../services/assistant-tools";
+import { OUTILS_ASSISTANT_UNIVERSEL } from "../services/profils-agents";
 import { interpolateHtml } from "../services/automation-engine";
 
 const SRC = path.join(import.meta.dirname, "..");
@@ -65,13 +66,15 @@ describe("admission Voice Live", () => {
 });
 
 describe("les outils selon le role", () => {
+  // La session vocale est l'assistant universel restreint (profils-agents.ts).
+  const universel = getAllTools().filter((t) => OUTILS_ASSISTANT_UNIVERSEL.includes(t.name));
   const ecritures = getAllTools().filter((t) => t.requiresConfirmation).map((t) => t.name);
   it("lecture seule : aucun outil d'ecriture propose au modele, tous ceux de lecture", () => {
     const noms = declarationsPourRole("lecture_seule").map((d) => d.name);
     for (const e of ecritures) expect(noms).not.toContain(e);
     // Premier jet : `requiresConfirmation === false` ne gardait RIEN — la
     // propriete est absente sur les outils de lecture.
-    expect(noms).toHaveLength(getAllTools().length - ecritures.length);
+    expect(noms).toHaveLength(universel.filter((t) => !t.requiresConfirmation).length);
     expect(noms).toContain("list_contacts");
   });
   it("lecture seule : send_email et delete_call en particulier", () => {
@@ -79,8 +82,9 @@ describe("les outils selon le role", () => {
     expect(noms).not.toContain("send_email");
     expect(noms).not.toContain("delete_call");
   });
-  it("agent : tous les outils", () => {
-    expect(declarationsPourRole("agent")).toHaveLength(getAllTools().length);
+  it("agent : les outils de l'assistant universel, pas les 36", () => {
+    expect(declarationsPourRole("agent")).toHaveLength(universel.length);
+    expect(declarationsPourRole("agent").map((d) => d.name)).not.toContain("send_email");
   });
   it("peutEcrire suit le plancher HTTP", () => {
     expect([peutEcrire("lecture_seule"), peutEcrire("agent"), peutEcrire("administrateur"), peutEcrire("super_admin"), peutEcrire(undefined)])

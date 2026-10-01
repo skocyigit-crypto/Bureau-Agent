@@ -213,7 +213,8 @@
       "connections": "Connexions",
       "security": "Sécurité",
       "businessComparison": "Comparaison par affaire",
-      "planningViews": "Planning (3 vues)"
+      "planningViews": "Planning (3 vues)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Menu principal",
     "sectionTabs": "Pages de « {{name}} »",
@@ -10247,5 +10248,59 @@
     "save": "Enregistrer",
     "saved": "Enregistré",
     "error": "Échec de l'opération"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Six agents métier, chacun avec ses outils, ses sources et le moment où il passe la main à un humain.",
+    "tabs": {
+      "agents": "Agents",
+      "flows": "Flux",
+      "runs": "Travaux",
+      "test": "Test et publication"
+    },
+    "tabsLabel": "Sections d'Ajan Bureau",
+    "loading": "Chargement des agents…",
+    "error": "Les agents n'ont pas pu être chargés.",
+    "active": "Publié",
+    "inactive": "Non publié",
+    "reservedManagers": "Réservé aux responsables",
+    "tools": "Outils autorisés",
+    "sources": "Sources",
+    "knowledgeBase": "Base de connaissances",
+    "none": "aucune",
+    "handoff": "Passe la main à un humain",
+    "handoffTo": {
+      "responsable": "vers un responsable",
+      "utilisateur": "vers l'utilisateur"
+    },
+    "flowsIntro": "Les flux décident quel agent traite une demande entrante et dans quel ordre.",
+    "flowsAdminOnly": "Seuls les responsables modifient les flux.",
+    "openFlows": "Ouvrir le studio de flux",
+    "openAutomations": "Ouvrir les automatisations",
+    "runsIntro": "Chaque exécution d'agent, ses étapes, ce qui attend une approbation et ce que cela a coûté.",
+    "openRuns": "Ouvrir les travaux des agents",
+    "test": {
+      "intro": "Essayez un agent sur un exemple : il montre ce qu'il ferait, sans rien écrire ni envoyer. Un responsable peut ensuite le publier pour l'organisation.",
+      "profile": "Agent à essayer",
+      "sample": "Exemple de demande",
+      "run": "Lancer l'essai à blanc",
+      "running": "Essai en cours…",
+      "actions": "Ce que l'agent aurait fait",
+      "noActions": "L'agent n'aurait appelé aucun outil.",
+      "answer": "Réponse de l'agent",
+      "publish": "Publier pour l'organisation",
+      "disable": "Désactiver",
+      "publishHint": "Lancez d'abord un essai réussi.",
+      "managersOnly": "Seul un responsable peut publier un agent.",
+      "published": "Agent publié pour l'organisation.",
+      "disabled": "Agent désactivé.",
+      "done_one": "Essai terminé : {{count}} action décrite.",
+      "done_other": "Essai terminé : {{count}} actions décrites.",
+      "status": {
+        "simulee": "aurait été fait",
+        "approbation": "aurait attendu une approbation",
+        "refusee": "refusé (hors profil)"
+      }
+    }
   }
 }

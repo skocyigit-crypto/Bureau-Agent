@@ -213,7 +213,8 @@
       "connections": "Conexiones",
       "security": "Seguridad",
       "businessComparison": "Comparación por obra",
-      "planningViews": "Planificación (3 vistas)"
+      "planningViews": "Planificación (3 vistas)",
+      "agentHub": "Ajan Bureau"
     },
     "mainNav": "Menú principal",
     "sectionTabs": "Páginas de «{{name}}»",
@@ -10247,5 +10248,59 @@
     "save": "Guardar",
     "saved": "Guardado",
     "error": "La operación ha fallado"
+  },
+  "agentBureau": {
+    "title": "Ajan Bureau",
+    "subtitle": "Seis agentes de negocio, cada uno con sus herramientas, sus fuentes y el momento en que pasa el relevo a una persona.",
+    "tabs": {
+      "agents": "Agentes",
+      "flows": "Flujos",
+      "runs": "Ejecuciones",
+      "test": "Prueba y publicación"
+    },
+    "tabsLabel": "Secciones de Ajan Bureau",
+    "loading": "Cargando agentes…",
+    "error": "No se pudieron cargar los agentes.",
+    "active": "Publicado",
+    "inactive": "No publicado",
+    "reservedManagers": "Solo responsables",
+    "tools": "Herramientas permitidas",
+    "sources": "Fuentes",
+    "knowledgeBase": "Base de conocimientos",
+    "none": "ninguna",
+    "handoff": "Pasa el relevo a una persona",
+    "handoffTo": {
+      "responsable": "a un responsable",
+      "utilisateur": "al usuario"
+    },
+    "flowsIntro": "Los flujos deciden qué agente atiende una solicitud entrante y en qué orden.",
+    "flowsAdminOnly": "Solo los responsables modifican los flujos.",
+    "openFlows": "Abrir el estudio de flujos",
+    "openAutomations": "Abrir las automatizaciones",
+    "runsIntro": "Cada ejecución de agente, sus pasos, lo que espera aprobación y lo que costó.",
+    "openRuns": "Abrir las ejecuciones de agentes",
+    "test": {
+      "intro": "Pruebe un agente con un ejemplo: muestra lo que haría sin escribir ni enviar nada. Después, un responsable puede publicarlo para la organización.",
+      "profile": "Agente a probar",
+      "sample": "Solicitud de ejemplo",
+      "run": "Lanzar la prueba en seco",
+      "running": "Prueba en curso…",
+      "actions": "Lo que el agente habría hecho",
+      "noActions": "El agente no habría llamado a ninguna herramienta.",
+      "answer": "Respuesta del agente",
+      "publish": "Publicar para la organización",
+      "disable": "Desactivar",
+      "publishHint": "Lance primero una prueba correcta.",
+      "managersOnly": "Solo un responsable puede publicar un agente.",
+      "published": "Agente publicado para la organización.",
+      "disabled": "Agente desactivado.",
+      "done_one": "Prueba terminada: {{count}} acción descrita.",
+      "done_other": "Prueba terminada: {{count}} acciones descritas.",
+      "status": {
+        "simulee": "se habría hecho",
+        "approbation": "habría esperado aprobación",
+        "refusee": "rechazado (fuera del perfil)"
+      }
+    }
   }
 }
