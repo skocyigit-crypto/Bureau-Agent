@@ -10177,5 +10177,66 @@
       "fin": "End",
       "ajouter": "Add task"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} live call",
+    "indicatorLabel": "{{count}} live call(s) — open",
+    "title": "Live call",
+    "back": "Back to calls",
+    "notFound": "Call not found.",
+    "ended": "The call has ended. Below is its last state.",
+    "live": "Live",
+    "caller": "Caller",
+    "unknownCaller": "Unknown caller",
+    "previousCalls": "Previous calls: {{count}}",
+    "context": "Context",
+    "openContact": "Open contact",
+    "request": "Request",
+    "transcript": "Live transcript",
+    "emptyTranscript": "No conversation yet.",
+    "roleUser": "Caller",
+    "roleAssistant": "Assistant",
+    "step": "Agent step",
+    "journal": "Agent log",
+    "urgent": "Urgent",
+    "steps": {
+      "ecoute": "Listening",
+      "rdv_propose": "Slot proposed, awaiting yes",
+      "rdv_cree": "Appointment created",
+      "rappel_cree": "Callback request created",
+      "transfert": "Transferring",
+      "reprise_humaine": "Taken over by a team member"
+    },
+    "actions": "Actions",
+    "takeover": "Take over call",
+    "transfer": "Transfer",
+    "target": "To",
+    "takeoverDone": "Call taken over: {{num}} is ringing.",
+    "takenOverBy": "Taken over by: {{name}}",
+    "reasons": {
+      "aucun_fournisseur": "No telephony provider connected",
+      "fournisseur_incomplet": "Telephony provider incomplete (Twilio number missing)",
+      "aucun_numero": "No number to transfer to (add a profile phone or a forwarding number)",
+      "deja_repris": "The call has already been taken over",
+      "termine": "The call is no longer live",
+      "cible_inconnue": "Invalid target",
+      "twilio": "Twilio refused: {{raison}}"
+    },
+    "targets": {
+      "moi": "Me ({{num}})",
+      "defaut": "Default number ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "Discovery appointment",
+    "date": "Date and time",
+    "location": "Address",
+    "task": "Task",
+    "taskTitle": "Task title",
+    "note": "Note",
+    "noteContent": "Note content",
+    "create": "Create",
+    "save": "Save",
+    "saved": "Saved",
+    "error": "Operation failed"
   }
 }

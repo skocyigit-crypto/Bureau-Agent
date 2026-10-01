@@ -19,7 +19,7 @@
  * confirmation ne creent jamais deux rendez-vous, deux rappels, deux notes.
  */
 import crypto from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
   db,
   voiceCallSessionsTable,
@@ -46,6 +46,8 @@ export interface SessionAppelRow {
   actions: Record<string, unknown>;
   lastRequestKey: string | null;
   lastResponse: string | null;
+  /** Reprise humaine (ecran « appel en direct ») : non nul = l'IA se tait. */
+  takeoverStatus: string | null;
 }
 
 /** Cree l'etat d'un appel. Un second `incoming` (retry) ne l'ecrase pas. */
@@ -72,19 +74,36 @@ export async function chargerSessionAppel(callSid: string): Promise<SessionAppel
     actions: (r.actions as Record<string, unknown>) ?? {},
     lastRequestKey: r.lastRequestKey,
     lastResponse: r.lastResponse,
+    takeoverStatus: r.takeoverStatus ?? null,
   };
 }
 
+/**
+ * Enregistre l'etat. Rend `false` quand rien n'a ete ecrit.
+ *
+ * Une ecriture portant `requestKey` est la REPONSE de l'IA a un tour de
+ * parole (/respond, /transfert-resultat). Elle est refusee des qu'un humain a
+ * revendique l'appel : lire le drapeau avant d'appeler le modele ne suffit
+ * pas — le modele met plusieurs secondes, la reprise peut tomber pendant ce
+ * temps. La condition est donc dans le MEME UPDATE que l'ecriture du tour :
+ * soit le tour passe avant la revendication, soit il n'existe pas.
+ */
 export async function sauverSessionAppel(callSid: string, orgId: number, etat: Record<string, unknown>, extra: {
   status?: string; requestKey?: string | null; response?: string | null;
-} = {}): Promise<void> {
-  await db.update(voiceCallSessionsTable).set({
+} = {}): Promise<boolean> {
+  const tourIa = extra.requestKey !== undefined;
+  const rows = await db.update(voiceCallSessionsTable).set({
     state: etat,
     updatedAt: new Date(),
     ...(extra.status ? { status: extra.status } : {}),
     ...(extra.requestKey !== undefined ? { lastRequestKey: extra.requestKey } : {}),
     ...(extra.response !== undefined ? { lastResponse: extra.response } : {}),
-  }).where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId)));
+  }).where(and(
+    eq(voiceCallSessionsTable.callSid, callSid),
+    eq(voiceCallSessionsTable.organisationId, orgId),
+    ...(tourIa ? [isNull(voiceCallSessionsTable.takeoverStatus)] : []),
+  )).returning({ id: voiceCallSessionsTable.id });
+  return rows.length > 0;
 }
 
 /**

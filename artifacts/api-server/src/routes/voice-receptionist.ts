@@ -278,7 +278,7 @@ function etatPersiste(s: CallSession): Record<string, unknown> {
  * Relit l'etat d'un appel. La configuration du fournisseur (jeton Twilio
  * dechiffre) vient de la requete en cours, jamais de la base.
  */
-async function chargerSession(callSid: string, providerConfig: Record<string, unknown>): Promise<(CallSession & { _status: string; _lastKey: string | null; _lastResponse: string | null }) | null> {
+async function chargerSession(callSid: string, providerConfig: Record<string, unknown>): Promise<(CallSession & { _status: string; _lastKey: string | null; _lastResponse: string | null; _reprise: string | null }) | null> {
   const row = await chargerSessionAppel(callSid);
   if (!row) return null;
   const cfg = (providerConfig.aiReceptionist as Record<string, unknown> | undefined) ?? {};
@@ -292,13 +292,25 @@ async function chargerSession(callSid: string, providerConfig: Record<string, un
     _status: row.status,
     _lastKey: row.lastRequestKey,
     _lastResponse: row.lastResponse,
+    _reprise: row.takeoverStatus,
   };
 }
 
-async function sauverSession(s: CallSession, extra: { status?: string; requestKey?: string | null; response?: string | null } = {}): Promise<void> {
+async function sauverSession(s: CallSession, extra: { status?: string; requestKey?: string | null; response?: string | null } = {}): Promise<boolean> {
   const etat = etatPersiste(s);
-  for (const k of ["_status", "_lastKey", "_lastResponse"]) delete etat[k];
-  await sauverSessionAppel(s.callSid, s.orgId, etat, extra);
+  for (const k of ["_status", "_lastKey", "_lastResponse", "_reprise"]) delete etat[k];
+  return sauverSessionAppel(s.callSid, s.orgId, etat, extra);
+}
+
+/**
+ * Reponse quand un humain a repris l'appel (ecran « appel en direct ») : l'IA
+ * ne dit plus rien. Une reponse vide raccrocherait l'appel AVANT que la
+ * redirection Twilio vers l'humain n'arrive ; on garde donc la ligne ouverte
+ * en silence. Si la reprise echoue (revendication rendue), le retour sur
+ * /respond laisse l'IA reprendre la main.
+ */
+export function twimlAttenteReprise(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="15"/><Redirect method="POST">/api/voice/twilio/respond</Redirect></Response>`;
 }
 // Avant: le nettoyage n'etait declenche que depuis /voice/twilio/incoming (un
 // nouvel appel entrant) ET seulement au-dela d'un seuil de taille (2000/5000
@@ -2181,6 +2193,12 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
     return;
   }
 
+  // Un humain a repris l'appel : plus aucun tour IA, pas meme un appel au modele.
+  if (session._reprise) {
+    res.status(200).send(twimlAttenteReprise());
+    return;
+  }
+
   // Twilio rejoue une requete dont il n'a pas eu la reponse a temps : meme
   // empreinte → meme reponse, sans rappeler le modele ni ajouter un tour.
   const cle = cleRequete(body);
@@ -2189,8 +2207,10 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
     return;
   }
   const repondre = async (twiml: string, status?: string) => {
-    await sauverSession(session, { requestKey: cle, response: twiml, ...(status ? { status } : {}) });
-    res.status(200).send(twiml);
+    // Refuse si la reprise est tombee pendant que le modele reflechissait :
+    // le tour calcule n'est ni enregistre ni dit.
+    const ecrit = await sauverSession(session, { requestKey: cle, response: twiml, ...(status ? { status } : {}) });
+    res.status(200).send(ecrit ? twiml : twimlAttenteReprise());
   };
   const statutApresTwiml = () => (session.transfert?.statut === "en_cours" ? "transfert" : undefined);
 
@@ -2313,9 +2333,14 @@ voiceReceptionistRouter.post("/voice/twilio/transfert-resultat", async (req: Req
     res.status(200).send(twimlVide());
     return;
   }
+  if (session._reprise) {
+    res.status(200).send(twimlAttenteReprise());
+    return;
+  }
   const repondre = async (twiml: string) => {
-    await sauverSession(session, { requestKey: cle, response: twiml });
-    res.status(200).send(twiml);
+    // Meme garde que /respond : apres une reprise humaine, l'IA se tait.
+    const ecrit = await sauverSession(session, { requestKey: cle, response: twiml });
+    res.status(200).send(ecrit ? twiml : twimlAttenteReprise());
   };
   const statut = String(body.DialCallStatus ?? "");
   if (!session.transfert) {

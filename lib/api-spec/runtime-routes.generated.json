@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 726,
+    "runtimeOperations": 733,
     "documentedOperations": 96,
-    "undocumentedOperations": 630
+    "undocumentedOperations": 637
   },
   "operations": [
     {
@@ -796,6 +796,62 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/health.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appels-live",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appels-live/{callSid}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appels-live/{callSid}/devral",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appels-live/{callSid}/note",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appels-live/{callSid}/rdv-decouverte",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/appels-live/{callSid}/tache",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/appels-live/capacite",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/appels-live.ts"
       ]
     },
     {

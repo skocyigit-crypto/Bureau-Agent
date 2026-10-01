@@ -10177,5 +10177,66 @@
       "fin": "Ende",
       "ajouter": "Aufgabe hinzufügen"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} Live-Anruf",
+    "indicatorLabel": "{{count}} Live-Anruf(e) — öffnen",
+    "title": "Live-Anruf",
+    "back": "Zurück zu den Anrufen",
+    "notFound": "Anruf nicht gefunden.",
+    "ended": "Der Anruf ist beendet. Unten steht der letzte Stand.",
+    "live": "Live",
+    "caller": "Anrufer",
+    "unknownCaller": "Unbekannter Anrufer",
+    "previousCalls": "Frühere Anrufe: {{count}}",
+    "context": "Kontext",
+    "openContact": "Kontakt öffnen",
+    "request": "Anliegen",
+    "transcript": "Live-Transkript",
+    "emptyTranscript": "Noch kein Gespräch.",
+    "roleUser": "Anrufer",
+    "roleAssistant": "Assistentin",
+    "step": "Agentenschritt",
+    "journal": "Agentenprotokoll",
+    "urgent": "Dringend",
+    "steps": {
+      "ecoute": "Hört zu",
+      "rdv_propose": "Termin vorgeschlagen, wartet auf Ja",
+      "rdv_cree": "Termin erstellt",
+      "rappel_cree": "Rückrufbitte erstellt",
+      "transfert": "Leitet weiter",
+      "reprise_humaine": "Von einem Mitarbeiter übernommen"
+    },
+    "actions": "Aktionen",
+    "takeover": "Anruf übernehmen",
+    "transfer": "Weiterleiten",
+    "target": "An",
+    "takeoverDone": "Anruf übernommen: {{num}} klingelt.",
+    "takenOverBy": "Übernommen von: {{name}}",
+    "reasons": {
+      "aucun_fournisseur": "Kein Telefonieanbieter verbunden",
+      "fournisseur_incomplet": "Telefonieanbieter unvollständig (Twilio-Nummer fehlt)",
+      "aucun_numero": "Keine Nummer zum Weiterleiten (Profiltelefon oder Weiterleitungsnummer hinzufügen)",
+      "deja_repris": "Der Anruf wurde bereits übernommen",
+      "termine": "Der Anruf ist nicht mehr aktiv",
+      "cible_inconnue": "Ungültiges Ziel",
+      "twilio": "Twilio hat abgelehnt: {{raison}}"
+    },
+    "targets": {
+      "moi": "Ich ({{num}})",
+      "defaut": "Standardnummer ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "Erstbesichtigung",
+    "date": "Datum und Uhrzeit",
+    "location": "Adresse",
+    "task": "Aufgabe",
+    "taskTitle": "Aufgabentitel",
+    "note": "Notiz",
+    "noteContent": "Notizinhalt",
+    "create": "Erstellen",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "error": "Vorgang fehlgeschlagen"
   }
 }

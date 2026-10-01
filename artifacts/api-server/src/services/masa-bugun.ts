@@ -30,6 +30,7 @@ import {
 } from "@workspace/db";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, notInArray, sql } from "drizzle-orm";
 import { iaUtilisable } from "./ai-providers";
+import { conditionAppelEnDirect } from "./appel-live";
 import { bornesDuJour } from "../lib/jour-local";
 import { overdueCondition } from "./invoice-status";
 import { depassementSql } from "./dossier-chantier";
@@ -123,13 +124,8 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
   const [enLigne, appelsEnCours, rappels, demandesRappel, urgences, expirent] = await Promise.all([
     db.select({ id: voiceCallSessionsTable.id, state: voiceCallSessionsTable.state, status: voiceCallSessionsTable.status, createdAt: voiceCallSessionsTable.createdAt })
       .from(voiceCallSessionsTable)
-      .where(and(
-        eq(voiceCallSessionsTable.organisationId, orgId),
-        inArray(voiceCallSessionsTable.status, ["en_cours", "transfert"]),
-        isNull(voiceCallSessionsTable.finalizedAt),
-        // Le balayage (voice-receptionist) clot les sessions muettes depuis 30 min.
-        gt(voiceCallSessionsTable.updatedAt, new Date(maintenant.getTime() - 30 * 60 * 1000)),
-      ))
+      // Meme definition que l'indicateur « appel en direct » (services/appel-live).
+      .where(conditionAppelEnDirect(orgId, maintenant))
       .orderBy(desc(voiceCallSessionsTable.createdAt)).limit(limite),
     db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt, createdBy: callsTable.createdBy })
       .from(callsTable)

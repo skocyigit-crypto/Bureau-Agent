@@ -10177,5 +10177,66 @@
       "fin": "Fin",
       "ajouter": "Ajouter la tâche"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} appel en direct",
+    "indicatorLabel": "{{count}} appel(s) en direct — ouvrir",
+    "title": "Appel en direct",
+    "back": "Retour aux appels",
+    "notFound": "Appel introuvable.",
+    "ended": "L'appel est terminé. Ce qui suit est son dernier état.",
+    "live": "En direct",
+    "caller": "Appelant",
+    "unknownCaller": "Appelant inconnu",
+    "previousCalls": "Appels précédents : {{count}}",
+    "context": "Contexte",
+    "openContact": "Ouvrir la fiche contact",
+    "request": "Demande",
+    "transcript": "Transcription en direct",
+    "emptyTranscript": "Pas encore d'échange.",
+    "roleUser": "Appelant",
+    "roleAssistant": "Assistante",
+    "step": "Étape de l'agent",
+    "journal": "Journal de l'agent",
+    "urgent": "Urgent",
+    "steps": {
+      "ecoute": "À l'écoute",
+      "rdv_propose": "Créneau proposé, attend le oui",
+      "rdv_cree": "Rendez-vous créé",
+      "rappel_cree": "Demande de rappel créée",
+      "transfert": "Transfert en cours",
+      "reprise_humaine": "Repris par un collaborateur"
+    },
+    "actions": "Actions",
+    "takeover": "Reprendre l'appel",
+    "transfer": "Transférer",
+    "target": "Vers",
+    "takeoverDone": "Appel repris : {{num}} sonne.",
+    "takenOverBy": "Repris par : {{name}}",
+    "reasons": {
+      "aucun_fournisseur": "Aucun fournisseur téléphonique connecté",
+      "fournisseur_incomplet": "Fournisseur téléphonique incomplet (numéro Twilio manquant)",
+      "aucun_numero": "Aucun numéro vers qui transférer (ajoutez un téléphone au profil ou un numéro de renvoi)",
+      "deja_repris": "L'appel a déjà été repris",
+      "termine": "L'appel n'est plus en cours",
+      "cible_inconnue": "Destinataire invalide",
+      "twilio": "Twilio a refusé : {{raison}}"
+    },
+    "targets": {
+      "moi": "Moi ({{num}})",
+      "defaut": "Numéro par défaut ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "Rendez-vous de découverte",
+    "date": "Date et heure",
+    "location": "Adresse",
+    "task": "Tâche",
+    "taskTitle": "Titre de la tâche",
+    "note": "Note",
+    "noteContent": "Contenu de la note",
+    "create": "Créer",
+    "save": "Enregistrer",
+    "saved": "Enregistré",
+    "error": "Échec de l'opération"
   }
 }

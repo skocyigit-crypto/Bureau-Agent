@@ -71,6 +71,7 @@ import prospectsRouter from "./prospects";
 import trashRouter from "./trash";
 import devisRouter from "./devis";
 import chantierRouter from "./chantier";
+import appelsLiveRouter from "./appels-live";
 import planningRouter from "./planning";
 import facturesClientRouter from "./factures-client";
 import plateformeAgreeeRouter from "./plateforme-agreee";
@@ -287,6 +288,9 @@ router.use(devisRouter);
 // Dossier de chantier, avenants, journal de chantier et comparaison par
 // affaire : contenu CLIENT, borne a l organisation de la session.
 router.use(chantierRouter);
+// Appels en direct de la secretaire IA et reprise par un humain : contenu
+// CLIENT (transcriptions), borne a l organisation de la session.
+router.use(appelsLiveRouter);
 // Planning en trois vues (rendez-vous, equipe, travaux) : contenu CLIENT.
 router.use(planningRouter);
 router.use(facturesClientRouter);

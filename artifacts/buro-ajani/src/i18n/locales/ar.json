@@ -10183,5 +10183,66 @@
       "fin": "النهاية",
       "ajouter": "إضافة المهمة"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} مكالمة مباشرة",
+    "indicatorLabel": "{{count}} مكالمة مباشرة — افتح",
+    "title": "مكالمة مباشرة",
+    "back": "العودة إلى المكالمات",
+    "notFound": "المكالمة غير موجودة.",
+    "ended": "انتهت المكالمة. ما يلي هو حالتها الأخيرة.",
+    "live": "مباشر",
+    "caller": "المتصل",
+    "unknownCaller": "متصل غير معروف",
+    "previousCalls": "مكالمات سابقة: {{count}}",
+    "context": "السياق",
+    "openContact": "فتح بطاقة جهة الاتصال",
+    "request": "الطلب",
+    "transcript": "النص المباشر",
+    "emptyTranscript": "لا توجد محادثة بعد.",
+    "roleUser": "المتصل",
+    "roleAssistant": "المساعدة",
+    "step": "خطوة الوكيل",
+    "journal": "سجل الوكيل",
+    "urgent": "عاجل",
+    "steps": {
+      "ecoute": "يستمع",
+      "rdv_propose": "اقترح موعدًا وينتظر الموافقة",
+      "rdv_cree": "أنشأ موعدًا",
+      "rappel_cree": "أنشأ طلب معاودة اتصال",
+      "transfert": "يحوّل المكالمة",
+      "reprise_humaine": "تولاها أحد الموظفين"
+    },
+    "actions": "إجراءات",
+    "takeover": "تولي المكالمة",
+    "transfer": "تحويل",
+    "target": "إلى",
+    "takeoverDone": "تم تولي المكالمة: {{num}} يرن.",
+    "takenOverBy": "تولاها: {{name}}",
+    "reasons": {
+      "aucun_fournisseur": "لا يوجد مزود اتصالات متصل",
+      "fournisseur_incomplet": "إعداد مزود الاتصالات غير مكتمل (رقم Twilio مفقود)",
+      "aucun_numero": "لا يوجد رقم للتحويل (أضف هاتفًا للملف الشخصي أو رقم تحويل)",
+      "deja_repris": "تم تولي المكالمة بالفعل",
+      "termine": "المكالمة لم تعد جارية",
+      "cible_inconnue": "وجهة غير صالحة",
+      "twilio": "رفض Twilio: {{raison}}"
+    },
+    "targets": {
+      "moi": "أنا ({{num}})",
+      "defaut": "الرقم الافتراضي ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "موعد استكشافي",
+    "date": "التاريخ والوقت",
+    "location": "العنوان",
+    "task": "مهمة",
+    "taskTitle": "عنوان المهمة",
+    "note": "ملاحظة",
+    "noteContent": "محتوى الملاحظة",
+    "create": "إنشاء",
+    "save": "حفظ",
+    "saved": "تم الحفظ",
+    "error": "فشلت العملية"
   }
 }

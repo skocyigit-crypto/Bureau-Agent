@@ -10177,5 +10177,66 @@
       "fin": "Fin",
       "ajouter": "Añadir tarea"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} llamada en directo",
+    "indicatorLabel": "{{count}} llamada(s) en directo — abrir",
+    "title": "Llamada en directo",
+    "back": "Volver a las llamadas",
+    "notFound": "Llamada no encontrada.",
+    "ended": "La llamada ha terminado. Esto es su último estado.",
+    "live": "En directo",
+    "caller": "Llamante",
+    "unknownCaller": "Llamante desconocido",
+    "previousCalls": "Llamadas anteriores: {{count}}",
+    "context": "Contexto",
+    "openContact": "Abrir ficha de contacto",
+    "request": "Solicitud",
+    "transcript": "Transcripción en directo",
+    "emptyTranscript": "Aún no hay conversación.",
+    "roleUser": "Llamante",
+    "roleAssistant": "Asistente",
+    "step": "Paso del agente",
+    "journal": "Registro del agente",
+    "urgent": "Urgente",
+    "steps": {
+      "ecoute": "Escuchando",
+      "rdv_propose": "Franja propuesta, espera el sí",
+      "rdv_cree": "Cita creada",
+      "rappel_cree": "Solicitud de devolución creada",
+      "transfert": "Transfiriendo",
+      "reprise_humaine": "Atendida por un compañero"
+    },
+    "actions": "Acciones",
+    "takeover": "Tomar la llamada",
+    "transfer": "Transferir",
+    "target": "A",
+    "takeoverDone": "Llamada tomada: {{num}} está sonando.",
+    "takenOverBy": "Tomada por: {{name}}",
+    "reasons": {
+      "aucun_fournisseur": "Ningún proveedor telefónico conectado",
+      "fournisseur_incomplet": "Proveedor telefónico incompleto (falta el número Twilio)",
+      "aucun_numero": "Ningún número al que transferir (añada un teléfono al perfil o un número de desvío)",
+      "deja_repris": "La llamada ya ha sido tomada",
+      "termine": "La llamada ya no está en curso",
+      "cible_inconnue": "Destino no válido",
+      "twilio": "Twilio rechazó: {{raison}}"
+    },
+    "targets": {
+      "moi": "Yo ({{num}})",
+      "defaut": "Número por defecto ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "Cita de descubrimiento",
+    "date": "Fecha y hora",
+    "location": "Dirección",
+    "task": "Tarea",
+    "taskTitle": "Título de la tarea",
+    "note": "Nota",
+    "noteContent": "Contenido de la nota",
+    "create": "Crear",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "error": "La operación ha fallado"
   }
 }

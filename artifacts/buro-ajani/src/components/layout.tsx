@@ -30,6 +30,7 @@ import { lecturePartagee } from "@/lib/lecture-partagee";
 import { Link,useLocation } from "wouter";
 import { titreDePage } from "@/lib/titre-page";
 import { EntreeMenu,OngletsDeSection,ReglagesBureau,RetourAuBureau } from "@/components/menu-bureau";
+import { IndicateurAppelEnDirect } from "@/components/appel-en-direct";
 import { BoutonActionRapide,BoutonCommandeVocale,CompteurApprobations,MenuOutils,PassageConsole } from "@/components/ust-cubuk";
 import { CONSOLE_PLATEFORME,entreesVisibles,estDansLaConsole,pageDe,pagesDe,REGLAGES_BUREAU,sectionsVisibles,type Rozet,type Section } from "@/lib/gezinti";
 
@@ -406,6 +407,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <TooltipContent>{t("header.simulateCall")}</TooltipContent>
                 </Tooltip>
               )}
+              {/* Appel REEL en cours (jamais la simulation) : visible sur chaque ecran. */}
+              {!enConsole && <IndicateurAppelEnDirect />}
               <AgentRunChip />
               {canUseAi && !enConsole && <CompteurApprobations sayi={compteurs.approbation} />}
               <BoutonCommandeVocale />
