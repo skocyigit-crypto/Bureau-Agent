@@ -151,9 +151,14 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
 interface VoiceLiveProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Profil d'agent de la session (?profil=), valide par le serveur comme a
+   * l'ecrit (actif + role). Absent = assistant general.
+   */
+  profil?: string;
 }
 
-export function VoiceLive({ open, onClose }: VoiceLiveProps) {
+export function VoiceLive({ open, onClose, profil }: VoiceLiveProps) {
   const { t } = useTranslation();
   const labelForTool = (name: string): string =>
     (KNOWN_TOOLS as readonly string[]).includes(name) ? t(`voiceLive.tools.${name}`) : name;
@@ -651,6 +656,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       })();
       const resumeHandle = resumeHandleRef.current ?? storedHandle;
       if (resumeHandle) params.set("resume", resumeHandle);
+      if (profil && profil !== "assistant") params.set("profil", profil);
       const ws = new WebSocket(
         `${wsProto}//${window.location.host}${BASE}/api/voice/live?${params.toString()}`,
       );
@@ -781,7 +787,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       setState("error");
       teardown();
     }
-  }, [handleServerFrame, teardown, voice, error, t]);
+  }, [handleServerFrame, teardown, voice, error, t, profil]);
 
   // Capture une frame depuis l'element video cache, la redimensionne via
   // un canvas off-DOM, et l'envoie en base64 JPEG au serveur. Appele a

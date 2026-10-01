@@ -120,7 +120,7 @@ describe("Voice Live est branche sur ces regles", () => {
     expect(admission).toBeLessThan(src.indexOf("wss.handleUpgrade("));
   });
   it("les outils proposes dependent du role", () => {
-    expect(src).toContain("declarationsPourRole(role)");
+    expect(src).toContain("declarationsPourRole(role, agent)");
     expect(src).not.toMatch(/getGeminiToolDeclarations\(\)\.functionDeclarations/);
   });
   it("l'approbation verifie le role avant d'executer", () => {

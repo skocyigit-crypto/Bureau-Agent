@@ -8,8 +8,15 @@
  *  - Flux et Travaux renvoient aux ecrans existants (studio de flux, travaux
  *    des agents) plutot que de les dupliquer.
  *  - Test et publication : essai a blanc sur un exemple (aucun effet de bord
- *    cote serveur), puis publication par un responsable. Le bouton est
- *    desactive pour les autres roles ; le serveur refuse de toute facon.
+ *    cote serveur) ; activation / desactivation par un responsable. Les
+ *    profils sont actifs par defaut (aucun client existant ne perd ses
+ *    pouvoirs) : l'essai est conseille, pas exige. Les boutons que le serveur
+ *    refuserait a ce role (essai d'un profil reserve, publication) sont
+ *    desactives et disent pourquoi.
+ *
+ * Noms, missions, conditions de passage a un humain et exemples sont
+ * traduits par cle (agentBureau.profiles.<id>) ; le francais du serveur sert
+ * de repli. Les erreurs de l'API sont rendues par leur code (lib/erreurs-agents).
  *
  * Les onglets sont des boutons role="tab" : flèches gauche/droite pour
  * passer de l'un a l'autre, comme le veut le motif ARIA.
@@ -24,7 +31,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RegionAnnonce } from "@/components/region-annonce";
 import { useWorkspaceUser } from "@/components/workspace-user";
-import { useTranslation } from "@/i18n";
+import { useTranslation, type TFunction } from "@/i18n";
+import { lireJsonAgents, messageDeErreur, traduireOuRepli } from "@/lib/erreurs-agents";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -42,6 +50,21 @@ export interface ProfilAgent {
   active: boolean;
   publieLe: string | null;
   dernierEssai: number | null;
+  /** Le role de la session peut ouvrir une conversation sous ce profil. */
+  roleAutorise: boolean;
+  /** Le role de la session peut lancer l'essai (le serveur refuse sinon). */
+  peutEssayer: boolean;
+}
+
+/** Textes d'un profil dans la langue de l'ecran, repli sur le francais du serveur. */
+export function texteProfil(t: TFunction, p: Pick<ProfilAgent, "id" | "nom" | "mission" | "exemple" | "transfertHumain">) {
+  const base = `agentBureau.profiles.${p.id}`;
+  return {
+    nom: traduireOuRepli(t, `${base}.nom`, p.nom),
+    mission: traduireOuRepli(t, `${base}.mission`, p.mission),
+    exemple: traduireOuRepli(t, `${base}.exemple`, p.exemple),
+    conditions: p.transfertHumain.conditions.map((c, i) => traduireOuRepli(t, `${base}.handoff.${i}`, c)),
+  };
 }
 
 interface ActionEssai {
@@ -62,11 +85,7 @@ const PALIER_CLASSE: Record<Palier, string> = {
 const ONGLETS = ["agents", "flows", "runs", "test"] as const;
 type Onglet = (typeof ONGLETS)[number];
 
-async function lireJson(r: Response) {
-  const corps = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((corps as { error?: string }).error || `HTTP ${r.status}`);
-  return corps;
-}
+const lireJson = lireJsonAgents;
 
 export default function AjanBureauPage() {
   const { t } = useTranslation();
@@ -156,12 +175,12 @@ function OngletAgents({ etat }: { etat: { data?: { profils: ProfilAgent[] }; isL
   if (etat.isError) return <p role="alert" className="text-destructive">{t("agentBureau.error")}</p>;
   return (
     <ul className="grid gap-4 md:grid-cols-2" aria-label={t("agentBureau.tabs.agents")}>
-      {(etat.data?.profils ?? []).map((p) => (
+      {(etat.data?.profils ?? []).map((p) => { const tx = texteProfil(t, p); return (
         <li key={p.id}>
           <Card className="h-full" data-testid={`profil-${p.id}`}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg"><h2>{p.nom}</h2></CardTitle>
-              <p className="text-sm text-muted-foreground">{p.mission}</p>
+              <CardTitle className="text-lg"><h2>{tx.nom}</h2></CardTitle>
+              <p className="text-sm text-muted-foreground">{tx.mission}</p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Badge variant={p.active ? "default" : "outline"}>{p.active ? t("agentBureau.active") : t("agentBureau.inactive")}</Badge>
                 {p.reserveResponsables && <Badge variant="outline">{t("agentBureau.reservedManagers")}</Badge>}
@@ -190,7 +209,7 @@ function OngletAgents({ etat }: { etat: { data?: { profils: ProfilAgent[] }; isL
                   <UserRound className="h-4 w-4" aria-hidden="true" /> {t("agentBureau.handoff")} ({t(`agentBureau.handoffTo.${p.transfertHumain.cible}`)})
                 </h3>
                 <ul className="list-disc ps-5">
-                  {p.transfertHumain.conditions.map((c) => <li key={c}>{c}</li>)}
+                  {tx.conditions.map((c) => <li key={c}>{c}</li>)}
                 </ul>
               </section>
               <section>
@@ -203,7 +222,7 @@ function OngletAgents({ etat }: { etat: { data?: { profils: ProfilAgent[] }; isL
             </CardContent>
           </Card>
         </li>
-      ))}
+      ); })}
     </ul>
   );
 }
@@ -214,20 +233,19 @@ function OngletTest({ profils, estResponsable }: { profils: ProfilAgent[]; estRe
   const [choix, setChoix] = useState<string>("");
   const profil = profils.find((p) => p.id === choix) ?? profils[0];
   const [entrees, setEntrees] = useState<Record<string, string>>({});
-  const entree = profil ? (entrees[profil.id] ?? profil.exemple) : "";
-  const [essaisReussis, setEssaisReussis] = useState<Record<string, true>>({});
+  const entree = profil ? (entrees[profil.id] ?? texteProfil(t, profil).exemple) : "";
   const [annonce, setAnnonce] = useState("");
 
   const essai = useMutation({
     mutationFn: async (v: { id: string; entree: string }) =>
       (await lireJson(await fetch(`${BASE}/api/ajans/profils/${v.id}/essai`, {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entree: v.entree }),
-      }))) as { runId: number; actions: ActionEssai[]; reponse: string },
-    onSuccess: (r, v) => {
-      setEssaisReussis((s) => ({ ...s, [v.id]: true }));
-      setAnnonce(t("agentBureau.test.done", { count: r.actions.length }));
+      }))) as { runId: number; actions: ActionEssai[]; reponse: string; valide: boolean; incomplet: boolean },
+    onSuccess: (r) => {
+      setAnnonce(r.valide ? t("agentBureau.test.done", { count: r.actions.length }) : t("agentBureau.test.invalid"));
+      qc.invalidateQueries({ queryKey: ["ajans-profils"] });
     },
-    onError: (e: Error) => setAnnonce(e.message),
+    onError: (e: Error) => setAnnonce(messageDeErreur(t, e)),
   });
 
   const publication = useMutation({
@@ -237,11 +255,10 @@ function OngletTest({ profils, estResponsable }: { profils: ProfilAgent[]; estRe
       setAnnonce(v.action === "publier" ? t("agentBureau.test.published") : t("agentBureau.test.disabled"));
       qc.invalidateQueries({ queryKey: ["ajans-profils"] });
     },
-    onError: (e: Error) => setAnnonce(e.message),
+    onError: (e: Error) => setAnnonce(messageDeErreur(t, e)),
   });
 
   if (!profil) return null;
-  const essaiFait = Boolean(essaisReussis[profil.id] || profil.dernierEssai);
   const resultat = essai.data && essai.variables?.id === profil.id ? essai.data : null;
 
   return (
@@ -256,7 +273,7 @@ function OngletTest({ profils, estResponsable }: { profils: ProfilAgent[]; estRe
           value={profil.id}
           onChange={(e) => setChoix(e.target.value)}
         >
-          {profils.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+          {profils.map((p) => <option key={p.id} value={p.id}>{texteProfil(t, p).nom}</option>)}
         </select>
       </div>
       <div className="space-y-1">
@@ -270,17 +287,23 @@ function OngletTest({ profils, estResponsable }: { profils: ProfilAgent[]; estRe
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => essai.mutate({ id: profil.id, entree })} disabled={essai.isPending || !entree.trim()}>
+        <Button
+          onClick={() => essai.mutate({ id: profil.id, entree })}
+          disabled={!profil.peutEssayer || essai.isPending || !entree.trim()}
+          aria-describedby={profil.peutEssayer ? undefined : "essai-role-aide"}
+        >
           {essai.isPending ? t("agentBureau.test.running") : t("agentBureau.test.run")}
         </Button>
-        <Button
-          variant="secondary"
-          onClick={() => publication.mutate({ id: profil.id, action: "publier" })}
-          disabled={!estResponsable || !essaiFait || publication.isPending}
-          aria-describedby="essai-publication-aide"
-        >
-          {t("agentBureau.test.publish")}
-        </Button>
+        {!profil.active && (
+          <Button
+            variant="secondary"
+            onClick={() => publication.mutate({ id: profil.id, action: "publier" })}
+            disabled={!estResponsable || publication.isPending}
+            aria-describedby="essai-publication-aide"
+          >
+            {t("agentBureau.test.publish")}
+          </Button>
+        )}
         {profil.active && (
           <Button variant="outline" onClick={() => publication.mutate({ id: profil.id, action: "desactiver" })} disabled={!estResponsable || publication.isPending}>
             {t("agentBureau.test.disable")}
@@ -288,16 +311,19 @@ function OngletTest({ profils, estResponsable }: { profils: ProfilAgent[]; estRe
         )}
         <Badge variant={profil.active ? "default" : "outline"}>{profil.active ? t("agentBureau.active") : t("agentBureau.inactive")}</Badge>
       </div>
+      {!profil.peutEssayer && <p id="essai-role-aide" className="text-xs text-muted-foreground">{t("agentBureau.test.roleRefused")}</p>}
       <p id="essai-publication-aide" className="text-xs text-muted-foreground">
-        {!estResponsable ? t("agentBureau.test.managersOnly") : !essaiFait ? t("agentBureau.test.publishHint") : ""}
+        {!estResponsable ? t("agentBureau.test.managersOnly") : t("agentBureau.test.publishHint")}
       </p>
-      {essai.isError && essai.variables?.id === profil.id && <p role="alert" className="text-destructive">{essai.error.message}</p>}
-      {publication.isError && <p role="alert" className="text-destructive">{publication.error.message}</p>}
+      {essai.isError && essai.variables?.id === profil.id && <p role="alert" className="text-destructive">{messageDeErreur(t, essai.error)}</p>}
+      {publication.isError && publication.variables?.id === profil.id && <p role="alert" className="text-destructive">{messageDeErreur(t, publication.error)}</p>}
 
       {resultat && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base"><h2>{t("agentBureau.test.actions")}</h2></CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {!resultat.valide && <p data-testid="essai-non-valide" className="text-amber-700 dark:text-amber-300">{t("agentBureau.test.invalid")}</p>}
+            {resultat.incomplet && <p className="text-muted-foreground">{t("agentBureau.test.incomplete")}</p>}
             {resultat.actions.length === 0 ? (
               <p className="text-muted-foreground">{t("agentBureau.test.noActions")}</p>
             ) : (

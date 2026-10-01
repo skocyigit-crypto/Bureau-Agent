@@ -23,7 +23,7 @@ export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "pending_action"; messageId: number; toolName: string; toolArgs: unknown; summary: string }
   | { type: "done" }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string; code?: string };
 
 interface GeminiPart {
   text?: string;
@@ -148,9 +148,9 @@ export async function runAssistantTurn(
 
   // Profil de la conversation, relu a chaque tour : il borne a la fois les
   // outils proposes au modele et ceux qu'`executeTool` acceptera.
-  const profil = await agentDeConversation(conversationId, ctx.orgId);
+  const profil = await agentDeConversation(conversationId, ctx.orgId, ctx.userId);
   if (!profil.ok) {
-    emit({ type: "error", error: profil.error });
+    emit({ type: "error", error: profil.error, code: profil.code });
     return;
   }
   const agent = profil.agent;
@@ -301,6 +301,10 @@ export async function runAssistantTurn(
   emit({ type: "done" });
 }
 
+/** Code (traduit par l'ecran) d'une action en attente proposee avant les profils. */
+export const CODE_ACTION_ANTERIEURE = "action_anterieure_profils";
+export const MESSAGE_ACTION_ANTERIEURE = "Cette action a ete proposee avant les profils d'agents : elle n'a pas ete executee. Rouvrez la demande sous le profil adapte.";
+
 /** Resume a paused conversation after the user approves or rejects a pending tool call. */
 export async function resolvePendingAction(
   conversationId: number,
@@ -329,13 +333,43 @@ export async function resolvePendingAction(
   }
 
   // Le profil sous lequel l'action s'executera est celui de la conversation
-  // AUJOURD'HUI : desactive, rien n'est revendique ni execute.
-  const profil = await agentDeConversation(conversationId, ctx.orgId);
+  // AUJOURD'HUI, pour le role ACTUEL de l'utilisateur : desactive ou role
+  // retrograde, rien n'est revendique ni execute.
+  const profil = await agentDeConversation(conversationId, ctx.orgId, ctx.userId);
   if (!profil.ok) {
-    emit({ type: "error", error: profil.error });
+    emit({ type: "error", error: profil.error, code: profil.code });
     return;
   }
   const agent = profil.agent;
+
+  // Action proposee AVANT les profils : une conversation de l'epoque (profil
+  // nul = assistant universel) peut porter un send_email ou un create_contact
+  // en attente, outil que l'assistant restreint n'a plus. Aujourd'hui un outil
+  // hors profil ne devient jamais une action en attente (il est refuse des la
+  // proposition), donc ce cas ne vient que de la. On ne l'execute pas, et on
+  // ne le « consomme » pas en silence : la ligne est marquee avec la raison,
+  // l'historique la montre, et l'ecran traduit le code.
+  // Un refus (« Annuler ») reste un refus ordinaire : rien a executer.
+  if (decision === "approve" && !outilAutorisePourAgent(agent, callRow.toolName)) {
+    const marque = await db.update(assistantMessagesTable)
+      .set({ toolResult: { resolution: "refusee_profil", code: CODE_ACTION_ANTERIEURE, resolvedBy: ctx.userId, resolvedAt: new Date().toISOString() } })
+      .where(and(
+        eq(assistantMessagesTable.id, callRow.id),
+        eq(assistantMessagesTable.organisationId, ctx.orgId),
+        eq(assistantMessagesTable.role, "tool_call"),
+        isNull(assistantMessagesTable.toolResult),
+      ))
+      .returning({ id: assistantMessagesTable.id });
+    if (marque.length > 0) {
+      await db.insert(assistantMessagesTable).values({
+        conversationId, organisationId: ctx.orgId, role: "tool_pending_resolved",
+        toolName: callRow.toolName, toolArgs: (callRow.toolArgs as Record<string, unknown>) ?? {},
+        toolResult: { error: MESSAGE_ACTION_ANTERIEURE, code: CODE_ACTION_ANTERIEURE, executee: false }, content: "",
+      });
+    }
+    emit({ type: "error", error: MESSAGE_ACTION_ANTERIEURE, code: CODE_ACTION_ANTERIEURE });
+    return;
+  }
 
   // Appels resolus avant que la resolution soit inscrite sur l'appel lui-meme :
   // leur `tool_pending_resolved` est la seule trace. On le cherche APRES cet

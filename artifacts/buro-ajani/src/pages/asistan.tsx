@@ -8,10 +8,16 @@ import { useTranslation } from "@/i18n";
 import { TalkingAvatar,type SpeechLang,type TalkingAvatarHandle } from "@workspace/ai-avatar";
 import { AlertCircle,Check,CheckCircle2,Loader2,MessageSquare,Plus,RotateCcw,Send,ShieldAlert,Sparkles,Square,Trash2,Volume2,VolumeX,Wrench,X } from "lucide-react";
 import { useCallback,useEffect,useRef,useState } from "react";
+import { messageErreurAgent, traduireOuRepli } from "@/lib/erreurs-agents";
 
 const API = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 
-interface Conversation { id: number; title: string; updatedAt: string; }
+interface Conversation { id: number; title: string; updatedAt: string; profilAgent?: string | null; }
+
+/** Profil metier tel que GET /api/ajans/profils le decrit pour la session. */
+interface ProfilDispo { id: string; nom: string; active: boolean; roleAutorise: boolean }
+
+const PROFIL_ASSISTANT = "assistant";
 interface Message {
   id: number; role: "user" | "assistant" | "tool_call" | "tool_result";
   content: string; toolName?: string | null; toolArgs?: any; toolResult?: any;
@@ -98,6 +104,12 @@ export default function AsistanPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // Profil de la PROCHAINE conversation. Les pouvoirs retires a l'assistant
+  // general (e-mail, SMS, CRM, journal d'appels...) vivent dans les profils
+  // metier : sans ce choix, l'ecran n'aurait aucun moyen d'y acceder. Le
+  // serveur revalide (actif + role) a la creation et a chaque tour.
+  const [profil, setProfil] = useState<string>(PROFIL_ASSISTANT);
+  const [profilsDispo, setProfilsDispo] = useState<ProfilDispo[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -138,6 +150,28 @@ export default function AsistanPage() {
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
   useEffect(() => {
+    let actif = true;
+    void (async () => {
+      try {
+        const r = await fetch(`${API}/api/ajans/profils`, { credentials: "include" });
+        if (!r.ok) return;
+        const d = (await r.json()) as { profils?: ProfilDispo[] };
+        // Seuls les profils que CE role peut ouvrir et qui sont actifs ici :
+        // proposer les autres, c'est proposer un refus.
+        if (actif) setProfilsDispo((d.profils ?? []).filter((p) => p.active && p.roleAutorise));
+      } catch { /* l'assistant general reste disponible */ }
+    })();
+    return () => { actif = false; };
+  }, []);
+
+  const nomProfil = (id: string) => {
+    if (id === PROFIL_ASSISTANT) return t("asistan.profile.assistant");
+    const p = profilsDispo.find((x) => x.id === id);
+    return traduireOuRepli(t, `agentBureau.profiles.${id}.nom`, p?.nom ?? id);
+  };
+  const profilActif = activeId !== null ? (conversations.find((c) => c.id === activeId)?.profilAgent ?? PROFIL_ASSISTANT) : profil;
+
+  useEffect(() => {
     try { window.localStorage.setItem(VOICE_PREF_KEY, JSON.stringify({ on: voiceOn, lang: voiceLang })); } catch { /* ignore */ }
   }, [voiceOn, voiceLang]);
 
@@ -164,7 +198,7 @@ export default function AsistanPage() {
   const consumeStream = async (res: Response, convIdRef: { current: number | null }) => {
     if (!res.ok || !res.body) {
       const err = await res.json().catch(() => ({ error: t("asistan.toast.networkError") }));
-      toast({ title: t("asistan.toast.failed"), description: err.error ?? t("asistan.toast.requestFailed"), variant: "destructive" });
+      toast({ title: t("asistan.toast.failed"), description: messageErreurAgent(t, err.code, err.error ?? t("asistan.toast.requestFailed"), res.status), variant: "destructive" });
       return;
     }
     const reader = res.body.getReader();
@@ -220,7 +254,7 @@ export default function AsistanPage() {
           setLiveText(null);
           loadConversations();
         } else if (event === "error") {
-          toast({ title: t("asistan.toast.error"), description: data.error ?? t("asistan.toast.assistantError"), variant: "destructive" });
+          toast({ title: t("asistan.toast.error"), description: messageErreurAgent(t, data.code, data.error ?? t("asistan.toast.assistantError")), variant: "destructive" });
         }
       }
     }
@@ -247,7 +281,8 @@ export default function AsistanPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: activeId ?? undefined, message: text }),
+        // Le profil ne part qu'a la creation : ensuite il est fixe cote serveur.
+        body: JSON.stringify(activeId ? { conversationId: activeId, message: text } : { message: text, profil }),
       });
       await consumeStream(res, convRef);
     } catch (err: any) {
@@ -429,6 +464,25 @@ export default function AsistanPage() {
         </ScrollArea>
 
         <div className="p-3 border-t bg-card">
+          <div className="max-w-3xl mx-auto mb-2 flex flex-wrap items-center gap-2 text-xs">
+            <label htmlFor="asistan-profil" className="font-medium">{t("asistan.profile.label")}</label>
+            <select
+              id="asistan-profil"
+              data-testid="select-assistant-profile"
+              className="rounded-md border bg-background px-2 py-1 text-xs"
+              value={profilActif}
+              onChange={(e) => setProfil(e.target.value)}
+              disabled={activeId !== null || streaming}
+              aria-describedby="asistan-profil-aide"
+            >
+              <option value={PROFIL_ASSISTANT}>{t("asistan.profile.assistant")}</option>
+              {profilsDispo.map((p) => <option key={p.id} value={p.id}>{nomProfil(p.id)}</option>)}
+              {activeId !== null && profilActif !== PROFIL_ASSISTANT && !profilsDispo.some((p) => p.id === profilActif) && (
+                <option value={profilActif}>{nomProfil(profilActif)}</option>
+              )}
+            </select>
+            <span id="asistan-profil-aide" className="text-muted-foreground">{t("asistan.profile.hint")}</span>
+          </div>
           <div className="max-w-3xl mx-auto flex gap-2 items-end">
             <Textarea
               aria-label={t("asistan.inputPlaceholder")}

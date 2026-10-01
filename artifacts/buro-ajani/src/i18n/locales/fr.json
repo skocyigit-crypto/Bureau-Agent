@@ -4795,6 +4795,11 @@
       "error": "Erreur",
       "assistantError": "Erreur de l'assistant",
       "connectionLost": "Connexion perdue"
+    },
+    "profile": {
+      "label": "Agent",
+      "assistant": "Assistant général",
+      "hint": "Choisi à la création de la conversation ; chaque agent n'a que ses propres outils."
     }
   },
   "equipeIa": {
@@ -10261,8 +10266,8 @@
     "tabsLabel": "Sections d'Ajan Bureau",
     "loading": "Chargement des agents…",
     "error": "Les agents n'ont pas pu être chargés.",
-    "active": "Publié",
-    "inactive": "Non publié",
+    "active": "Actif",
+    "inactive": "Désactivé",
     "reservedManagers": "Réservé aux responsables",
     "tools": "Outils autorisés",
     "sources": "Sources",
@@ -10288,11 +10293,11 @@
       "actions": "Ce que l'agent aurait fait",
       "noActions": "L'agent n'aurait appelé aucun outil.",
       "answer": "Réponse de l'agent",
-      "publish": "Publier pour l'organisation",
+      "publish": "Activer pour l'organisation",
       "disable": "Désactiver",
-      "publishHint": "Lancez d'abord un essai réussi.",
+      "publishHint": "Les agents sont actifs par défaut. Un essai à blanc est conseillé avant de réactiver un agent.",
       "managersOnly": "Seul un responsable peut publier un agent.",
-      "published": "Agent publié pour l'organisation.",
+      "published": "Agent activé pour l'organisation.",
       "disabled": "Agent désactivé.",
       "done_one": "Essai terminé : {{count}} action décrite.",
       "done_other": "Essai terminé : {{count}} actions décrites.",
@@ -10300,7 +10305,85 @@
         "simulee": "aurait été fait",
         "approbation": "aurait attendu une approbation",
         "refusee": "refusé (hors profil)"
+      },
+      "roleRefused": "Votre rôle ne permet pas d'essayer cet agent.",
+      "invalid": "Cet essai n'a montré aucune action que l'agent pouvait faire : il ne compte pas comme essai valide.",
+      "incomplete": "L'agent appelait encore des outils quand l'essai s'est arrêté (3 tours maximum)."
+    },
+    "profiles": {
+      "telephone": {
+        "nom": "Agent téléphone",
+        "mission": "Traite les appels et messages entrants : retrouve l'appelant, inscrit l'appel, propose un rappel ou des créneaux.",
+        "exemple": "Mme Durand a appelé à 9 h pour une fuite sous l'évier, rappelez-la et proposez-lui un créneau demain.",
+        "handoff": {
+          "0": "appelant mécontent ou urgence",
+          "1": "demande de devis ou de prix",
+          "2": "contact introuvable",
+          "3": "toute suppression d'appel"
+        }
+      },
+      "crm": {
+        "nom": "Agent CRM",
+        "mission": "Tient les contacts et les prospects à jour, et prépare les relances commerciales.",
+        "exemple": "Nouveau prospect : SCI Les Tilleuls, ravalement de façade, contact Paul Martin paul@tilleuls.fr. Créez-le et planifiez une relance.",
+        "handoff": {
+          "0": "prospect au-delà de 20 000 EUR",
+          "1": "réclamation client",
+          "2": "doublon de contact incertain",
+          "3": "tout e-mail sortant"
+        }
+      },
+      "planning": {
+        "nom": "Agent planning",
+        "mission": "Organise l'agenda et les tâches : crée, déplace ou annule un rendez-vous, propose des créneaux.",
+        "exemple": "Déplacez la visite de chantier de jeudi 10 h à vendredi 14 h et créez une tâche de préparation.",
+        "handoff": {
+          "0": "conflit entre deux rendez-vous confirmés",
+          "1": "toute annulation",
+          "2": "équipe indisponible"
+        }
+      },
+      "chantier": {
+        "nom": "Agent chantier",
+        "mission": "Suit les chantiers : met à jour l'avancement, crée les tâches, produit les comptes rendus.",
+        "exemple": "Chantier Dupont : le carrelage est posé, passez l'avancement à 60 % et créez la tâche de joints pour lundi.",
+        "handoff": {
+          "0": "incident de sécurité",
+          "1": "dépassement de budget",
+          "2": "travaux supplémentaires non signés"
+        }
+      },
+      "finance": {
+        "nom": "Agent finance",
+        "mission": "Lit la situation financière, prépare les états et les relances de factures impayées.",
+        "exemple": "Faites le point sur les factures impayées du mois et préparez une relance pour la plus ancienne.",
+        "handoff": {
+          "0": "toute relance de paiement (e-mail sortant)",
+          "1": "litige sur une facture",
+          "2": "montant au-delà de 5 000 EUR"
+        }
+      },
+      "coordinateur": {
+        "nom": "Coordinateur",
+        "mission": "Vue d'ensemble : lit l'activité de tous les domaines et répartit le travail par des tâches. N'agit pas à la place des autres agents.",
+        "exemple": "Que faut-il traiter en priorité aujourd'hui ? Répartissez les urgences en tâches.",
+        "handoff": {
+          "0": "toute action qui relève d'un autre profil (envoi, CRM, finance)",
+          "1": "priorités contradictoires"
+        }
       }
     }
+  },
+  "agentErrors": {
+    "quota_ia": "Quota IA épuisé : l'essai n'a pas été lancé. Augmentez le quota ou attendez la prochaine période.",
+    "essai_requis": "Lancez d'abord un essai à blanc réussi.",
+    "profil_role": "Ce profil est réservé aux responsables : votre rôle ne permet pas de l'utiliser.",
+    "profil_desactive": "Ce profil est désactivé dans votre organisation. Ouvrez une nouvelle conversation sous un autre profil.",
+    "profil_inconnu": "Profil d'agent inconnu.",
+    "essai_trop_frequent": "Trop d'essais. Réessayez dans quelques minutes.",
+    "essai_invalide": "Exemple invalide.",
+    "essai_echoue": "L'essai a échoué : le modèle n'a pas répondu.",
+    "action_anterieure_profils": "Cette action a été proposée avant les profils d'agents : elle n'a pas été exécutée. Rouvrez la demande sous le profil adapté.",
+    "generic": "La requête a échoué (HTTP {{status}})."
   }
 }

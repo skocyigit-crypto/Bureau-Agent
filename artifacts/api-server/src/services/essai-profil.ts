@@ -12,13 +12,19 @@
  * « essai », pour que la publication puisse la citer) et l'usage IA, qui est
  * reellement consomme.
  *
- * Quota epuise : erreur explicite (AiQuotaExceededError), jamais un essai
- * « reussi » vide qui laisserait publier un agent qui n'a rien montre.
+ * Quota : verifie et reserve AVANT CHAQUE appel au modele (un essai peut en
+ * faire trois), l'usage inscrit (await, avec l'utilisateur) puis le cache de
+ * quota invalide APRES l'ecriture. Quota epuise : erreur explicite
+ * (AiQuotaExceededError), jamais un essai « reussi » vide.
+ *
+ * Validite : un essai sans aucune action prevue, ou dont toutes les actions
+ * ont ete refusees, est inscrit tel quel (valide=false) et n'est pas cite comme
+ * dernier essai du profil — il n'a rien montre.
  */
 import { and, eq } from "drizzle-orm";
 import { db, agentProfileSettingsTable, agentRunsTable } from "@workspace/db";
 import { callOrgGemini } from "./ai-providers";
-import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
+import { assertAiQuota, invalidateQuotaCache, reserveAiCall } from "./ai-quota";
 import { executeTool, getGeminiToolDeclarations } from "./assistant-tools";
 import { palierOutil, exigeApprobation, type PalierOutil } from "./catalogue-agents";
 import { ajouterEtape, demarrerExecution, terminerExecution } from "./journal-agents";
@@ -44,6 +50,15 @@ export interface ResultatEssai {
   profil: string;
   actions: ActionEssai[];
   reponse: string;
+  /** Au moins une action prevue et non refusee. */
+  valide: boolean;
+  /** Les tours sont epuises alors que le modele appelait encore des outils. */
+  incomplet: boolean;
+}
+
+/** Un essai compte s'il a montre au moins une action que le profil pouvait faire. */
+export function essaiAMontreQuelqueChose(actions: readonly ActionEssai[]): boolean {
+  return actions.some((a) => a.statut !== "refusee");
 }
 
 interface Part { text?: string; functionCall?: { name: string; args?: Record<string, unknown> } }
@@ -59,8 +74,8 @@ Reponds en francais, en une ou deux phrases, ce que tu aurais fait.`;
 export async function essayerProfil(orgId: number, userId: number, profilId: string, entree: string): Promise<ResultatEssai> {
   const p = profilMetier(profilId);
   if (!p) throw new Error(`Profil inconnu : ${profilId}`);
-  // Avant tout appel et toute trace : un quota epuise se dit, il ne produit pas
-  // un essai vide.
+  // Avant toute trace : un quota epuise se dit, il ne produit pas un essai vide.
+  // (Revu avant chaque appel dans la boucle.)
   await assertAiQuota(orgId);
 
   const runId = await demarrerExecution({
@@ -69,22 +84,36 @@ export async function essayerProfil(orgId: number, userId: number, profilId: str
   });
   const actions: ActionEssai[] = [];
   let reponse = "";
+  let incomplet = false;
   try {
     const contents: Array<{ role: string; parts: unknown[] }> = [{ role: "user", parts: [{ text: entree }] }];
     for (let tour = 0; tour < TOURS_MAX; tour++) {
+      // Chaque appel Pro coute : quota relu et reserve a CHAQUE tour, comme les
+      // autres routes IA (routes/ai-agents.ts), pour que des essais lances en
+      // parallele pres du plafond ne le franchissent pas ensemble.
+      await assertAiQuota(orgId);
+      const liberer = reserveAiCall(orgId);
       const t0 = Date.now();
-      const brut = await callOrgGemini(orgId, (client) => client.models.generateContent({
-        model: MODELE,
-        contents,
-        config: { systemInstruction: consigne(p), tools: [getGeminiToolDeclarations(p.id)] },
-      })) as Reponse;
-      const jetons = extractGeminiTokens(brut);
+      let brut: Reponse;
+      let jetons: { input: number; output: number };
+      try {
+        brut = await callOrgGemini(orgId, (client) => client.models.generateContent({
+          model: MODELE,
+          contents,
+          config: { systemInstruction: consigne(p), tools: [getGeminiToolDeclarations(p.id)] },
+        })) as Reponse;
+        jetons = extractGeminiTokens(brut);
+        // Inscrit AVANT d'invalider le cache : sinon le prochain controle peut
+        // remplir le cache d'une somme qui ignore cet appel.
+        await recordAiUsage({
+          organisationId: orgId, userId, provider: "gemini", model: MODELE, route: `/ajans/profils/${p.id}/essai`,
+          inputTokens: jetons.input, outputTokens: jetons.output, durationMs: Date.now() - t0, runId,
+        });
+        invalidateQuotaCache(orgId);
+      } finally {
+        liberer();
+      }
       const coutUsd = estimateAiCostUsd(MODELE, jetons.input, jetons.output);
-      recordAiUsage({
-        organisationId: orgId, provider: "gemini", model: MODELE, route: `/ajans/profils/${p.id}/essai`,
-        inputTokens: jetons.input, outputTokens: jetons.output, durationMs: Date.now() - t0, runId,
-      }).catch(() => {});
-      invalidateQuotaCache(orgId);
       await ajouterEtape(runId, orgId, {
         kind: "llm", name: "essai", status: "ok",
         usage: { inputTokens: jetons.input, outputTokens: jetons.output, costUsd: coutUsd, durationMs: Date.now() - t0 },
@@ -116,22 +145,35 @@ export async function essayerProfil(orgId: number, userId: number, profilId: str
         });
         retours.push({ functionResponse: { name: nom, response: r.ok ? (r.result as Record<string, unknown>) : { error: r.error } } });
       }
+      // Dernier tour et le modele appelle encore des outils : on n'envoie pas
+      // un appel de plus hors budget, on le dit (incomplet) plutot que de rendre
+      // une reponse vide comme si l'essai avait abouti.
+      if (tour === TOURS_MAX - 1) { incomplet = true; break; }
       contents.push({ role: "function", parts: retours });
     }
-    await terminerExecution(runId, orgId, { status: "terminee", output: { simulation: true, actions: actions.length, reponse: reponse.slice(0, 500) } });
+    const valide = essaiAMontreQuelqueChose(actions);
+    await terminerExecution(runId, orgId, {
+      status: "terminee",
+      output: { simulation: true, valide, incomplet, actions: actions.length, refusees: actions.filter((a) => a.statut === "refusee").length, reponse: reponse.slice(0, 500) },
+    });
   } catch (err) {
     await terminerExecution(runId, orgId, { status: "echouee", error: err instanceof Error ? err.message : String(err) });
     throw err;
   }
 
-  // Le dernier essai reussi est celui que la publication citera.
-  await db.insert(agentProfileSettingsTable)
-    .values({ organisationId: orgId, agentId: p.id, lastDryRunId: runId })
-    .onConflictDoUpdate({
-      target: [agentProfileSettingsTable.organisationId, agentProfileSettingsTable.agentId],
-      set: { lastDryRunId: runId, updatedAt: new Date() },
-    });
-  return { runId, profil: p.id, actions, reponse };
+  const valide = essaiAMontreQuelqueChose(actions);
+  // Seul un essai qui a montre quelque chose devient « le dernier essai » cite
+  // a la publication. `enabled: true` a l'insertion : l'absence de ligne vaut
+  // actif, creer la ligne pour noter un essai ne doit pas desactiver le profil.
+  if (valide) {
+    await db.insert(agentProfileSettingsTable)
+      .values({ organisationId: orgId, agentId: p.id, enabled: true, lastDryRunId: runId })
+      .onConflictDoUpdate({
+        target: [agentProfileSettingsTable.organisationId, agentProfileSettingsTable.agentId],
+        set: { lastDryRunId: runId, updatedAt: new Date() },
+      });
+  }
+  return { runId, profil: p.id, actions, reponse, valide, incomplet };
 }
 
 /** L'essai cite appartient-il a cette organisation, a ce profil, et a-t-il abouti ? */
@@ -139,9 +181,11 @@ export async function essaiValide(orgId: number, profilId: string): Promise<numb
   const [s] = await db.select({ run: agentProfileSettingsTable.lastDryRunId }).from(agentProfileSettingsTable)
     .where(and(eq(agentProfileSettingsTable.organisationId, orgId), eq(agentProfileSettingsTable.agentId, profilId)));
   if (!s?.run) return null;
-  const [run] = await db.select({ id: agentRunsTable.id }).from(agentRunsTable).where(and(
+  const [run] = await db.select({ id: agentRunsTable.id, output: agentRunsTable.output }).from(agentRunsTable).where(and(
     eq(agentRunsTable.id, s.run), eq(agentRunsTable.organisationId, orgId),
     eq(agentRunsTable.agentId, profilId), eq(agentRunsTable.trigger, TRIGGER_ESSAI), eq(agentRunsTable.status, "terminee"),
   ));
-  return run?.id ?? null;
+  if (!run) return null;
+  // Un essai qui n'a rien montre (valide=false) ne compte pas.
+  return (run.output as { valide?: boolean } | null)?.valide === true ? run.id : null;
 }

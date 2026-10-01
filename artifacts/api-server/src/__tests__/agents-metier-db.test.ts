@@ -12,8 +12,15 @@
  *     par la boucle de conversation, ni par une confirmation en attente ;
  *  3. l'essai a blanc decrit ce que l'agent ferait sans rien ecrire, et un
  *     quota epuise se dit (429), il ne rend pas un essai vide ;
- *  4. la publication est reservee aux responsables, exige un essai abouti de
- *     la MEME organisation, est journalisee, et bornee a l'organisation.
+ *  4. la publication est reservee aux responsables, est journalisee (la
+ *     reactivation aussi), et bornee a l'organisation ;
+ *  5. revue du lot 3 — une decision par bloc : A actif par defaut (aucun
+ *     client existant ne perd ses pouvoirs), B le profil choisi a l'ecrit et a
+ *     la voix est valide pareil, C le role est relu a chaque tour et a chaque
+ *     confirmation, D l'essai est reserve aux roles du profil, controle le
+ *     quota a chaque appel et un essai vide ne compte pas, E une action
+ *     proposee avant les profils est refusee avec un code, sans etre consommee
+ *     en silence.
  *
  * Seule la sortie du modele est simulee (callOrgGemini) ; le quota est
  * pilotable pour le cas « epuise ».
@@ -29,7 +36,7 @@ import { and, eq, sql } from "drizzle-orm";
 import {
   db, organisationsTable, usersTable, contactsTable, tasksTable, prospectsTable, callsTable,
   agentProposalsTable, agentRunsTable, agentRunStepsTable, agentProfileSettingsTable, auditLogsTable,
-  assistantConversationsTable, assistantMessagesTable,
+  assistantConversationsTable, assistantMessagesTable, aiUsageTable,
 } from "@workspace/db";
 
 const h = vi.hoisted(() => ({
@@ -37,6 +44,9 @@ const h = vi.hoisted(() => ({
   configs: [] as Array<{ config?: { tools?: Array<{ functionDeclarations: Array<{ name: string }> }> } }>,
   appelsModele: 0,
   quotaEpuise: false,
+  controlesQuota: 0,
+  /** Epuise le quota a partir du N-ieme controle (null = jamais). */
+  quotaApres: null as number | null,
 }));
 
 vi.mock("../services/ai-providers", async (importOriginal) => {
@@ -57,7 +67,10 @@ vi.mock("../services/ai-quota", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../services/ai-quota")>();
   return {
     ...actual,
-    assertAiQuota: async () => { if (h.quotaEpuise) throw new actual.AiQuotaExceededError("calls", 500, 500); },
+    assertAiQuota: async () => {
+      h.controlesQuota++;
+      if (h.quotaEpuise || (h.quotaApres !== null && h.controlesQuota >= h.quotaApres)) throw new actual.AiQuotaExceededError("calls", 500, 500);
+    },
   };
 });
 
@@ -71,6 +84,11 @@ import assistantRouter from "../routes/assistant";
 import { executeTool, getAllTools } from "../services/assistant-tools";
 import { runAssistantTurn, resolvePendingAction, type StreamEvent } from "../services/assistant-engine";
 import { enqueueProposal } from "../services/proposal-queue";
+import { executeProposal } from "../services/autonomous-secretary";
+import { essaiValide } from "../services/essai-profil";
+import { declarationsPourRole, profilVoiceLive } from "../services/admission-voice-live";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { routeInterditeAuxCles } from "../middleware/auth";
 import {
   AGENT_FILE_APPROBATION, OUTILS_ASSISTANT_UNIVERSEL, PROFILS_METIER, outilsAutorises,
@@ -141,7 +159,7 @@ beforeAll(async () => {
   ids.call = c!.id;
 });
 
-beforeEach(() => { h.reponses.length = 0; h.configs.length = 0; h.quotaEpuise = false; });
+beforeEach(() => { h.reponses.length = 0; h.configs.length = 0; h.quotaEpuise = false; h.quotaApres = null; h.controlesQuota = 0; });
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("1. executeTool, point de passage unique : hors profil = refuse ET non execute", () => {
@@ -279,17 +297,42 @@ describe("2. l'assistant universel n'est plus un super-agent", () => {
     expect(c!.notes).toBe("origine");
   });
 
-  it("une action d'envoi deja en attente (avant le deploiement) n'est pas executee a la confirmation", async () => {
+  it("E : une action deja en attente avant les profils est refusee avec un code, marquee, non executee", async () => {
     const conv = await conversation();
     const [row] = await db.insert(assistantMessagesTable).values({
       conversationId: conv, organisationId: ids.orgA, role: "tool_call", toolName: "create_contact", toolArgs: nouveauContact(), content: "",
     }).returning({ id: assistantMessagesTable.id });
     const avant = await compte(contactsTable);
-    h.reponses.push(texte("Resume."));
-    await resolvePendingAction(conv, row!.id, "approve", ctxA(), () => {});
+    const n = h.appelsModele;
+    const ev: StreamEvent[] = [];
+    await resolvePendingAction(conv, row!.id, "approve", ctxA(), (e) => ev.push(e));
     expect(await compte(contactsTable)).toBe(avant);
+    expect(ev).toContainEqual({ type: "error", code: "action_anterieure_profils", error: expect.stringMatching(/avant les profils/) });
+    // Pas de « succes » ni de reprise silencieuse du modele.
+    expect(ev.some((e) => e.type === "step" || e.type === "done")).toBe(false);
+    expect(h.appelsModele).toBe(n);
+    // La ligne n'est pas consommee sans explication : elle porte la raison.
+    const [marque] = await db.select().from(assistantMessagesTable).where(eq(assistantMessagesTable.id, row!.id));
+    expect(marque!.toolResult).toMatchObject({ resolution: "refusee_profil", code: "action_anterieure_profils" });
     const [res] = await db.select().from(assistantMessagesTable).where(and(eq(assistantMessagesTable.conversationId, conv), eq(assistantMessagesTable.role, "tool_pending_resolved")));
-    expect(JSON.stringify(res!.toolResult)).toMatch(/hors du profil/);
+    expect(res!.toolResult).toMatchObject({ code: "action_anterieure_profils", executee: false });
+    // Un second clic ne rejoue rien.
+    const ev2: StreamEvent[] = [];
+    await resolvePendingAction(conv, row!.id, "approve", ctxA(), (e) => ev2.push(e));
+    expect(await compte(contactsTable)).toBe(avant);
+  });
+
+  it("E : une proposition de la file deposee avant les profils (outil retire) est fermee avec un code, pas « echouee » en silence", async () => {
+    const [p] = await db.insert(agentProposalsTable).values({
+      organisationId: ids.orgA, runId: u("legacy"), toolName: "delete_call", title: "Supprimer", summary: "x", args: { id: ids.call },
+    }).returning({ id: agentProposalsTable.id });
+    const r = await executeProposal(p!.id, { orgId: ids.orgA, userId: ids.admin });
+    expect(r).toMatchObject({ ok: false, status: "expiree", code: "action_anterieure_profils" });
+    const [apres] = await db.select().from(agentProposalsTable).where(eq(agentProposalsTable.id, p!.id));
+    expect(apres!.status).toBe("expiree");
+    expect(apres!.result).toMatchObject({ code: "action_anterieure_profils" });
+    expect(apres!.decidedBy).toBe(ids.admin);
+    expect(await db.select().from(callsTable).where(eq(callsTable.id, ids.call))).toHaveLength(1);
   });
 
   it("temoin : sous le profil CRM publie, la meme action est proposee puis executee", async () => {
@@ -337,11 +380,12 @@ describe("2. l'assistant universel n'est plus un super-agent", () => {
     expect(r.body.code).toBe("profil_role");
   });
 
-  it("POST /assistant/chat : profil non publie dans l'organisation (403), inconnu (400)", async () => {
+  it("POST /assistant/chat : profil desactive dans l'organisation (403), inconnu (400)", async () => {
+    await publierDirect("telephone", ids.orgB, false);
     const nb = await db.select().from(assistantConversationsTable).where(eq(assistantConversationsTable.organisationId, ids.orgB));
-    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/assistant/chat").send({ message: "x", profil: "crm" });
+    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/assistant/chat").send({ message: "x", profil: "telephone" });
     expect(r.status).toBe(403);
-    expect(r.body.code).toBe("profil_non_publie");
+    expect(r.body.code).toBe("profil_desactive");
     const r2 = await request(appli("agent", ids.agent)).post("/api/assistant/chat").send({ message: "x", profil: "dieu" });
     expect(r2.status).toBe(400);
     expect(await db.select().from(assistantConversationsTable).where(eq(assistantConversationsTable.organisationId, ids.orgB))).toHaveLength(nb.length);
@@ -405,7 +449,7 @@ describe("3. essai a blanc : ce que l'agent ferait, sans rien faire", () => {
   });
 
   it("le dernier essai est memorise pour l'organisation, pas pour une autre", async () => {
-    h.reponses.push(texte("rien a faire"));
+    h.reponses.push(appel("create_task", { title: "Point" }), texte("fini"));
     const r = await request(appli()).post("/api/ajans/profils/chantier/essai").send({ entree: "Point chantier" });
     const [a] = await db.select().from(agentProfileSettingsTable).where(and(eq(agentProfileSettingsTable.organisationId, ids.orgA), eq(agentProfileSettingsTable.agentId, "chantier")));
     expect(a!.lastDryRunId).toBe(r.body.runId);
@@ -458,9 +502,9 @@ describe("3. essai a blanc : ce que l'agent ferait, sans rien faire", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe("4. publication : responsable, essai prealable, journalisee, par organisation", () => {
+describe("4. publication : responsable, journalisee, par organisation", () => {
   async function essai(profil: string, role = "administrateur", userId = ids.admin, orgId = ids.orgA) {
-    h.reponses.push(texte("essai"));
+    h.reponses.push(appel("create_task", { title: "Essai" }), texte("essai"));
     const r = await request(appli(role, userId, orgId)).post(`/api/ajans/profils/${profil}/essai`).send({ entree: "x" });
     expect(r.status).toBe(200);
     return r.body.runId as number;
@@ -474,14 +518,15 @@ describe("4. publication : responsable, essai prealable, journalisee, par organi
     const r = await request(appli("agent", ids.agent)).post("/api/ajans/profils/coordinateur/publier").send({});
     expect(r.status).toBe(403);
     const [s] = await db.select().from(agentProfileSettingsTable).where(and(eq(agentProfileSettingsTable.organisationId, ids.orgA), eq(agentProfileSettingsTable.agentId, "coordinateur")));
-    expect(s!.enabled).toBe(false);
+    expect(s!.publishedAt).toBeNull();
     expect((await audits("agent.profil_publie")).length).toBe(avant);
   });
 
-  it("sans essai, meme un administrateur ne publie pas (409 essai_requis)", async () => {
-    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/telephone/publier").send({});
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe("essai_requis");
+  it("A : publier n'exige plus d'essai (actif par defaut) ; la publication est journalisee sans essai cite", async () => {
+    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/chantier/publier").send({});
+    expect(r.status, r.text).toBe(200);
+    const a = (await audits("agent.profil_publie", ids.orgB)).filter((x) => x.resourceId === "chantier");
+    expect(a.at(-1)!.details).toMatchObject({ essai: null, reactivation: false });
   });
 
   it("apres un essai, l'administrateur publie : actif, auteur, date, audit", async () => {
@@ -497,26 +542,23 @@ describe("4. publication : responsable, essai prealable, journalisee, par organi
 
   it("l'essai d'une autre organisation ne vaut pas pour la sienne", async () => {
     await essai("telephone");
-    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/telephone/publier").send({});
-    expect(r.status).toBe(409);
+    expect(await essaiValide(ids.orgB, "telephone")).toBeNull();
   });
 
   it("un identifiant d'essai d'une autre organisation, glisse dans l'etat, est refuse", async () => {
     const runA = await essai("finance");
     await db.insert(agentProfileSettingsTable).values({ organisationId: ids.orgB, agentId: "finance", lastDryRunId: runA })
       .onConflictDoUpdate({ target: [agentProfileSettingsTable.organisationId, agentProfileSettingsTable.agentId], set: { lastDryRunId: runA } });
-    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/finance/publier").send({});
-    expect(r.status).toBe(409);
+    expect(await essaiValide(ids.orgB, "finance")).toBeNull();
   });
 
-  it("un essai echoue ne permet pas de publier", async () => {
+  it("un essai echoue n'est pas un essai valide", async () => {
     h.reponses.push(new Error("panne"));
     await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/planning/essai").send({ entree: "x" });
     const [run] = await db.select().from(agentRunsTable).where(and(eq(agentRunsTable.organisationId, ids.orgB), eq(agentRunsTable.agentId, "planning")));
     await db.insert(agentProfileSettingsTable).values({ organisationId: ids.orgB, agentId: "planning", lastDryRunId: run!.id })
       .onConflictDoUpdate({ target: [agentProfileSettingsTable.organisationId, agentProfileSettingsTable.agentId], set: { lastDryRunId: run!.id } });
-    const r = await request(appli("administrateur", ids.adminB, ids.orgB)).post("/api/ajans/profils/planning/publier").send({});
-    expect(r.status).toBe(409);
+    expect(await essaiValide(ids.orgB, "planning")).toBeNull();
   });
 
   it("desactiver : refuse a un agent, accepte et journalise pour un administrateur", async () => {
@@ -543,6 +585,7 @@ describe("4. publication : responsable, essai prealable, journalisee, par organi
     expect(crm.active).toBe(true);
     expect(crm.transfertHumain.conditions.length).toBeGreaterThan(0);
     expect(crm.outils).toContainEqual({ nom: "send_email", palier: "externe" });
+    await publierDirect("crm", ids.orgB, false);
     const b = await request(appli("administrateur", ids.adminB, ids.orgB)).get("/api/ajans/profils");
     expect(b.body.profils.find((p: { id: string }) => p.id === "crm").active).toBe(false);
   });
@@ -558,5 +601,170 @@ describe("4. publication : responsable, essai prealable, journalisee, par organi
     expect(routeInterditeAuxCles("GET", "/api/ajans/profils")).toBe(false);
     const r = await request(appli("administrateur", ids.admin, ids.orgA, { viaCleApi: 1 })).post("/api/ajans/profils/crm/publier").send({});
     expect(r.status).toBe(403);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe("5. revue du lot 3 : une decision par bloc", () => {
+  async function orgNeuve() {
+    const [o] = await db.insert(organisationsTable).values({ name: u("Neuve"), slug: u("agm-neuve"), maxUsers: 9, actif: true }).returning({ id: organisationsTable.id });
+    const [usr] = await db.insert(usersTable).values({ organisationId: o!.id, email: `${u("neuve")}@exemple.test`, passwordHash: "x", prenom: "N", nom: "T", role: "agent", actif: true }).returning({ id: usersTable.id });
+    return { orgId: o!.id, userId: usr!.id };
+  }
+  async function utilisateur(role: string, orgId = ids.orgA) {
+    const [x] = await db.insert(usersTable).values({ organisationId: orgId, email: `${u("usr")}@exemple.test`, passwordHash: "x", prenom: "U", nom: "T", role, actif: true }).returning({ id: usersTable.id });
+    return x!.id;
+  }
+
+  // A — aucun client existant ne perd ses pouvoirs le jour du deploiement.
+  it("A : organisation sans aucune ligne de reglage — le profil CRM est actif et cree un contact apres confirmation", async () => {
+    const { orgId, userId } = await orgNeuve();
+    expect(await db.select().from(agentProfileSettingsTable).where(eq(agentProfileSettingsTable.organisationId, orgId))).toHaveLength(0);
+    const avant = await compte(contactsTable, orgId);
+    h.reponses.push(appel("create_contact", nouveauContact()));
+    const r = await request(appli("agent", userId, orgId)).post("/api/assistant/chat").send({ message: u("Ajoute Paul"), profil: "crm" });
+    expect(r.status, r.text).toBe(200);
+    expect(r.text).toMatch(/event: pending_action/);
+    const convId = Number(/"conversationId":(\d+)/.exec(r.text)![1]);
+    const msgId = Number(/"messageId":(\d+)/.exec(r.text)![1]);
+    h.reponses.push(texte("Contact cree."));
+    const c = await request(appli("agent", userId, orgId)).post("/api/assistant/confirm").send({ conversationId: convId, messageId: msgId, decision: "approve" });
+    expect(c.status).toBe(200);
+    expect(await compte(contactsTable, orgId)).toBe(avant + 1);
+  });
+
+  it("A : GET /ajans/profils sans ligne — les six profils sont actifs ; un essai ne desactive pas le profil", async () => {
+    const { orgId, userId } = await orgNeuve();
+    const g = await request(appli("agent", userId, orgId)).get("/api/ajans/profils");
+    expect(g.body.profils.every((p: { active: boolean }) => p.active)).toBe(true);
+    h.reponses.push(appel("create_task", { title: "x" }), texte("fin"));
+    expect((await request(appli("agent", userId, orgId)).post("/api/ajans/profils/crm/essai").send({ entree: "x" })).status).toBe(200);
+    const g2 = await request(appli("agent", userId, orgId)).get("/api/ajans/profils");
+    expect(g2.body.profils.find((p: { id: string }) => p.id === "crm").active).toBe(true);
+  });
+
+  it("A : desactiver sans ligne cree l'etat desactive ; reactiver est journalise comme reactivation", async () => {
+    const { orgId } = await orgNeuve();
+    const a = appli("administrateur", await utilisateur("administrateur", orgId), orgId);
+    expect((await request(a).post("/api/ajans/profils/planning/desactiver").send({})).status).toBe(200);
+    const g = await request(a).get("/api/ajans/profils");
+    expect(g.body.profils.find((p: { id: string }) => p.id === "planning").active).toBe(false);
+    expect((await request(a).post("/api/ajans/profils/planning/publier").send({})).status).toBe(200);
+    const rea = await db.select().from(auditLogsTable).where(and(eq(auditLogsTable.organisationId, orgId), eq(auditLogsTable.action, "agent.profil_reactive")));
+    expect(rea).toHaveLength(1);
+    expect(rea[0]!.details).toMatchObject({ reactivation: true });
+  });
+
+  // B — meme validation a l'ecrit et a la voix.
+  it("B : GET /ajans/profils dit au role ce qu'il peut ouvrir et essayer", async () => {
+    const g = await request(appli("agent", ids.agent)).get("/api/ajans/profils");
+    const par = Object.fromEntries(g.body.profils.map((p: { id: string; roleAutorise: boolean; peutEssayer: boolean }) => [p.id, [p.roleAutorise, p.peutEssayer]]));
+    expect(par.finance).toEqual([false, false]);
+    expect(par.crm).toEqual([true, true]);
+    const l = await request(appli("lecture_seule", ids.lecteur)).get("/api/ajans/profils");
+    expect(l.body.profils.find((p: { id: string }) => p.id === "crm").peutEssayer).toBe(false);
+  });
+
+  it("B : voix — profil valide comme le chat (role, desactive, inconnu), assistant par defaut", async () => {
+    expect(await profilVoiceLive(ids.orgA, "agent", null)).toEqual({ ok: true, agent: "assistant" });
+    expect(await profilVoiceLive(ids.orgA, "agent", "crm")).toEqual({ ok: true, agent: "crm" });
+    expect(await profilVoiceLive(ids.orgA, "agent", "finance")).toMatchObject({ ok: false, code: "profil_role" });
+    expect(await profilVoiceLive(ids.orgA, "agent", "dieu")).toMatchObject({ ok: false, code: "profil_inconnu" });
+    await publierDirect("telephone", ids.orgB, false);
+    expect(await profilVoiceLive(ids.orgB, "administrateur", "telephone")).toMatchObject({ ok: false, code: "profil_desactive" });
+    expect(declarationsPourRole("agent", "crm").map((d) => d.name)).toContain("send_email");
+    expect(declarationsPourRole("agent").map((d) => d.name)).not.toContain("send_email");
+  });
+
+  it("B : voix — la route lit ?profil=, le valide AVANT d'ouvrir la WebSocket et passe l'agent partout", () => {
+    const src = readFileSync(resolve(__dirname, "../routes/voice-live.ts"), "utf8");
+    const i = src.indexOf("await profilVoiceLive(");
+    expect(i).toBeGreaterThan(-1);
+    expect(i).toBeLessThan(src.indexOf("wss.handleUpgrade("));
+    expect(src).toContain('searchParams.get("profil")');
+    expect(src).not.toMatch(/agent: PROFIL_ASSISTANT/);
+  });
+
+  // C — le role est relu a chaque tour et a chaque confirmation.
+  it("C : administrateur retrograde en agent — refuse au tour suivant (profil_role), le modele n'est pas appele", async () => {
+    const adm = await utilisateur("administrateur");
+    const conv = await conversation("finance", ids.orgA, adm);
+    h.reponses.push(texte("Voici les impayes."));
+    const ok = await tour(conv, { orgId: ids.orgA, userId: adm });
+    expect(ok.some((e) => e.type === "error")).toBe(false);
+    await db.update(usersTable).set({ role: "agent" }).where(eq(usersTable.id, adm));
+    const n = h.appelsModele;
+    const ev = await tour(conv, { orgId: ids.orgA, userId: adm });
+    expect(ev).toContainEqual({ type: "error", code: "profil_role", error: expect.stringMatching(/reserve aux responsables/) });
+    expect(h.appelsModele).toBe(n);
+  });
+
+  it("C : retrograde entre la proposition et la confirmation — rien n'est revendique ni execute", async () => {
+    const adm = await utilisateur("administrateur");
+    const conv = await conversation("finance", ids.orgA, adm);
+    const [row] = await db.insert(assistantMessagesTable).values({
+      conversationId: conv, organisationId: ids.orgA, role: "tool_call", toolName: "send_email", toolArgs: { to: "client@exemple.test", subject: "Relance", body: "Payez" }, content: "",
+    }).returning({ id: assistantMessagesTable.id });
+    await db.update(usersTable).set({ role: "agent" }).where(eq(usersTable.id, adm));
+    const ev: StreamEvent[] = [];
+    await resolvePendingAction(conv, row!.id, "approve", { orgId: ids.orgA, userId: adm }, (e) => ev.push(e));
+    expect(ev[0]).toMatchObject({ type: "error", code: "profil_role" });
+    expect(ev.some((e) => e.type === "step")).toBe(false);
+    const [apres] = await db.select().from(assistantMessagesTable).where(eq(assistantMessagesTable.id, row!.id));
+    expect(apres!.toolResult).toBeNull();
+  });
+
+  // D — essai : role, quota a chaque appel, essai vide non valide.
+  it("D : un agent ne lance pas l'essai finance (403 profil_role), aucun appel modele, aucun quota consomme", async () => {
+    const n = h.appelsModele;
+    const r = await request(appli("agent", ids.agent)).post("/api/ajans/profils/finance/essai").send({ entree: "Impayes ?" });
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe("profil_role");
+    expect(h.appelsModele).toBe(n);
+    expect(h.controlesQuota).toBe(0);
+  });
+
+  it("D : quota controle avant CHAQUE appel du modele, usage inscrit avec l'utilisateur", async () => {
+    h.reponses.push(appel("create_task", { title: "a" }), appel("create_task", { title: "b" }), texte("fin"));
+    const r = await request(appli()).post("/api/ajans/profils/planning/essai").send({ entree: "x" });
+    expect(r.status, r.text).toBe(200);
+    // 1 controle d'entree + 1 par appel (3 appels).
+    expect(h.controlesQuota).toBe(4);
+    const usages = await db.select().from(aiUsageTable).where(eq(aiUsageTable.runId, r.body.runId));
+    expect(usages).toHaveLength(3);
+    expect(usages.every((x) => x.userId === ids.admin)).toBe(true);
+  });
+
+  it("D : quota epuise au deuxieme tour — 429, l'appel suivant n'est pas fait", async () => {
+    h.quotaApres = 3; // entree ok, tour 1 ok, tour 2 refuse
+    h.reponses.push(appel("create_task", { title: "a" }), texte("jamais"));
+    const n = h.appelsModele;
+    const r = await request(appli()).post("/api/ajans/profils/planning/essai").send({ entree: "x" });
+    expect(r.status).toBe(429);
+    expect(h.appelsModele).toBe(n + 1);
+  });
+
+  it("D : essai sans aucune action, ou toutes refusees — inscrit non valide, pas cite comme dernier essai", async () => {
+    const { orgId, userId } = await orgNeuve();
+    h.reponses.push(texte("Rien a faire."));
+    const vide = await request(appli("agent", userId, orgId)).post("/api/ajans/profils/crm/essai").send({ entree: "x" });
+    expect(vide.status, vide.text).toBe(200);
+    expect(vide.body.valide).toBe(false);
+    h.reponses.push(appel("log_call", { id: 1 }), texte("refuse"));
+    const refuse = await request(appli("agent", userId, orgId)).post("/api/ajans/profils/crm/essai").send({ entree: "x" });
+    expect(refuse.body.valide).toBe(false);
+    const [run] = await db.select().from(agentRunsTable).where(eq(agentRunsTable.id, refuse.body.runId));
+    expect(run!.output).toMatchObject({ valide: false, refusees: 1 });
+    expect(await essaiValide(orgId, "crm")).toBeNull();
+    expect(await db.select().from(agentProfileSettingsTable).where(eq(agentProfileSettingsTable.organisationId, orgId))).toHaveLength(0);
+  });
+
+  it("D : trois tours d'appels d'outils — fin propre « incomplet », pas d'appel hors budget", async () => {
+    h.reponses.push(appel("create_task", { title: "a" }), appel("create_task", { title: "b" }), appel("create_task", { title: "c" }), texte("jamais lu"));
+    const n = h.appelsModele;
+    const { orgId, userId } = await orgNeuve();
+    const r = await request(appli("agent", userId, orgId)).post("/api/ajans/profils/planning/essai").send({ entree: "x" });
+    expect(r.body).toMatchObject({ incomplet: true, valide: true, reponse: "" });
+    expect(h.appelsModele).toBe(n + 3);
   });
 });

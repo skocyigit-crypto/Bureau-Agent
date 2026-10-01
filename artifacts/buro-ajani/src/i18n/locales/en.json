@@ -4795,6 +4795,11 @@
       "error": "Error",
       "assistantError": "Assistant error",
       "connectionLost": "Connection lost"
+    },
+    "profile": {
+      "label": "Agent",
+      "assistant": "General assistant",
+      "hint": "Chosen when the conversation is created; each agent only has its own tools."
     }
   },
   "equipeIa": {
@@ -10261,8 +10266,8 @@
     "tabsLabel": "Ajan Bureau sections",
     "loading": "Loading agents…",
     "error": "The agents could not be loaded.",
-    "active": "Published",
-    "inactive": "Not published",
+    "active": "Active",
+    "inactive": "Disabled",
     "reservedManagers": "Managers only",
     "tools": "Allowed tools",
     "sources": "Sources",
@@ -10288,11 +10293,11 @@
       "actions": "What the agent would have done",
       "noActions": "The agent would not have called any tool.",
       "answer": "Agent answer",
-      "publish": "Publish for the organisation",
+      "publish": "Enable for the organisation",
       "disable": "Disable",
-      "publishHint": "Run a successful dry run first.",
+      "publishHint": "Agents are active by default. A dry run is recommended before re-enabling an agent.",
       "managersOnly": "Only a manager can publish an agent.",
-      "published": "Agent published for the organisation.",
+      "published": "Agent enabled for the organisation.",
       "disabled": "Agent disabled.",
       "done_one": "Dry run finished: {{count}} action described.",
       "done_other": "Dry run finished: {{count}} actions described.",
@@ -10300,7 +10305,85 @@
         "simulee": "would have been done",
         "approbation": "would have awaited approval",
         "refusee": "refused (outside profile)"
+      },
+      "roleRefused": "Your role cannot run a dry run of this agent.",
+      "invalid": "This dry run showed no action the agent could perform: it does not count as a valid dry run.",
+      "incomplete": "The agent was still calling tools when the dry run stopped (3 rounds maximum)."
+    },
+    "profiles": {
+      "telephone": {
+        "nom": "Phone agent",
+        "mission": "Handles incoming calls and messages: finds the caller, logs the call, offers a call-back or time slots.",
+        "exemple": "Mrs Durand called at 9 am about a leak under the sink; call her back and offer her a slot tomorrow.",
+        "handoff": {
+          "0": "unhappy caller or emergency",
+          "1": "request for a quote or price",
+          "2": "contact not found",
+          "3": "any call deletion"
+        }
+      },
+      "crm": {
+        "nom": "CRM agent",
+        "mission": "Keeps contacts and prospects up to date and prepares sales follow-ups.",
+        "exemple": "New prospect: SCI Les Tilleuls, facade renovation, contact Paul Martin paul@tilleuls.fr. Create it and schedule a follow-up.",
+        "handoff": {
+          "0": "prospect above EUR 20,000",
+          "1": "customer complaint",
+          "2": "uncertain duplicate contact",
+          "3": "any outgoing email"
+        }
+      },
+      "planning": {
+        "nom": "Scheduling agent",
+        "mission": "Organises the calendar and tasks: creates, moves or cancels an appointment, offers time slots.",
+        "exemple": "Move the site visit from Thursday 10 am to Friday 2 pm and create a preparation task.",
+        "handoff": {
+          "0": "conflict between two confirmed appointments",
+          "1": "any cancellation",
+          "2": "team unavailable"
+        }
+      },
+      "chantier": {
+        "nom": "Site agent",
+        "mission": "Follows building sites: updates progress, creates tasks, produces reports.",
+        "exemple": "Dupont site: the tiling is done, set progress to 60% and create the grouting task for Monday.",
+        "handoff": {
+          "0": "safety incident",
+          "1": "budget overrun",
+          "2": "unsigned extra work"
+        }
+      },
+      "finance": {
+        "nom": "Finance agent",
+        "mission": "Reads the financial position, prepares statements and reminders for unpaid invoices.",
+        "exemple": "Review this month's unpaid invoices and prepare a reminder for the oldest one.",
+        "handoff": {
+          "0": "any payment reminder (outgoing email)",
+          "1": "invoice dispute",
+          "2": "amount above EUR 5,000"
+        }
+      },
+      "coordinateur": {
+        "nom": "Coordinator",
+        "mission": "Overview: reads activity across all areas and distributes work through tasks. Does not act in place of the other agents.",
+        "exemple": "What should be handled first today? Split the urgent items into tasks.",
+        "handoff": {
+          "0": "any action belonging to another profile (sending, CRM, finance)",
+          "1": "conflicting priorities"
+        }
       }
     }
+  },
+  "agentErrors": {
+    "quota_ia": "AI quota exhausted: the dry run was not started. Raise the quota or wait for the next period.",
+    "essai_requis": "Run a successful dry run first.",
+    "profil_role": "This profile is reserved for managers: your role cannot use it.",
+    "profil_desactive": "This profile is disabled in your organisation. Start a new conversation under another profile.",
+    "profil_inconnu": "Unknown agent profile.",
+    "essai_trop_frequent": "Too many dry runs. Try again in a few minutes.",
+    "essai_invalide": "Invalid example.",
+    "essai_echoue": "The dry run failed: the model did not respond.",
+    "action_anterieure_profils": "This action was proposed before agent profiles existed: it was not executed. Reopen the request under the right profile.",
+    "generic": "The request failed (HTTP {{status}})."
   }
 }

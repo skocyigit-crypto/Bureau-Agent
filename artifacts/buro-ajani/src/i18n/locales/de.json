@@ -4795,6 +4795,11 @@
       "error": "Fehler",
       "assistantError": "Assistentenfehler",
       "connectionLost": "Verbindung verloren"
+    },
+    "profile": {
+      "label": "Agent",
+      "assistant": "Allgemeiner Assistent",
+      "hint": "Wird beim Anlegen der Unterhaltung gewählt; jeder Agent hat nur seine eigenen Werkzeuge."
     }
   },
   "equipeIa": {
@@ -10261,8 +10266,8 @@
     "tabsLabel": "Bereiche von Ajan Bureau",
     "loading": "Agenten werden geladen…",
     "error": "Die Agenten konnten nicht geladen werden.",
-    "active": "Veröffentlicht",
-    "inactive": "Nicht veröffentlicht",
+    "active": "Aktiv",
+    "inactive": "Deaktiviert",
     "reservedManagers": "Nur Verantwortliche",
     "tools": "Erlaubte Werkzeuge",
     "sources": "Quellen",
@@ -10288,11 +10293,11 @@
       "actions": "Was der Agent getan hätte",
       "noActions": "Der Agent hätte kein Werkzeug aufgerufen.",
       "answer": "Antwort des Agenten",
-      "publish": "Für die Organisation veröffentlichen",
+      "publish": "Für die Organisation aktivieren",
       "disable": "Deaktivieren",
-      "publishHint": "Führen Sie zuerst einen erfolgreichen Probelauf durch.",
+      "publishHint": "Agenten sind standardmäßig aktiv. Vor dem erneuten Aktivieren wird ein Testlauf empfohlen.",
       "managersOnly": "Nur ein Verantwortlicher kann einen Agenten veröffentlichen.",
-      "published": "Agent für die Organisation veröffentlicht.",
+      "published": "Agent für die Organisation aktiviert.",
       "disabled": "Agent deaktiviert.",
       "done_one": "Probelauf beendet: {{count}} Aktion beschrieben.",
       "done_other": "Probelauf beendet: {{count}} Aktionen beschrieben.",
@@ -10300,7 +10305,85 @@
         "simulee": "wäre ausgeführt worden",
         "approbation": "hätte auf Freigabe gewartet",
         "refusee": "abgelehnt (außerhalb des Profils)"
+      },
+      "roleRefused": "Ihre Rolle erlaubt keinen Testlauf dieses Agenten.",
+      "invalid": "Dieser Testlauf zeigte keine Aktion, die der Agent ausführen durfte: Er zählt nicht als gültiger Testlauf.",
+      "incomplete": "Der Agent rief noch Werkzeuge auf, als der Testlauf endete (höchstens 3 Runden)."
+    },
+    "profiles": {
+      "telephone": {
+        "nom": "Telefon-Agent",
+        "mission": "Bearbeitet eingehende Anrufe und Nachrichten: findet den Anrufer, erfasst den Anruf, schlägt einen Rückruf oder Termine vor.",
+        "exemple": "Frau Durand hat um 9 Uhr wegen eines Lecks unter der Spüle angerufen; rufen Sie sie zurück und schlagen Sie ihr einen Termin für morgen vor.",
+        "handoff": {
+          "0": "unzufriedener Anrufer oder Notfall",
+          "1": "Anfrage nach Angebot oder Preis",
+          "2": "Kontakt nicht gefunden",
+          "3": "jede Löschung eines Anrufs"
+        }
+      },
+      "crm": {
+        "nom": "CRM-Agent",
+        "mission": "Hält Kontakte und Interessenten aktuell und bereitet Vertriebsnachfassungen vor.",
+        "exemple": "Neuer Interessent: SCI Les Tilleuls, Fassadensanierung, Kontakt Paul Martin paul@tilleuls.fr. Legen Sie ihn an und planen Sie eine Nachfassung.",
+        "handoff": {
+          "0": "Interessent über 20.000 EUR",
+          "1": "Kundenbeschwerde",
+          "2": "unsicheres Kontaktduplikat",
+          "3": "jede ausgehende E-Mail"
+        }
+      },
+      "planning": {
+        "nom": "Planungs-Agent",
+        "mission": "Organisiert Kalender und Aufgaben: erstellt, verschiebt oder storniert Termine, schlägt freie Zeiten vor.",
+        "exemple": "Verschieben Sie die Baustellenbesichtigung von Donnerstag 10 Uhr auf Freitag 14 Uhr und legen Sie eine Vorbereitungsaufgabe an.",
+        "handoff": {
+          "0": "Konflikt zwischen zwei bestätigten Terminen",
+          "1": "jede Stornierung",
+          "2": "Team nicht verfügbar"
+        }
+      },
+      "chantier": {
+        "nom": "Baustellen-Agent",
+        "mission": "Begleitet Baustellen: aktualisiert den Fortschritt, legt Aufgaben an, erstellt Berichte.",
+        "exemple": "Baustelle Dupont: Die Fliesen sind verlegt, setzen Sie den Fortschritt auf 60 % und legen Sie die Verfugungsaufgabe für Montag an.",
+        "handoff": {
+          "0": "Sicherheitsvorfall",
+          "1": "Budgetüberschreitung",
+          "2": "nicht unterschriebene Zusatzarbeiten"
+        }
+      },
+      "finance": {
+        "nom": "Finanz-Agent",
+        "mission": "Liest die Finanzlage, bereitet Übersichten und Mahnungen für unbezahlte Rechnungen vor.",
+        "exemple": "Prüfen Sie die unbezahlten Rechnungen des Monats und bereiten Sie eine Mahnung für die älteste vor.",
+        "handoff": {
+          "0": "jede Zahlungserinnerung (ausgehende E-Mail)",
+          "1": "Streit über eine Rechnung",
+          "2": "Betrag über 5.000 EUR"
+        }
+      },
+      "coordinateur": {
+        "nom": "Koordinator",
+        "mission": "Gesamtüberblick: liest die Aktivität aller Bereiche und verteilt die Arbeit über Aufgaben. Handelt nicht anstelle der anderen Agenten.",
+        "exemple": "Was ist heute vorrangig zu erledigen? Verteilen Sie die dringenden Punkte auf Aufgaben.",
+        "handoff": {
+          "0": "jede Aktion, die zu einem anderen Profil gehört (Versand, CRM, Finanzen)",
+          "1": "widersprüchliche Prioritäten"
+        }
       }
     }
+  },
+  "agentErrors": {
+    "quota_ia": "KI-Kontingent erschöpft: Der Testlauf wurde nicht gestartet. Erhöhen Sie das Kontingent oder warten Sie auf den nächsten Zeitraum.",
+    "essai_requis": "Führen Sie zuerst einen erfolgreichen Testlauf durch.",
+    "profil_role": "Dieses Profil ist Verantwortlichen vorbehalten: Ihre Rolle erlaubt die Nutzung nicht.",
+    "profil_desactive": "Dieses Profil ist in Ihrer Organisation deaktiviert. Beginnen Sie eine neue Unterhaltung mit einem anderen Profil.",
+    "profil_inconnu": "Unbekanntes Agentenprofil.",
+    "essai_trop_frequent": "Zu viele Testläufe. Versuchen Sie es in einigen Minuten erneut.",
+    "essai_invalide": "Ungültiges Beispiel.",
+    "essai_echoue": "Der Testlauf ist fehlgeschlagen: Das Modell hat nicht geantwortet.",
+    "action_anterieure_profils": "Diese Aktion wurde vor Einführung der Agentenprofile vorgeschlagen: Sie wurde nicht ausgeführt. Stellen Sie die Anfrage unter dem passenden Profil erneut.",
+    "generic": "Die Anfrage ist fehlgeschlagen (HTTP {{status}})."
   }
 }

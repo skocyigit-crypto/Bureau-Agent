@@ -84,7 +84,10 @@ export const agentRunStepsTable = pgTable("agent_run_steps", {
  * precedee. `last_dry_run_id` pointe vers ce run d'essai ; la route de
  * publication verifie qu'il appartient a la MEME organisation.
  *
- * Absence de ligne = profil jamais publie = inutilisable (refus par defaut).
+ * Absence de ligne = profil ACTIF (services/profils-org.ts) : un client
+ * existant ne perd rien au deploiement. Une ligne n'existe que si un
+ * responsable a desactive/publie le profil ou qu'un essai valide a ete note ;
+ * chaque ecriture fixe `enabled` explicitement (le defaut SQL n'est jamais lu).
  */
 export const agentProfileSettingsTable = pgTable("agent_profile_settings", {
   id: serial("id").primaryKey(),

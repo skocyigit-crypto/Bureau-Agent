@@ -4795,6 +4795,11 @@
       "error": "Hata",
       "assistantError": "Asistan hatası",
       "connectionLost": "Bağlantı kesildi"
+    },
+    "profile": {
+      "label": "Ajan",
+      "assistant": "Genel asistan",
+      "hint": "Konuşma oluşturulurken seçilir; her ajanın yalnızca kendi araçları vardır."
     }
   },
   "equipeIa": {
@@ -10261,8 +10266,8 @@
     "tabsLabel": "Ajan Bureau bölümleri",
     "loading": "Ajanlar yükleniyor…",
     "error": "Ajanlar yüklenemedi.",
-    "active": "Yayında",
-    "inactive": "Yayında değil",
+    "active": "Etkin",
+    "inactive": "Devre dışı",
     "reservedManagers": "Yalnız yöneticiler",
     "tools": "İzin verilen araçlar",
     "sources": "Kaynaklar",
@@ -10288,11 +10293,11 @@
       "actions": "Ajanın yapacakları",
       "noActions": "Ajan hiçbir araç çağırmazdı.",
       "answer": "Ajanın yanıtı",
-      "publish": "Kuruluş için yayınla",
+      "publish": "Kuruluş için etkinleştir",
       "disable": "Devre dışı bırak",
-      "publishHint": "Önce başarılı bir deneme yapın.",
+      "publishHint": "Ajanlar varsayılan olarak etkindir. Bir ajanı yeniden etkinleştirmeden önce deneme önerilir.",
       "managersOnly": "Bir ajanı yalnız bir yönetici yayınlayabilir.",
-      "published": "Ajan kuruluş için yayınlandı.",
+      "published": "Ajan kuruluş için etkinleştirildi.",
       "disabled": "Ajan devre dışı bırakıldı.",
       "done_one": "Deneme bitti: {{count}} eylem açıklandı.",
       "done_other": "Deneme bitti: {{count}} eylem açıklandı.",
@@ -10300,7 +10305,85 @@
         "simulee": "yapılırdı",
         "approbation": "onay beklerdi",
         "refusee": "reddedildi (profil dışı)"
+      },
+      "roleRefused": "Rolünüz bu ajanı denemeye izin vermiyor.",
+      "invalid": "Bu deneme ajanın yapabileceği hiçbir işlem göstermedi: geçerli deneme sayılmaz.",
+      "incomplete": "Deneme durduğunda ajan hâlâ araç çağırıyordu (en fazla 3 tur)."
+    },
+    "profiles": {
+      "telephone": {
+        "nom": "Telefon ajanı",
+        "mission": "Gelen arama ve mesajları işler: arayanı bulur, aramayı kaydeder, geri arama veya randevu saatleri önerir.",
+        "exemple": "Bayan Durand saat 9'da lavabo altındaki bir sızıntı için aradı; onu geri arayın ve yarın için bir saat önerin.",
+        "handoff": {
+          "0": "memnun olmayan arayan veya acil durum",
+          "1": "teklif veya fiyat talebi",
+          "2": "kişi bulunamadı",
+          "3": "her türlü arama silme"
+        }
+      },
+      "crm": {
+        "nom": "CRM ajanı",
+        "mission": "Kişileri ve potansiyel müşterileri güncel tutar, ticari takipleri hazırlar.",
+        "exemple": "Yeni potansiyel müşteri: SCI Les Tilleuls, cephe yenileme, iletişim Paul Martin paul@tilleuls.fr. Kaydı oluşturun ve bir takip planlayın.",
+        "handoff": {
+          "0": "20.000 EUR üzeri potansiyel müşteri",
+          "1": "müşteri şikâyeti",
+          "2": "şüpheli mükerrer kişi",
+          "3": "her türlü giden e-posta"
+        }
+      },
+      "planning": {
+        "nom": "Planlama ajanı",
+        "mission": "Takvimi ve görevleri düzenler: randevu oluşturur, taşır veya iptal eder, uygun saatler önerir.",
+        "exemple": "Perşembe 10:00'daki şantiye ziyaretini cuma 14:00'e taşıyın ve bir hazırlık görevi oluşturun.",
+        "handoff": {
+          "0": "onaylı iki randevu arasında çakışma",
+          "1": "her türlü iptal",
+          "2": "ekip müsait değil"
+        }
+      },
+      "chantier": {
+        "nom": "Şantiye ajanı",
+        "mission": "Şantiyeleri izler: ilerlemeyi günceller, görev oluşturur, raporlar hazırlar.",
+        "exemple": "Dupont şantiyesi: fayans döşendi, ilerlemeyi %60'a çıkarın ve pazartesi için derz görevini oluşturun.",
+        "handoff": {
+          "0": "iş güvenliği olayı",
+          "1": "bütçe aşımı",
+          "2": "imzalanmamış ek işler"
+        }
+      },
+      "finance": {
+        "nom": "Finans ajanı",
+        "mission": "Finansal durumu okur, dökümleri ve ödenmemiş fatura hatırlatmalarını hazırlar.",
+        "exemple": "Bu ayın ödenmemiş faturalarını gözden geçirin ve en eskisi için bir hatırlatma hazırlayın.",
+        "handoff": {
+          "0": "her türlü ödeme hatırlatması (giden e-posta)",
+          "1": "fatura anlaşmazlığı",
+          "2": "5.000 EUR üzeri tutar"
+        }
+      },
+      "coordinateur": {
+        "nom": "Koordinatör",
+        "mission": "Genel bakış: tüm alanlardaki etkinliği okur ve işi görevlerle dağıtır. Diğer ajanların yerine işlem yapmaz.",
+        "exemple": "Bugün öncelikle ne ele alınmalı? Acil işleri görevlere bölün.",
+        "handoff": {
+          "0": "başka bir profile ait her işlem (gönderim, CRM, finans)",
+          "1": "çelişen öncelikler"
+        }
       }
     }
+  },
+  "agentErrors": {
+    "quota_ia": "Yapay zekâ kotası doldu: deneme başlatılmadı. Kotayı artırın veya bir sonraki dönemi bekleyin.",
+    "essai_requis": "Önce başarılı bir deneme çalıştırın.",
+    "profil_role": "Bu profil yöneticilere ayrılmıştır: rolünüz bu profili kullanmaya izin vermiyor.",
+    "profil_desactive": "Bu profil kuruluşunuzda devre dışı. Başka bir profille yeni bir konuşma açın.",
+    "profil_inconnu": "Bilinmeyen ajan profili.",
+    "essai_trop_frequent": "Çok fazla deneme. Birkaç dakika sonra tekrar deneyin.",
+    "essai_invalide": "Geçersiz örnek.",
+    "essai_echoue": "Deneme başarısız oldu: model yanıt vermedi.",
+    "action_anterieure_profils": "Bu işlem ajan profillerinden önce önerildi: yürütülmedi. Talebi uygun profille yeniden açın.",
+    "generic": "İstek başarısız oldu (HTTP {{status}})."
   }
 }
