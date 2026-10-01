@@ -24,7 +24,7 @@
  */
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity, AudioLines, Banknote, BarChart, Bell, BookOpen, Bot, Briefcase, Building2, Calendar, CheckSquare, ClipboardList, Clock,
+  Activity, AudioLines, CalendarRange, Banknote, BarChart, Bell, BookOpen, Bot, Briefcase, Building2, Calendar, CheckSquare, ClipboardList, Clock,
   CreditCard, FileSignature, FileText, Globe, HardHat, Inbox, KeyRound, LayoutDashboard, LifeBuoy, Mail, MapPin, MessageCircle,
   MessageSquare, Phone, Plug, Radar, Receipt, ReceiptText, Rocket, Search, Settings, Shield, ShieldCheck, StickyNote, UserCog,
   Scale, Users, Wallet, Workflow,
@@ -106,6 +106,9 @@ export const SECTIONS_BUREAU: readonly Section[] = [
   {
     cle: "planning",
     entrees: [
+      // Les trois vues du plan (rendez-vous, equipe, travaux) d abord ; le
+      // calendrier reste pour la saisie libre.
+      seule("planningViews", "/planning", CalendarRange),
       seule("calendar", "/calendrier", Calendar),
       seule("reminders", "/notifications", Bell, { rozet: "rappel" }),
     ],

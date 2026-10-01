@@ -202,7 +202,7 @@ export const ACTIVITE_DES_TABLES: Record<TableLocataire, IdActivite> = {
   notifications: "relation_client", demo_handoffs: "relation_client",
   calls: "telephonie", telephony_call_logs: "telephonie", voice_call_sessions: "telephonie",
   prospects: "prospection", objectifs_commerciaux: "prospection",
-  tasks: "activite", projets: "activite", journal_chantier: "activite", avenants: "activite", notes_internes: "activite", documents: "activite",
+  tasks: "activite", projets: "activite", journal_chantier: "activite", avenants: "activite", task_dependances: "activite", notes_internes: "activite", documents: "activite",
   document_chunks: "activite", deleted_rows: "activite", automation_rules: "activite",
   commandes_fournisseur: "activite", stock_articles: "activite", stock_mouvements: "activite",
   daily_reports: "activite", admin_reports: "activite",

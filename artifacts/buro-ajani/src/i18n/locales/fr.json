@@ -212,7 +212,8 @@
       "runs": "Exécutions",
       "connections": "Connexions",
       "security": "Sécurité",
-      "businessComparison": "Comparaison par affaire"
+      "businessComparison": "Comparaison par affaire",
+      "planningViews": "Planning (3 vues)"
     },
     "mainNav": "Menu principal",
     "sectionTabs": "Pages de « {{name}} »",
@@ -10129,6 +10130,52 @@
       "en_attente": "En attente",
       "approuve": "Approuvée",
       "rejete": "Rejetée"
+    }
+  },
+  "planning": {
+    "titre": "Planning",
+    "sousTitre": "Rendez-vous, plan d’équipe et plan de travaux séparés : une visite de devis n’est pas un programme de chantier.",
+    "semaine": "Semaine",
+    "precedente": "← Précédente",
+    "suivante": "Suivante →",
+    "onglet": {
+      "rdv": "Rendez-vous",
+      "equipe": "Plan d’équipe",
+      "travaux": "Plan de travaux"
+    },
+    "vide": {
+      "rdv": "Aucun rendez-vous hors chantier cette semaine.",
+      "equipe": "Aucune tâche assignée cette semaine.",
+      "travaux": "Aucune tâche rattachée à un chantier."
+    },
+    "conflits_one": "{{count}} chevauchement",
+    "conflits_other": "{{count}} chevauchements",
+    "glissementResume_one": "{{count}} tâche glisse parce que ce qu’elle attend a pris du retard. Les dates n’ont pas été modifiées : la décision vous revient.",
+    "glissementResume_other": "{{count}} tâches glissent parce que ce qu’elles attendent a pris du retard. Les dates n’ont pas été modifiées : la décision vous revient.",
+    "boucle": "Des tâches s’attendent mutuellement (boucle) : aucune ne peut commencer.",
+    "col": {
+      "tache": "Tâche",
+      "chantier": "Chantier",
+      "responsable": "Responsable",
+      "dates": "Dates",
+      "attend": "Attend",
+      "glissement": "Glissement"
+    },
+    "retirerLien": "Retirer le lien vers {{tache}}",
+    "ajouterLien": "Tâche à attendre pour {{tache}}",
+    "attendre": "+ attendre…",
+    "glisse_one": "+{{count}} jour",
+    "glisse_other": "+{{count}} jours",
+    "cause": "cause : {{taches}}",
+    "tient": "tient",
+    "notePropose": "Le glissement est calculé et proposé ; les dates des tâches ne sont jamais modifiées automatiquement.",
+    "debutDe": "Début de {{tache}}",
+    "finDe": "Fin de {{tache}}",
+    "nouvelle": {
+      "titre": "Ajouter une tâche de chantier",
+      "debut": "Début",
+      "fin": "Fin",
+      "ajouter": "Ajouter la tâche"
     }
   }
 }

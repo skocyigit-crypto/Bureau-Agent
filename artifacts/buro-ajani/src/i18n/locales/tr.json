@@ -212,7 +212,8 @@
       "runs": "Çalışmalar",
       "connections": "Bağlantılar",
       "security": "Güvenlik",
-      "businessComparison": "İş bazında karşılaştırma"
+      "businessComparison": "İş bazında karşılaştırma",
+      "planningViews": "Planlama (3 görünüm)"
     },
     "mainNav": "Ana menü",
     "sectionTabs": "“{{name}}” sayfaları",
@@ -10129,6 +10130,52 @@
       "en_attente": "İncelemede",
       "approuve": "Onaylandı",
       "rejete": "Reddedildi"
+    }
+  },
+  "planning": {
+    "titre": "Planlama",
+    "sousTitre": "Randevular, ekip planı ve iş planı ayrı görünümlerde: bir keşif randevusu ile şantiye çalışma programı aynı şey değildir.",
+    "semaine": "Hafta",
+    "precedente": "← Önceki",
+    "suivante": "Sonraki →",
+    "onglet": {
+      "rdv": "Randevular",
+      "equipe": "Ekip planı",
+      "travaux": "İş planı"
+    },
+    "vide": {
+      "rdv": "Bu hafta şantiyeye bağlı olmayan randevu yok.",
+      "equipe": "Bu hafta kimseye atanmış görev yok.",
+      "travaux": "Şantiyelere bağlı görev yok."
+    },
+    "conflits_one": "{{count}} çakışma",
+    "conflits_other": "{{count}} çakışma",
+    "glissementResume_one": "{{count}} görev, beklediği iş geciktiği için kayıyor. Tarihler değiştirilmedi: karar sizin.",
+    "glissementResume_other": "{{count}} görev, bekledikleri işler geciktiği için kayıyor. Tarihler değiştirilmedi: karar sizin.",
+    "boucle": "Bazı görevler birbirini bekliyor (döngü): hiçbiri başlayamaz.",
+    "col": {
+      "tache": "Görev",
+      "chantier": "Şantiye",
+      "responsable": "Sorumlu",
+      "dates": "Tarihler",
+      "attend": "Bekliyor",
+      "glissement": "Kayma"
+    },
+    "retirerLien": "{{tache}} bağını kaldır",
+    "ajouterLien": "{{tache}} için beklenecek görev",
+    "attendre": "+ bekle…",
+    "glisse_one": "+{{count}} gün",
+    "glisse_other": "+{{count}} gün",
+    "cause": "neden: {{taches}}",
+    "tient": "zamanında",
+    "notePropose": "Kayma hesaplanır ve önerilir; görevlerin tarihleri otomatik değiştirilmez.",
+    "debutDe": "{{tache}} başlangıcı",
+    "finDe": "{{tache}} bitişi",
+    "nouvelle": {
+      "titre": "Şantiye görevi ekle",
+      "debut": "Başlangıç",
+      "fin": "Bitiş",
+      "ajouter": "Görevi ekle"
     }
   }
 }

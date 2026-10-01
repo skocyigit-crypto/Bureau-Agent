@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 718,
+    "runtimeOperations": 726,
     "documentedOperations": 96,
-    "undocumentedOperations": 622
+    "undocumentedOperations": 630
   },
   "operations": [
     {
@@ -4415,6 +4415,70 @@
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/performance.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/planning/equipe",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "delete",
+      "path": "/planning/liens/{id}",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/planning/rendez-vous",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/planning/taches",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/planning/taches/{id}/attend",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/planning/taches/{id}/chantier",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/planning/taches/{id}/dates",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/planning/travaux",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/planning.ts"
       ]
     },
     {

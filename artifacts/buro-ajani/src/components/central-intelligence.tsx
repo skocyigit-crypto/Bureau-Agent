@@ -55,7 +55,7 @@ const VALID_ROUTES = [
   // Chaine commerciale.
   "/prospects", "/devis", "/factures",
   // Finances et exploitation.
-  "/tresorerie", "/finance/affaires", "/depenses", "/notes-internes", "/activite-recente",
+  "/tresorerie", "/finance/affaires", "/planning", "/depenses", "/notes-internes", "/activite-recente",
   "/saisie-chantier", "/securite", "/protection-donnees",
   // L assistant doit pouvoir y renvoyer quelqu un qui decrit un poste lent, un
   // antivirus eteint ou une sauvegarde qui ne tourne plus: c est exactement la

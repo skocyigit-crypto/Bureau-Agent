@@ -83,3 +83,4 @@ export * from "./violations-donnees";
 export * from "./cron-executions";
 export * from "./journal-chantier";
 export * from "./avenants";
+export * from "./task-dependances";
