@@ -129,10 +129,16 @@ export async function hydrateFromBearer(req: Request): Promise<void> {
  * Google (monte avant la garde globale) ne porte aucune cle : il n'est pas
  * concerne.
  *
+ * `appels-live` : le pilotage d'un appel EN COURS (redirection Twilio d'un
+ * client vers un autre numero) et la lecture de sa transcription avec le
+ * numero en clair. Ce n'est pas un dossier qu'une integration synchronise :
+ * c'est le geste d'une personne devant l'ecran. Une cle fuitee pouvait sinon
+ * lister les CallSid du moment et detourner l'appel d'un client.
+ *
  * La liste est verrouillee par `surface-cle-api.test.ts` : toute route au
  * nom sensible qui n'est ni refusee ici ni declaree y fait rougir la suite.
  */
-const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin|billing|stripe|google-oauth)(\/|$)/;
+const INTERDIT_AUX_CLES = /^\/api\/(auth|api-keys|invitations|webhooks|organisations|license-management|admin|billing|stripe|google-oauth|appels-live)(\/|$)/;
 const LECTURE_SEULE_AUX_CLES = /^\/api\/data-protection(\/|$)/;
 
 /**

@@ -10177,5 +10177,75 @@
       "fin": "Bitiş",
       "ajouter": "Görevi ekle"
     }
+  },
+  "appelLive": {
+    "indicator": "{{count}} canlı çağrı",
+    "indicatorLabel": "Şu anda {{count}} canlı çağrı var — aç",
+    "title": "Canlı çağrı",
+    "back": "Çağrılara dön",
+    "notFound": "Bu çağrı bulunamadı.",
+    "ended": "Çağrı sona erdi. Aşağıdaki kayıt son durumdur.",
+    "live": "Canlı",
+    "caller": "Arayan",
+    "unknownCaller": "Bilinmeyen arayan",
+    "previousCalls": "Önceki çağrı: {{count}}",
+    "context": "Bağlam",
+    "openContact": "Kişi kartını aç",
+    "request": "Talep",
+    "transcript": "Canlı döküm",
+    "emptyTranscript": "Henüz konuşma yok.",
+    "roleUser": "Arayan",
+    "roleAssistant": "Asistan",
+    "step": "Ajan adımı",
+    "journal": "Ajan günlüğü",
+    "urgent": "Acil",
+    "steps": {
+      "ecoute": "Dinliyor",
+      "rdv_propose": "Randevu önerdi, onay bekliyor",
+      "rdv_cree": "Randevu oluşturdu",
+      "rappel_cree": "Geri arama talebi oluşturdu",
+      "transfert": "Aktarıyor",
+      "reprise_en_cours": "Çalışan aranıyor",
+      "reprise_humaine": "Bir çalışan devraldı"
+    },
+    "actions": "Eylemler",
+    "takeover": "Çağrıyı devral",
+    "transfer": "Aktar",
+    "target": "Kime",
+    "takeoverDone": "Yönlendiriliyor: {{num}} çalıyor.",
+    "takenOverBy": "Devralan: {{name}}",
+    "takeoverState": {
+      "demande": "Devralma istendi…",
+      "en_cours": "Yönlendiriliyor: çalışanın telefonu çalıyor",
+      "reussi": "Çağrı bir çalışan tarafından devralındı",
+      "echoue": "Devralma başarısız: kimse açmadı, geri arama talebi oluşturuldu"
+    },
+    "reasons": {
+      "aucun_fournisseur": "Telefon sağlayıcı bağlı değil",
+      "fournisseur_incomplet": "Telefon sağlayıcı eksik ayarlı (Twilio numarası yok)",
+      "aucun_numero": "Aktarılacak numara yok (profil telefonu veya yönlendirme numarası ekleyin)",
+      "deja_repris": "Çağrı zaten devralındı",
+      "termine": "Çağrı artık canlı değil",
+      "cible_inconnue": "Bu hedef geçerli değil",
+      "twilio": "Twilio reddetti: {{raison}}",
+      "introuvable": "Çağrı bulunamadı",
+      "lecture_seule": "Salt okunur hesap: çağrıyı izleyebilirsiniz, işlem yapamazsınız"
+    },
+    "targets": {
+      "moi": "Ben ({{num}})",
+      "defaut": "Varsayılan numara ({{num}})",
+      "equipe": "{{nom}} ({{num}})"
+    },
+    "discovery": "Keşif randevusu",
+    "date": "Tarih ve saat",
+    "location": "Adres",
+    "task": "Görev",
+    "taskTitle": "Görev başlığı",
+    "note": "Not",
+    "noteContent": "Not içeriği",
+    "create": "Oluştur",
+    "save": "Kaydet",
+    "saved": "Kaydedildi",
+    "error": "İşlem başarısız"
   }
 }

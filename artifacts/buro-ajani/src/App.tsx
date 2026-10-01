@@ -51,6 +51,7 @@ const RegisterPage = lazy(() => import("@/pages/register"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Calls = lazy(() => import("@/pages/calls"));
 const CallDetail = lazy(() => import("@/pages/call-detail"));
+const AppelLivePage = lazy(() => import("@/pages/appel-live"));
 const Contacts = lazy(() => import("@/pages/contacts"));
 const ProspectsPage = lazy(() => import("@/pages/prospects"));
 const ProspectDetailPage = lazy(() => import("@/pages/prospect-detail"));
@@ -323,6 +324,8 @@ function AppRoutes() {
       <Switch>
         <Route path="/" component={withLicenseGate(Dashboard)} />
         <Route path="/appels" component={withLicenseGate(Calls)} />
+        {/* Appel en direct de la secretaire IA : transcription, reprise, actions. */}
+        <Route path="/appels/live/:callSid" component={withLicenseGate(AppelLivePage)} />
         <Route path="/appels/:id" component={withLicenseGate(CallDetail)} />
         <Route path="/contacts" component={withLicenseGate(Contacts)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />

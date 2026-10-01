@@ -1,5 +1,6 @@
 import { pgTable, serial, integer, text, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
 
 /**
  * Etat d'un appel traite par la secretaire telephonique IA, un par CallSid.
@@ -34,6 +35,19 @@ export const voiceCallSessionsTable = pgTable("voice_call_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+  /**
+   * Reprise de l'appel par un humain depuis l'ecran « appel en direct ».
+   * `takeover_status` est la REVENDICATION : un UPDATE conditionnel
+   * (`takeover_status IS NULL`) la donne a un seul utilisateur, meme si deux
+   * personnes cliquent en meme temps. en_cours = redirection Twilio en cours,
+   * reussi = l'appel sonne chez l'humain ; l'IA ne produit plus aucun tour.
+   * En cas d'echec Twilio, la revendication est rendue (remise a NULL).
+   * FK `set null` : effacer un utilisateur (RGPD) ne bloque pas et ne
+   * supprime pas l'etat de l'appel.
+   */
+  takenOverByUserId: integer("taken_over_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  takenOverAt: timestamp("taken_over_at", { withTimezone: true }),
+  takeoverStatus: text("takeover_status"),
 }, (t) => [
   uniqueIndex("voice_call_sessions_call_sid_uq").on(t.callSid),
   index("voice_call_sessions_org_idx").on(t.organisationId, t.createdAt),

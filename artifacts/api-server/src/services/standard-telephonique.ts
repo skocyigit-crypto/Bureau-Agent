@@ -19,7 +19,7 @@
  * confirmation ne creent jamais deux rendez-vous, deux rappels, deux notes.
  */
 import crypto from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
   voiceCallSessionsTable,
@@ -46,6 +46,8 @@ export interface SessionAppelRow {
   actions: Record<string, unknown>;
   lastRequestKey: string | null;
   lastResponse: string | null;
+  /** Reprise humaine (ecran « appel en direct ») : non nul = l'IA se tait. */
+  takeoverStatus: string | null;
 }
 
 /** Cree l'etat d'un appel. Un second `incoming` (retry) ne l'ecrase pas. */
@@ -72,26 +74,75 @@ export async function chargerSessionAppel(callSid: string): Promise<SessionAppel
     actions: (r.actions as Record<string, unknown>) ?? {},
     lastRequestKey: r.lastRequestKey,
     lastResponse: r.lastResponse,
+    takeoverStatus: r.takeoverStatus ?? null,
   };
 }
 
+/**
+ * Enregistre l'etat. Rend `false` quand rien n'a ete ecrit.
+ *
+ * Une ecriture portant `requestKey` est la REPONSE de l'IA a un tour de
+ * parole (/respond, /transfert-resultat). Elle est refusee des qu'un humain a
+ * revendique l'appel : lire le drapeau avant d'appeler le modele ne suffit
+ * pas — le modele met plusieurs secondes, la reprise peut tomber pendant ce
+ * temps. La condition est donc dans le MEME UPDATE que l'ecriture du tour :
+ * soit le tour passe avant la revendication, soit il n'existe pas.
+ */
+/**
+ * Etats de reprise : `demande` (revendique), `en_cours` (Twilio a accepte la
+ * redirection, l'humain sonne), `reussi` (l'humain a decroche), `echoue`
+ * (personne n'a decroche, ou Twilio a refuse la redirection).
+ *
+ * `echoue` veut dire « aucun humain ne tient l'appel » : l'IA garde (ou
+ * reprend) la main et une nouvelle reprise reste possible. Toutes les gardes
+ * « non repris » passent donc par cette condition, jamais par un simple
+ * `IS NULL` : sinon un echec de redirection rendrait l'IA muette pour de bon.
+ */
+export const REPRISE_ECHOUEE = "echoue";
+
+export function conditionNonRepris(): SQL {
+  return or(isNull(voiceCallSessionsTable.takeoverStatus), eq(voiceCallSessionsTable.takeoverStatus, REPRISE_ECHOUEE))!;
+}
+
+/** Un humain tient (ou est en train de prendre) l'appel. */
+export function estRepris(takeoverStatus: string | null | undefined): boolean {
+  return !!takeoverStatus && takeoverStatus !== REPRISE_ECHOUEE;
+}
+
 export async function sauverSessionAppel(callSid: string, orgId: number, etat: Record<string, unknown>, extra: {
-  status?: string; requestKey?: string | null; response?: string | null;
-} = {}): Promise<void> {
-  await db.update(voiceCallSessionsTable).set({
+  status?: string; requestKey?: string | null; response?: string | null; siNonRepris?: boolean;
+} = {}): Promise<boolean> {
+  // Un tour de parole (requestKey) ou une ecriture explicitement IA
+  // (siNonRepris) ne passe plus apres la reprise : l'etat en memoire de l'IA
+  // est perime et effacerait la ligne de journal ecrite par la reprise.
+  const tourIa = extra.requestKey !== undefined || extra.siNonRepris === true;
+  const rows = await db.update(voiceCallSessionsTable).set({
     state: etat,
     updatedAt: new Date(),
     ...(extra.status ? { status: extra.status } : {}),
     ...(extra.requestKey !== undefined ? { lastRequestKey: extra.requestKey } : {}),
     ...(extra.response !== undefined ? { lastResponse: extra.response } : {}),
-  }).where(and(eq(voiceCallSessionsTable.callSid, callSid), eq(voiceCallSessionsTable.organisationId, orgId)));
+  }).where(and(
+    eq(voiceCallSessionsTable.callSid, callSid),
+    eq(voiceCallSessionsTable.organisationId, orgId),
+    ...(tourIa ? [conditionNonRepris()] : []),
+  )).returning({ id: voiceCallSessionsTable.id });
+  return rows.length > 0;
 }
 
 /**
  * Revendique une action pour cet appel. Rend `true` a UN SEUL appelant : les
  * autres (retry, instance concurrente) voient la cle deja posee.
  */
-export async function revendiquerAction(callSid: string, orgId: number, cle: string, valeur: unknown = true): Promise<boolean> {
+/**
+ * `siNonRepris` : la revendication echoue si un humain a repris l appel. Une
+ * action DE L IA (rappel, rendez-vous) ne doit plus partir une fois l appel
+ * entre les mains d une personne. Pose dans le meme UPDATE que la reprise
+ * (conditionnelle sur `takeover_status is null`) : les deux se disputent la
+ * meme ligne, la base les ordonne. La finalisation, elle, doit toujours avoir
+ * lieu : elle ne passe pas ce drapeau.
+ */
+export async function revendiquerAction(callSid: string, orgId: number, cle: string, valeur: unknown = true, opts: { siNonRepris?: boolean } = {}): Promise<boolean> {
   const rows = await db.update(voiceCallSessionsTable).set({
     actions: sql`${voiceCallSessionsTable.actions} || jsonb_build_object(${cle}::text, ${JSON.stringify(valeur)}::jsonb)`,
     updatedAt: new Date(),
@@ -99,6 +150,7 @@ export async function revendiquerAction(callSid: string, orgId: number, cle: str
     eq(voiceCallSessionsTable.callSid, callSid),
     eq(voiceCallSessionsTable.organisationId, orgId),
     sql`not (${voiceCallSessionsTable.actions} ? ${cle})`,
+    ...(opts.siNonRepris ? [conditionNonRepris()] : []),
   )).returning({ id: voiceCallSessionsTable.id });
   return rows.length > 0;
 }
@@ -296,6 +348,16 @@ export const PHRASES: Record<string, Record<LangueAppel, (v: Record<string, stri
     de: () => "Im Moment ist niemand erreichbar.",
     ar: () => "لا أحد متاح في الوقت الحالي.",
   },
+  // Un collaborateur a repris l'appel depuis l'ecran mais n'a pas decroche :
+  // l'appelant entend des excuses AVANT la promesse de rappel, jamais un silence.
+  repriseEchouee: {
+    fr: () => "Toutes nos excuses, votre interlocuteur n'a pas pu décrocher.",
+    en: () => "We apologise, the person you were being put through to could not answer.",
+    tr: () => "Özür dileriz, aktarıldığınız kişi telefonu açamadı.",
+    es: () => "Le pedimos disculpas, la persona con la que le comunicábamos no ha podido contestar.",
+    de: () => "Entschuldigen Sie bitte, Ihr Gesprächspartner konnte nicht abheben.",
+    ar: () => "نعتذر، لم يتمكن الشخص الذي حولناك إليه من الرد.",
+  },
 };
 
 export function phrase(cle: keyof typeof PHRASES, lang: LangueAppel, v: Record<string, string> = {}): string {
@@ -485,11 +547,21 @@ export const refRendezVous = (callSid: string) => `voice:${callSid}`;
 export async function creerRendezVousConfirme(input: {
   orgId: number; callSid: string; debut: Date; fin: Date; nom: string; motif: string;
   telephone: string; contactId: number | null;
-}): Promise<{ eventId: number; nouveau: boolean } | { occupe: true }> {
+}): Promise<{ eventId: number; nouveau: boolean } | { occupe: true } | { repris: true }> {
   const ref = refRendezVous(input.callSid);
   const [existant] = await db.select({ id: calendarEventsTable.id }).from(calendarEventsTable)
     .where(and(eq(calendarEventsTable.organisationId, input.orgId), eq(calendarEventsTable.externalRef, ref)));
   if (existant) return { eventId: existant.id, nouveau: false };
+
+  // Un humain a repris l appel : l IA n inscrit plus rien a l agenda. La
+  // revendication se dispute la ligne de session avec la reprise.
+  if (!(await revendiquerAction(input.callSid, input.orgId, "rdv_ia", true, { siNonRepris: true }))) {
+    const [s] = await db.select({ repris: voiceCallSessionsTable.takeoverStatus }).from(voiceCallSessionsTable)
+      .where(and(eq(voiceCallSessionsTable.callSid, input.callSid), eq(voiceCallSessionsTable.organisationId, input.orgId))).limit(1);
+    if (estRepris(s?.repris)) return { repris: true };
+    // Revendication deja posee par une confirmation simultanee du meme appel :
+    // le chemin ordinaire (cle unique externalRef) tranche plus bas.
+  }
 
   if (!(await isSlotFree({ orgId: input.orgId, start: input.debut, end: input.fin }))) {
     // Occupe… peut-etre par NOTRE rendez-vous, cree a l'instant par une
