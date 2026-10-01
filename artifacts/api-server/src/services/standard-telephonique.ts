@@ -110,7 +110,15 @@ export async function sauverSessionAppel(callSid: string, orgId: number, etat: R
  * Revendique une action pour cet appel. Rend `true` a UN SEUL appelant : les
  * autres (retry, instance concurrente) voient la cle deja posee.
  */
-export async function revendiquerAction(callSid: string, orgId: number, cle: string, valeur: unknown = true): Promise<boolean> {
+/**
+ * `siNonRepris` : la revendication echoue si un humain a repris l appel. Une
+ * action DE L IA (rappel, rendez-vous) ne doit plus partir une fois l appel
+ * entre les mains d une personne. Pose dans le meme UPDATE que la reprise
+ * (conditionnelle sur `takeover_status is null`) : les deux se disputent la
+ * meme ligne, la base les ordonne. La finalisation, elle, doit toujours avoir
+ * lieu : elle ne passe pas ce drapeau.
+ */
+export async function revendiquerAction(callSid: string, orgId: number, cle: string, valeur: unknown = true, opts: { siNonRepris?: boolean } = {}): Promise<boolean> {
   const rows = await db.update(voiceCallSessionsTable).set({
     actions: sql`${voiceCallSessionsTable.actions} || jsonb_build_object(${cle}::text, ${JSON.stringify(valeur)}::jsonb)`,
     updatedAt: new Date(),
@@ -118,6 +126,7 @@ export async function revendiquerAction(callSid: string, orgId: number, cle: str
     eq(voiceCallSessionsTable.callSid, callSid),
     eq(voiceCallSessionsTable.organisationId, orgId),
     sql`not (${voiceCallSessionsTable.actions} ? ${cle})`,
+    ...(opts.siNonRepris ? [isNull(voiceCallSessionsTable.takeoverStatus)] : []),
   )).returning({ id: voiceCallSessionsTable.id });
   return rows.length > 0;
 }
@@ -504,11 +513,21 @@ export const refRendezVous = (callSid: string) => `voice:${callSid}`;
 export async function creerRendezVousConfirme(input: {
   orgId: number; callSid: string; debut: Date; fin: Date; nom: string; motif: string;
   telephone: string; contactId: number | null;
-}): Promise<{ eventId: number; nouveau: boolean } | { occupe: true }> {
+}): Promise<{ eventId: number; nouveau: boolean } | { occupe: true } | { repris: true }> {
   const ref = refRendezVous(input.callSid);
   const [existant] = await db.select({ id: calendarEventsTable.id }).from(calendarEventsTable)
     .where(and(eq(calendarEventsTable.organisationId, input.orgId), eq(calendarEventsTable.externalRef, ref)));
   if (existant) return { eventId: existant.id, nouveau: false };
+
+  // Un humain a repris l appel : l IA n inscrit plus rien a l agenda. La
+  // revendication se dispute la ligne de session avec la reprise.
+  if (!(await revendiquerAction(input.callSid, input.orgId, "rdv_ia", true, { siNonRepris: true }))) {
+    const [s] = await db.select({ repris: voiceCallSessionsTable.takeoverStatus }).from(voiceCallSessionsTable)
+      .where(and(eq(voiceCallSessionsTable.callSid, input.callSid), eq(voiceCallSessionsTable.organisationId, input.orgId))).limit(1);
+    if (s?.repris) return { repris: true };
+    // Revendication deja posee par une confirmation simultanee du meme appel :
+    // le chemin ordinaire (cle unique externalRef) tranche plus bas.
+  }
 
   if (!(await isSlotFree({ orgId: input.orgId, start: input.debut, end: input.fin }))) {
     // Occupe… peut-etre par NOTRE rendez-vous, cree a l'instant par une

@@ -519,3 +519,30 @@ describe("l'IA se tait apres la reprise, et les actions de l'ecran", () => {
     expect(r.status).toBe(403);
   });
 });
+
+describe("une reprise arrete aussi l'agenda et le rappel de l'IA", () => {
+  it("apres la reprise, l'IA n'inscrit plus de rendez-vous", async () => {
+    const { creerRendezVousConfirme } = await import("../services/standard-telephonique");
+    const s = await session(ids.orgA, { takeoverStatus: "reussi" } as any);
+    const debut = new Date("2026-11-03T09:00:00.000Z");
+    const r = await creerRendezVousConfirme({ orgId: ids.orgA, callSid: s, debut, fin: new Date(debut.getTime() + 3600e3), nom: "Claire", motif: "Devis", telephone: "+33611223344", contactId: null });
+    expect(r).toEqual({ repris: true });
+    const evts = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.externalRef, `voice:${s}`));
+    expect(evts).toHaveLength(0);
+  });
+
+  it("sans reprise, le meme rendez-vous s'inscrit (controle negatif)", async () => {
+    const { creerRendezVousConfirme } = await import("../services/standard-telephonique");
+    const s = await session(ids.orgA);
+    const debut = new Date("2026-11-04T09:00:00.000Z");
+    const r = await creerRendezVousConfirme({ orgId: ids.orgA, callSid: s, debut, fin: new Date(debut.getTime() + 3600e3), nom: "Claire", motif: "Devis", telephone: "+33611223344", contactId: null });
+    expect("eventId" in r && r.nouveau).toBe(true);
+  });
+
+  it("une revendication d'action IA echoue apres la reprise ; la finalisation passe toujours", async () => {
+    const { revendiquerAction } = await import("../services/standard-telephonique");
+    const s = await session(ids.orgA, { takeoverStatus: "reussi" } as any);
+    expect(await revendiquerAction(s, ids.orgA, "rappel", true, { siNonRepris: true })).toBe(false);
+    expect(await revendiquerAction(s, ids.orgA, "finalisation")).toBe(true);
+  });
+});

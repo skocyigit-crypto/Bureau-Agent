@@ -1643,6 +1643,13 @@ export async function traiterConfirmation(session: CallSession, reponse: "oui" |
     return { say: phrase("erreurEnregistrement", session.lang) };
   }
 
+  if ("repris" in resultat) {
+    // Un humain a repris l appel pendant ce tour : l IA s efface, rien n est
+    // inscrit. La reponse sera de toute facon ecartee (sauverSessionAppel).
+    await journaliserAppel(session.orgId, session.callSid, "appointment.skipped_takeover", { debut: p.debutIso });
+    return { say: "" };
+  }
+
   if ("occupe" in resultat) {
     // Pris entre la proposition et le « oui » : d'autres creneaux.
     session.rdvPropose = null;
@@ -1902,7 +1909,7 @@ async function transferer(session: CallSession, raison: string, intro?: string, 
  */
 async function rappelEtFin(session: CallSession, raison: string, prefixe = ""): Promise<string> {
   const caller = session.callerNumber || "inconnu";
-  if (await revendiquerAction(session.callSid, session.orgId, "rappel")) {
+  if (await revendiquerAction(session.callSid, session.orgId, "rappel", true, { siNonRepris: true })) {
     try {
       const contactId = await contactDeLAppelant(session.orgId, caller, session.callerName, true);
       if (contactId) session.callerContactId = contactId;
