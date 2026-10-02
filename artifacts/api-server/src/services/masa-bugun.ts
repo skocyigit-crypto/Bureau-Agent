@@ -285,7 +285,7 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
   ]);
 
   // ---- Dossiers -----------------------------------------------------------------
-  const [nouvelles, devisEnvoyes, enRetard] = await Promise.all([
+  const [nouvelles, devisEnvoyes, enRetard, prochainesActions] = await Promise.all([
     db.select({ id: prospectsTable.id, title: prospectsTable.title, contactName: prospectsTable.contactName, company: prospectsTable.company, assignedTo: prospectsTable.assignedTo, createdAt: prospectsTable.createdAt })
       .from(prospectsTable)
       .where(and(eq(prospectsTable.organisationId, orgId), eq(prospectsTable.stage, "nouveau"), gte(prospectsTable.createdAt, ilYa7j)))
@@ -301,8 +301,29 @@ export async function construireMasaBugun(orgId: number, maintenant: Date = new 
       .from(projetsTable)
       .where(and(eq(projetsTable.organisationId, orgId), isNotNull(projetsTable.endDate), lt(projetsTable.endDate, maintenant), notInArray(projetsTable.status, TERMINE_PROJET)))
       .orderBy(asc(projetsTable.endDate)).limit(limite),
+    // Prochaine action d'une opportunite, echue ou du jour : sans cette
+    // ligne, la relance promise au client n'existe que dans la fiche, que
+    // personne n'ouvre le jour dit. Les plus en retard d'abord.
+    db.select({
+      id: prospectsTable.id, title: prospectsTable.title, label: prospectsTable.nextActionLabel,
+      at: prospectsTable.nextActionAt, ownerId: prospectsTable.nextActionOwnerId, contactName: prospectsTable.contactName,
+    }).from(prospectsTable)
+      .where(and(
+        eq(prospectsTable.organisationId, orgId),
+        isNotNull(prospectsTable.nextActionAt),
+        lt(prospectsTable.nextActionAt, fin),
+        notInArray(prospectsTable.stage, ["gagne", "perdu"]),
+      ))
+      .orderBy(asc(prospectsTable.nextActionAt)).limit(limite),
   ]);
   const dosyalar = rubrique([
+    prochainesActions.map((p) => ({
+      cle: `sonraki_adim:${p.id}`,
+      tur: p.at && p.at.getTime() < debut.getTime() ? "sonraki_adim_gecikti" : "sonraki_adim_bugun",
+      baslik: p.label || p.title, detay: [p.title !== (p.label || p.title) ? p.title : null, p.contactName].filter(Boolean).join(" · ") || null,
+      href: `/prospects/${p.id}`, sorumlu: nommer(p.ownerId, noms), zaman: iso(p.at),
+      ton: (p.at && p.at.getTime() < debut.getTime() ? "acil" : "onay") as Ton,
+    })),
     nouvelles.map((p) => ({
       cle: `talep:${p.id}`, tur: "talep_yeni", baslik: p.title, detay: [p.contactName, p.company].filter(Boolean).join(" · ") || null,
       href: `/prospects/${p.id}`, sorumlu: nommer(p.assignedTo, noms), zaman: iso(p.createdAt), ton: "bilgi" as Ton,

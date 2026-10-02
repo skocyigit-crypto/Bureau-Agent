@@ -26,6 +26,8 @@ export interface InvoiceLineInput {
   quantity?: number | string;
   unitPrice?: number | string;
   taxRate?: number | string;
+  /** Ligne reprise d une estimation commerciale, a chiffrer (services/crm-decouverte.ts). */
+  estimate?: boolean;
 }
 
 export interface InvoiceLine {
@@ -34,6 +36,8 @@ export interface InvoiceLine {
   unitPrice: number;
   taxRate: number;
   total: number; // HT, arrondi au centime
+  /** Present seulement sur une ligne d estimation non encore reprise. */
+  estimate?: true;
 }
 
 export interface VatBreakdownEntry {
@@ -140,7 +144,10 @@ export function computeInvoiceTotals(
     const unitPrice = Math.max(0, toNum(l.unitPrice));
     const taxRate = autoliquidation ? 0 : Math.max(0, toNum(l.taxRate));
     const description = (typeof l.description === "string" ? l.description : "").slice(0, MAX_LINE_DESCRIPTION);
-    return { description, quantity, unitPrice, taxRate, total: round2(quantity * unitPrice) };
+    // Le drapeau d estimation survit au recalcul : sans lui, le premier
+    // enregistrement du devis effacait la seule trace que ce prix n a jamais
+    // ete chiffre.
+    return { description, quantity, unitPrice, taxRate, total: round2(quantity * unitPrice), ...(l.estimate === true ? { estimate: true as const } : {}) };
   });
 
   const subtotal = round2(lines.reduce((s, l) => s + l.total, 0));

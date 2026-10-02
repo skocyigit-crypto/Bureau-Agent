@@ -217,6 +217,11 @@ export default function AdminDevisPage() {
                   </p>
                 </div>
                 <StatusBadge status={d.status} />
+                {/* Une estimation reprise d une opportunite n est pas un prix :
+                    le serveur refuse l acceptation tant qu elle reste. */}
+                {Array.isArray((d as any).items) && (d as any).items.some((l: any) => l?.estimate === true) && (
+                  <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5" data-testid={`devis-estimation-${d.id}`} title={t("crm.estimation.aide")}>{t("crm.estimation.listeBadge")}</span>
+                )}
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(d.totalAmount, d.currency)}</span>
                 {/* Facturer et ouvrir le chantier : seulement un devis ACCEPTE.
                     Le bouton « Facture » s'offrait sur tout devis, brouillon ou

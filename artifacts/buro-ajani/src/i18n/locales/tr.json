@@ -9911,7 +9911,9 @@
       "ajan_calisiyor": "Çalışıyor",
       "baglanti_telefon": "Bağlantı eksik",
       "baglanti_google": "Bağlantı eksik",
-      "baglanti_ia": "Bağlantı eksik"
+      "baglanti_ia": "Bağlantı eksik",
+      "sonraki_adim_gecikti": "Geciken takip",
+      "sonraki_adim_bugun": "Bugünkü takip"
     },
     "baglanti": {
       "baglanti_telefon": "Telefon hattı bağlı değil — telefon ajanı çağrı alamaz",
@@ -10385,5 +10387,86 @@
     "essai_echoue": "Deneme başarısız oldu: model yanıt vermedi.",
     "action_anterieure_profils": "Bu işlem ajan profillerinden önce önerildi: yürütülmedi. Talebi uygun profille yeniden açın.",
     "generic": "İstek başarısız oldu (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "Müşteri geçmişi",
+      "onglet": "Geçmiş",
+      "vide": "Bu müşteri için kayıtlı etkinlik yok.",
+      "erreur": "Geçmiş yüklenemedi.",
+      "reessayer": "Tekrar dene",
+      "plus": "Daha fazla göster",
+      "chargement": "Geçmiş yükleniyor",
+      "type": {
+        "appel": "Arama",
+        "message": "Mesaj",
+        "note": "Not",
+        "whatsapp": "WhatsApp",
+        "devis": "Teklif",
+        "facture": "Fatura",
+        "rendez_vous": "Randevu",
+        "offre_rdv": "Randevu önerisi",
+        "tache": "Görev",
+        "chantier": "Şantiye",
+        "opportunite": "Fırsat"
+      }
+    },
+    "doublons": {
+      "titre": "Olası mükerrer kayıt",
+      "description": "Bu kartlar aynı müşteriyi gösteriyor olabilir.",
+      "motif": {
+        "telephone": "aynı telefon",
+        "email": "aynı e-posta",
+        "nom_societe": "aynı ad ve şirket"
+      },
+      "lignes": "{{count}} bağlı kayıt",
+      "fusionner": "Bu karta birleştir",
+      "confirmTitre": "{{nom}} bu karta birleştirilsin mi?",
+      "confirmDesc": "Aramaları, mesajları, teklifleri, faturaları, randevuları, görevleri ve şantiyeleri bu karta bağlanır. Birleştirilen kart çöp kutusuna gider ve geri yüklenebilir.",
+      "confirmAction": "Birleştir",
+      "succes": "Kartlar birleştirildi",
+      "succesDesc": "{{count}} kayıt taşındı.",
+      "erreur": "Birleştirme yapılamadı",
+      "erreurChargement": "Mükerrer kayıt araması başarısız oldu."
+    },
+    "suivi": {
+      "titre": "Sonraki adım",
+      "libelle": "Adım",
+      "date": "Tarih",
+      "responsable": "Sorumlu",
+      "aucun": "Yok",
+      "enregistrer": "Kaydet",
+      "enregistre": "Sonraki adım kaydedildi",
+      "enRetard": "Gecikti",
+      "erreur": "Kaydedilemedi"
+    },
+    "decouverte": {
+      "titre": "Keşif bilgileri",
+      "progression": "{{ok}}/{{total}} doğrulandı",
+      "manquants": "Doğrulanacak: {{liste}}",
+      "complet": "Her şey doğrulandı.",
+      "valeur": "Ayrıntı",
+      "enregistrer": "Kaydet",
+      "enregistre": "Keşif kaydedildi",
+      "point": {
+        "adresse_chantier": "Şantiye adresi",
+        "type_travaux": "İş türü",
+        "surface": "Alan",
+        "acces": "Şantiyeye erişim",
+        "photos": "Fotoğraflar",
+        "budget": "Bütçe",
+        "delai": "İstenen süre",
+        "decideur": "Karar verici"
+      },
+      "devisAvertTitre": "Keşif eksik",
+      "devisAvertDesc": "Doğrulanmamış noktalar: {{liste}}. Teklif varsayımlarla hesaplanabilir.",
+      "devisAvertAction": "Yine de oluştur"
+    },
+    "estimation": {
+      "badge": "Tahmin",
+      "aide": "Tahmini fiyat, hesaplanmadı: teklifi kabul etmeden önce bu satırı düzeltin.",
+      "devisCree": "Teklif, tahmini hesaplanacak bir satır olarak içeriyor.",
+      "listeBadge": "Tahmin içeriyor"
+    }
   }
 }

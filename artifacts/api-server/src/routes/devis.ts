@@ -10,6 +10,7 @@ import { getOrgId } from "../middleware/tenant";
 import { computeInvoiceTotals, isValidCurrency, parseUserDate, clampPagination } from "../services/invoice-totals";
 import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { logAudit } from "./audit";
+import { contientLigneEstimee } from "../services/crm-decouverte";
 import { referencesRefusees, refuserReferences } from "../services/appartenance";
 import { chantierDuDevis } from "../services/devis-facturable";
 import { affectationDuDevis, rattacherFacturesDuDevis, verrouillerDevis } from "../services/dossier-chantier";
@@ -212,6 +213,7 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
       .select({
         id: devisTable.id, status: devisTable.status, validUntil: devisTable.validUntil,
         acceptedAt: devisTable.acceptedAt, totalAmount: devisTable.totalAmount, prospectId: devisTable.prospectId, currency: devisTable.currency,
+        items: devisTable.items,
       })
       .from(devisTable).where(scoped);
     if (!existing) { res.status(404).json({ error: "Devis non trouve." }); return; }
@@ -348,6 +350,21 @@ router.patch("/devis/:id", async (req: Request, res: Response): Promise<void> =>
           code: "devis_expire",
           validUntil: existing.validUntil,
           remediation: "Prolongez la date de validite du devis si le prix tient toujours, puis acceptez-le.",
+        });
+        return;
+      }
+      // UNE ESTIMATION N'EST PAS UN PRIX. Le devis cree depuis une
+      // opportunite reprend sa valeur estimee sur une ligne marquee
+      // `estimate: true`. L'accepter tel quel engagerait l'entreprise sur un
+      // montant que personne n'a chiffre. On regarde les lignes telles
+      // qu'elles seront APRES cette requete : reprendre la ligne et accepter
+      // dans le meme enregistrement reste possible.
+      const lignesVisees = updates.items !== undefined ? updates.items : existing.items;
+      if (contientLigneEstimee(lignesVisees)) {
+        res.status(409).json({
+          error: "Ce devis contient encore une ligne d'estimation non chiffree.",
+          code: "devis_ligne_estimee",
+          remediation: "Reprenez la ligne marquee « Estimation » (quantite, prix ou designation) avant d'accepter le devis.",
         });
         return;
       }

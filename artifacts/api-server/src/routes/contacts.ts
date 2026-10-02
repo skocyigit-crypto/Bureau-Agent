@@ -20,6 +20,8 @@ import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { cleEmail, cleTelephone, lireLigneContact } from "../services/import-contacts";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { requireRole } from "../middleware/auth";
+import { chronologieDuContact, comptesDeReferences, doublonsDeLOrganisation, doublonsDuContact, fusionnerContacts, lireCurseur } from "../services/crm-contacts";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 
@@ -163,6 +165,24 @@ router.post("/contacts/import", async (req, res): Promise<void> => {
   }
 
   res.json({ imported, skipped, errors: errors.slice(0, 20) });
+});
+
+/**
+ * Fiches suspectees d'etre le meme client, groupees par motif.
+ *
+ * Declaree AVANT `/contacts/:id` : sinon Express lit « doublons » comme un
+ * identifiant et rend 400. La detection ne fusionne rien : elle propose, la
+ * fusion est un geste explicite (POST /contacts/:id/fusion).
+ */
+router.get("/contacts/doublons", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const groupes = await doublonsDeLOrganisation(orgId);
+    res.json({ groupes });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur detection doublons");
+    res.status(500).json({ error: "Erreur lors de la detection des doublons." });
+  }
 });
 
 router.get("/contacts/:id", async (req, res): Promise<void> => {
@@ -604,6 +624,90 @@ router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur devis/factures contact");
     res.status(500).json({ error: "Erreur lors de la récupération." });
+  }
+});
+
+function idDeRoute(raw: unknown): number | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * Le fil chronologique d'un client : appels, messages, WhatsApp, devis,
+ * factures, rendez-vous, offres de rendez-vous, taches, chantiers,
+ * opportunites. Chaque element mene a sa fiche. 404 pour un contact d'une
+ * autre organisation — on ne confirme pas qu'il existe.
+ */
+router.get("/contacts/:id/chronologie", async (req, res): Promise<void> => {
+  const id = idDeRoute(req.params.id);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  const orgId = getOrgId(req);
+  const avant = req.query.avant !== undefined ? lireCurseur(req.query.avant) : null;
+  if (req.query.avant !== undefined && !avant) { res.status(400).json({ error: "Curseur invalide." }); return; }
+  try {
+    const limite = parseInt(String(req.query.limit ?? ""), 10);
+    const r = await chronologieDuContact(orgId, id, { limite: Number.isNaN(limite) ? undefined : limite, avant });
+    if (!r) { res.status(404).json({ error: "Contact not found" }); return; }
+    res.json(r);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur chronologie contact");
+    res.status(500).json({ error: "Erreur lors de la récupération." });
+  }
+});
+
+/** Doublons suspectes d'UNE fiche, avec ce qu'une fusion deplacerait. */
+router.get("/contacts/:id/doublons", async (req, res): Promise<void> => {
+  const id = idDeRoute(req.params.id);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  const orgId = getOrgId(req);
+  try {
+    const candidats = await doublonsDuContact(orgId, id);
+    if (!candidats) { res.status(404).json({ error: "Contact not found" }); return; }
+    const references = await comptesDeReferences(orgId, candidats.map((c) => c.id));
+    res.json({ candidats: candidats.map((c) => ({ ...c, references: references[c.id] ?? {} })) });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur doublons contact");
+    res.status(500).json({ error: "Erreur lors de la detection des doublons." });
+  }
+});
+
+/**
+ * Fusion : la fiche `absorbeId` est absorbee dans `:id`.
+ *
+ * Reservee aux roles qui gerent la relation client (agent et au-dessus) : un
+ * compte en lecture seule ne doit pas pouvoir reecrire l'historique d'un
+ * client. Tout se fait en une transaction (services/crm-contacts.ts) ; la
+ * fiche absorbee part a la corbeille, restaurable, et le journal d'audit
+ * garde la liste des lignes deplacees, table par table.
+ */
+router.post("/contacts/:id/fusion", requireRole("super_admin", "administrateur", "agent"), async (req, res): Promise<void> => {
+  const conserveId = idDeRoute(req.params.id);
+  const absorbeId = idDeRoute(req.body?.absorbeId);
+  if (!conserveId || !absorbeId) { res.status(400).json({ error: "Identifiants invalides." }); return; }
+  const orgId = getOrgId(req);
+  try {
+    const r = await fusionnerContacts(orgId, conserveId, absorbeId, deletionContext(req, orgId));
+    if (!r.ok) {
+      if (r.raison === "introuvable") { res.status(404).json({ error: "Contact not found" }); return; }
+      if (r.raison === "meme_contact") { res.status(400).json({ error: "Une fiche ne peut pas etre fusionnee avec elle-meme.", code: "fusion_meme_contact" }); return; }
+      res.status(409).json({
+        error: "Les deux fiches ont chacune un compte client.",
+        code: "fusion_compte_client_double",
+        remediation: "Rapprochez d'abord les deux comptes clients : la fusion ne choisit pas a votre place lequel garder.",
+      });
+      return;
+    }
+    const comptes = Object.fromEntries(Object.entries(r.deplaces).map(([t, ids]) => [t, ids.length]));
+    void logAudit(
+      req.session?.userId, req.session?.userEmail, "contact.fusion", "contact", String(conserveId),
+      { absorbeId, deplaces: comptes, lignes: r.deplaces },
+      req.ip, req.get("user-agent"), orgId,
+    ).catch(() => {});
+    res.json({ contact: r.conserve, absorbeId, deplaces: comptes });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur fusion contacts");
+    res.status(500).json({ error: "Erreur lors de la fusion." });
   }
 });
 

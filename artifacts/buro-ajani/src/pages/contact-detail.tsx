@@ -2,6 +2,8 @@ import { appliquerErreursServeur } from "@/lib/erreurs-serveur";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
+import { ContactChronologie } from "@/components/crm/contact-chronologie";
+import { ContactDoublons } from "@/components/crm/contact-doublons";
 import { QueryErrorAlert } from "@/components/safe-component";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -396,15 +398,23 @@ export default function ContactDetail() {
           <DocumentsPanel entityType="contact" entityId={contact.id} />
         </div>
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 space-y-4">
+          <ContactDoublons contactId={contact.id} onFusion={() => queryClient.invalidateQueries({ queryKey: getGetContactQueryKey(contactId) })} />
           <Tabs defaultValue="calls">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="chronologie">{t("crm.chronologie.onglet")}</TabsTrigger>
               <TabsTrigger value="calls">{t("contactDetail.tabCalls")}</TabsTrigger>
               <TabsTrigger value="tasks">{t("contactDetail.tabTasks")}</TabsTrigger>
               <TabsTrigger value="projets">{t("contactDetail.tabProjets")}</TabsTrigger>
               <TabsTrigger value="notes">{t("contactDetail.tabNotes")}</TabsTrigger>
             </TabsList>
             
+            {/* Le fil complet du client : chaque appel, message, devis, facture,
+                rendez-vous, tache et chantier, du plus recent au plus ancien. */}
+            <TabsContent value="chronologie" className="mt-4">
+              <Card><CardContent className="pt-4"><ContactChronologie contactId={contact.id} /></CardContent></Card>
+            </TabsContent>
+
             <TabsContent value="calls" className="mt-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">

@@ -9911,7 +9911,9 @@
       "ajan_calisiyor": "Running",
       "baglanti_telefon": "Missing connection",
       "baglanti_google": "Missing connection",
-      "baglanti_ia": "Missing connection"
+      "baglanti_ia": "Missing connection",
+      "sonraki_adim_gecikti": "Overdue follow-up",
+      "sonraki_adim_bugun": "Follow-up due today"
     },
     "baglanti": {
       "baglanti_telefon": "No phone line — the phone agent cannot take calls",
@@ -10385,5 +10387,86 @@
     "essai_echoue": "The dry run failed: the model did not respond.",
     "action_anterieure_profils": "This action was proposed before agent profiles existed: it was not executed. Reopen the request under the right profile.",
     "generic": "The request failed (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "Customer history",
+      "onglet": "History",
+      "vide": "No activity recorded for this customer.",
+      "erreur": "The history could not be loaded.",
+      "reessayer": "Retry",
+      "plus": "Show more",
+      "chargement": "Loading history",
+      "type": {
+        "appel": "Call",
+        "message": "Message",
+        "note": "Note",
+        "whatsapp": "WhatsApp",
+        "devis": "Quote",
+        "facture": "Invoice",
+        "rendez_vous": "Appointment",
+        "offre_rdv": "Appointment offer",
+        "tache": "Task",
+        "chantier": "Site",
+        "opportunite": "Opportunity"
+      }
+    },
+    "doublons": {
+      "titre": "Possible duplicate",
+      "description": "These records seem to describe the same customer.",
+      "motif": {
+        "telephone": "same phone",
+        "email": "same email",
+        "nom_societe": "same name and company"
+      },
+      "lignes": "{{count}} linked item(s)",
+      "fusionner": "Merge into this record",
+      "confirmTitre": "Merge {{nom}} into this record?",
+      "confirmDesc": "Its calls, messages, quotes, invoices, appointments, tasks and sites will be linked to this record. The absorbed record goes to the trash and can be restored.",
+      "confirmAction": "Merge",
+      "succes": "Records merged",
+      "succesDesc": "{{count}} item(s) moved.",
+      "erreur": "Merge failed",
+      "erreurChargement": "Duplicate search failed."
+    },
+    "suivi": {
+      "titre": "Next action",
+      "libelle": "Action",
+      "date": "Date",
+      "responsable": "Owner",
+      "aucun": "None",
+      "enregistrer": "Save",
+      "enregistre": "Next action saved",
+      "enRetard": "Overdue",
+      "erreur": "Could not save"
+    },
+    "decouverte": {
+      "titre": "Discovery information",
+      "progression": "{{ok}}/{{total}} confirmed",
+      "manquants": "To confirm: {{liste}}",
+      "complet": "Everything is confirmed.",
+      "valeur": "Detail",
+      "enregistrer": "Save",
+      "enregistre": "Discovery saved",
+      "point": {
+        "adresse_chantier": "Site address",
+        "type_travaux": "Type of work",
+        "surface": "Area",
+        "acces": "Site access",
+        "photos": "Photos",
+        "budget": "Budget",
+        "delai": "Desired timeframe",
+        "decideur": "Decision maker"
+      },
+      "devisAvertTitre": "Incomplete discovery",
+      "devisAvertDesc": "Unconfirmed points: {{liste}}. The quote may be priced on assumptions.",
+      "devisAvertAction": "Create anyway"
+    },
+    "estimation": {
+      "badge": "Estimate",
+      "aide": "Estimated price, not costed: rework this line before accepting the quote.",
+      "devisCree": "The quote carries the estimate on a line to be costed.",
+      "listeBadge": "Contains an estimate"
+    }
   }
 }

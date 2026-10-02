@@ -9911,7 +9911,9 @@
       "ajan_calisiyor": "En cours",
       "baglanti_telefon": "Connexion manquante",
       "baglanti_google": "Connexion manquante",
-      "baglanti_ia": "Connexion manquante"
+      "baglanti_ia": "Connexion manquante",
+      "sonraki_adim_gecikti": "Relance en retard",
+      "sonraki_adim_bugun": "Relance du jour"
     },
     "baglanti": {
       "baglanti_telefon": "Aucune ligne téléphonique — l'agent téléphonique ne peut pas prendre d'appel",
@@ -10385,5 +10387,86 @@
     "essai_echoue": "L'essai a échoué : le modèle n'a pas répondu.",
     "action_anterieure_profils": "Cette action a été proposée avant les profils d'agents : elle n'a pas été exécutée. Rouvrez la demande sous le profil adapté.",
     "generic": "La requête a échoué (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "Historique du client",
+      "onglet": "Historique",
+      "vide": "Aucune activité enregistrée pour ce client.",
+      "erreur": "L'historique n'a pas pu être chargé.",
+      "reessayer": "Réessayer",
+      "plus": "Afficher plus",
+      "chargement": "Chargement de l'historique",
+      "type": {
+        "appel": "Appel",
+        "message": "Message",
+        "note": "Note",
+        "whatsapp": "WhatsApp",
+        "devis": "Devis",
+        "facture": "Facture",
+        "rendez_vous": "Rendez-vous",
+        "offre_rdv": "Proposition de rendez-vous",
+        "tache": "Tâche",
+        "chantier": "Chantier",
+        "opportunite": "Opportunité"
+      }
+    },
+    "doublons": {
+      "titre": "Doublon possible",
+      "description": "Ces fiches semblent désigner le même client.",
+      "motif": {
+        "telephone": "même téléphone",
+        "email": "même e-mail",
+        "nom_societe": "même nom et société"
+      },
+      "lignes": "{{count}} élément(s) rattaché(s)",
+      "fusionner": "Fusionner dans cette fiche",
+      "confirmTitre": "Fusionner {{nom}} dans cette fiche ?",
+      "confirmDesc": "Ses appels, messages, devis, factures, rendez-vous, tâches et chantiers seront rattachés à cette fiche. La fiche absorbée part à la corbeille et peut être restaurée.",
+      "confirmAction": "Fusionner",
+      "succes": "Fiches fusionnées",
+      "succesDesc": "{{count}} élément(s) déplacé(s).",
+      "erreur": "Fusion impossible",
+      "erreurChargement": "La recherche de doublons a échoué."
+    },
+    "suivi": {
+      "titre": "Prochaine action",
+      "libelle": "Action",
+      "date": "Date",
+      "responsable": "Responsable",
+      "aucun": "Aucun",
+      "enregistrer": "Enregistrer",
+      "enregistre": "Prochaine action enregistrée",
+      "enRetard": "En retard",
+      "erreur": "Enregistrement impossible"
+    },
+    "decouverte": {
+      "titre": "Informations de découverte",
+      "progression": "{{ok}}/{{total}} confirmés",
+      "manquants": "À confirmer : {{liste}}",
+      "complet": "Tout est confirmé.",
+      "valeur": "Précision",
+      "enregistrer": "Enregistrer",
+      "enregistre": "Découverte enregistrée",
+      "point": {
+        "adresse_chantier": "Adresse du chantier",
+        "type_travaux": "Type de travaux",
+        "surface": "Surface",
+        "acces": "Accès au chantier",
+        "photos": "Photos",
+        "budget": "Budget",
+        "delai": "Délai souhaité",
+        "decideur": "Décideur"
+      },
+      "devisAvertTitre": "Découverte incomplète",
+      "devisAvertDesc": "Points non confirmés : {{liste}}. Le devis risque d'être chiffré sur des hypothèses.",
+      "devisAvertAction": "Créer quand même"
+    },
+    "estimation": {
+      "badge": "Estimation",
+      "aide": "Prix estimé, non chiffré : reprenez cette ligne avant d'accepter le devis.",
+      "devisCree": "Le devis reprend l'estimation sur une ligne à chiffrer.",
+      "listeBadge": "Contient une estimation"
+    }
   }
 }

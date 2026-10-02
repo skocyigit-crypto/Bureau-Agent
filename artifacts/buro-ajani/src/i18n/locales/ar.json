@@ -9917,7 +9917,9 @@
       "ajan_calisiyor": "قيد التشغيل",
       "baglanti_telefon": "اتصال مفقود",
       "baglanti_google": "اتصال مفقود",
-      "baglanti_ia": "اتصال مفقود"
+      "baglanti_ia": "اتصال مفقود",
+      "sonraki_adim_gecikti": "متابعة متأخرة",
+      "sonraki_adim_bugun": "متابعة اليوم"
     },
     "baglanti": {
       "baglanti_telefon": "لا يوجد خط هاتفي — لا يستطيع وكيل الهاتف تلقي المكالمات",
@@ -10391,5 +10393,86 @@
     "essai_echoue": "فشلت التجربة: لم يستجب النموذج.",
     "action_anterieure_profils": "اقتُرح هذا الإجراء قبل ملفات الوكلاء: لم يُنفَّذ. أعد فتح الطلب بالملف المناسب.",
     "generic": "فشل الطلب (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "سجل العميل",
+      "onglet": "السجل",
+      "vide": "لا يوجد نشاط مسجل لهذا العميل.",
+      "erreur": "تعذر تحميل السجل.",
+      "reessayer": "إعادة المحاولة",
+      "plus": "عرض المزيد",
+      "chargement": "جارٍ تحميل السجل",
+      "type": {
+        "appel": "مكالمة",
+        "message": "رسالة",
+        "note": "ملاحظة",
+        "whatsapp": "واتساب",
+        "devis": "عرض سعر",
+        "facture": "فاتورة",
+        "rendez_vous": "موعد",
+        "offre_rdv": "اقتراح موعد",
+        "tache": "مهمة",
+        "chantier": "ورشة",
+        "opportunite": "فرصة"
+      }
+    },
+    "doublons": {
+      "titre": "تكرار محتمل",
+      "description": "يبدو أن هذه البطاقات تخص العميل نفسه.",
+      "motif": {
+        "telephone": "الهاتف نفسه",
+        "email": "البريد نفسه",
+        "nom_societe": "الاسم والشركة نفسهما"
+      },
+      "lignes": "{{count}} عنصر مرتبط",
+      "fusionner": "الدمج في هذه البطاقة",
+      "confirmTitre": "دمج {{nom}} في هذه البطاقة؟",
+      "confirmDesc": "ستُربط مكالماته ورسائله وعروض أسعاره وفواتيره ومواعيده ومهامه وورشه بهذه البطاقة. تنتقل البطاقة المدمجة إلى سلة المهملات ويمكن استعادتها.",
+      "confirmAction": "دمج",
+      "succes": "تم دمج البطاقتين",
+      "succesDesc": "تم نقل {{count}} عنصر.",
+      "erreur": "تعذر الدمج",
+      "erreurChargement": "فشل البحث عن التكرارات."
+    },
+    "suivi": {
+      "titre": "الإجراء التالي",
+      "libelle": "الإجراء",
+      "date": "التاريخ",
+      "responsable": "المسؤول",
+      "aucun": "لا أحد",
+      "enregistrer": "حفظ",
+      "enregistre": "تم حفظ الإجراء التالي",
+      "enRetard": "متأخر",
+      "erreur": "تعذر الحفظ"
+    },
+    "decouverte": {
+      "titre": "معلومات المعاينة",
+      "progression": "{{ok}}/{{total}} مؤكدة",
+      "manquants": "للتأكيد: {{liste}}",
+      "complet": "كل شيء مؤكد.",
+      "valeur": "تفصيل",
+      "enregistrer": "حفظ",
+      "enregistre": "تم حفظ المعاينة",
+      "point": {
+        "adresse_chantier": "عنوان الورشة",
+        "type_travaux": "نوع الأعمال",
+        "surface": "المساحة",
+        "acces": "الوصول إلى الورشة",
+        "photos": "الصور",
+        "budget": "الميزانية",
+        "delai": "المدة المطلوبة",
+        "decideur": "صاحب القرار"
+      },
+      "devisAvertTitre": "معاينة غير مكتملة",
+      "devisAvertDesc": "نقاط غير مؤكدة: {{liste}}. قد يُسعَّر العرض على افتراضات.",
+      "devisAvertAction": "إنشاء على أي حال"
+    },
+    "estimation": {
+      "badge": "تقدير",
+      "aide": "سعر تقديري غير محسوب: راجع هذا السطر قبل قبول العرض.",
+      "devisCree": "يتضمن العرض التقدير في سطر يجب حسابه.",
+      "listeBadge": "يتضمن تقديرًا"
+    }
   }
 }
