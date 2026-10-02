@@ -1,9 +1,9 @@
 {
   "generatedFrom": "artifacts/api-server/src/routes/*.ts",
   "summary": {
-    "runtimeOperations": 737,
+    "runtimeOperations": 742,
     "documentedOperations": 96,
-    "undocumentedOperations": 641
+    "undocumentedOperations": 646
   },
   "operations": [
     {
@@ -2295,6 +2295,14 @@
       ]
     },
     {
+      "method": "get",
+      "path": "/contacts/{id}/chronologie",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
       "method": "patch",
       "path": "/contacts/{id}/demarchage",
       "documented": false,
@@ -2311,8 +2319,24 @@
       ]
     },
     {
+      "method": "get",
+      "path": "/contacts/{id}/doublons",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
       "method": "post",
       "path": "/contacts/{id}/duplicate",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "post",
+      "path": "/contacts/{id}/fusion",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/contacts.ts"
@@ -2338,6 +2362,14 @@
       "method": "get",
       "path": "/contacts/{id}/tasks",
       "documented": true,
+      "sources": [
+        "artifacts/api-server/src/routes/contacts.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/contacts/doublons",
+      "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/contacts.ts"
       ]
@@ -4892,6 +4924,14 @@
     {
       "method": "get",
       "path": "/prospects/export/csv",
+      "documented": false,
+      "sources": [
+        "artifacts/api-server/src/routes/prospects.ts"
+      ]
+    },
+    {
+      "method": "get",
+      "path": "/prospects/next-actions",
       "documented": false,
       "sources": [
         "artifacts/api-server/src/routes/prospects.ts"

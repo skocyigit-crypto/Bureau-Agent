@@ -45,6 +45,7 @@ Voicemail,
 X,
 } from "lucide-react";
 import { useCallback,useEffect,useRef,useState } from "react";
+import { ListeDecouverteCarte, ProchaineAction, pointsManquants, type ListeDecouverte } from "@/components/crm/prospect-suivi";
 import { Link,useLocation,useRoute } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -87,6 +88,8 @@ interface Prospect {
   currency: string; probability: number; source?: string; assignedTo?: string;
   expectedCloseDate?: string; wonAt?: string; lostAt?: string; lostReason?: string;
   notes?: string; tags?: string[]; contactId?: number | null; createdAt: string; updatedAt?: string;
+  nextActionLabel?: string | null; nextActionAt?: string | null; nextActionOwnerId?: number | null;
+  discoveryChecklist?: ListeDecouverte | null;
 }
 
 const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
@@ -270,10 +273,21 @@ export default function ProspectDetail() {
   };
 
   const handleCreateDevis = async () => {
-    if (!(await confirmAction({ title: t("prospectDetail.confirmDevis"), description: t("prospectDetail.confirmDevisDesc"), confirmLabel: t("prospectDetail.confirmDevisAction") }))) return;
+    // Decouverte incomplete : on le dit AVANT de creer le devis, en nommant
+    // les points manquants. L utilisateur peut chiffrer sur hypotheses, mais
+    // en le sachant.
+    const manquants = pointsManquants(prospect?.discoveryChecklist);
+    const avertissement = manquants.length
+      ? { title: t("crm.decouverte.devisAvertTitre"), description: t("crm.decouverte.devisAvertDesc", { liste: manquants.map((m) => t(`crm.decouverte.point.${m}`)).join(", ") }), confirmLabel: t("crm.decouverte.devisAvertAction") }
+      : { title: t("prospectDetail.confirmDevis"), description: t("prospectDetail.confirmDevisDesc"), confirmLabel: t("prospectDetail.confirmDevisAction") };
+    if (!(await confirmAction(avertissement))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/create-devis`, { method: "POST", credentials: "include" });
     const d = await res.json();
-    if (res.ok) { toast({ title: t("prospectDetail.devisCreated"), description: t("prospectDetail.devisCreatedDesc", { ref: d.devis?.reference ?? "" }) }); load(); navigate("/devis"); }
+    if (res.ok) {
+      const desc = t("prospectDetail.devisCreatedDesc", { ref: d.devis?.reference ?? "" });
+      toast({ title: t("prospectDetail.devisCreated"), description: d.avertissements?.ligneEstimee ? `${desc} ${t("crm.estimation.devisCree")}` : desc });
+      load(); navigate("/devis");
+    }
     else toast({ title: t("prospectDetail.error"), description: d.error, variant: "destructive" });
   };
 
@@ -383,6 +397,9 @@ export default function ProspectDetail() {
               </div>
             </CardContent>
           </Card>
+
+          <ProchaineAction key={`pa-${prospect.id}-${prospect.updatedAt ?? ""}`} prospect={prospect} onSaved={load} />
+          <ListeDecouverteCarte key={`dec-${prospect.id}-${prospect.updatedAt ?? ""}`} prospect={prospect} onSaved={load} />
 
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">{t("prospectDetail.actions")}</CardTitle></CardHeader>

@@ -1,7 +1,7 @@
 import { tracerExtraction } from "../lib/tracer-extraction";
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable, projetsTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { logAudit } from "./audit";
@@ -194,7 +194,13 @@ router.post("/bulk/devis/status", requireMinOperateur, async (req: Request, res:
     const { ids, status } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
     if (!["brouillon", "envoye", "accepte", "refuse", "expire"].includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
-    const maj = await db.update(devisTable).set({ status, updatedAt: new Date() }).where(and(eq(devisTable.organisationId, orgId), inArray(devisTable.id, ids)));
+    // Une acceptation groupee ne doit pas contourner le refus des lignes
+    // d'estimation (routes/devis.ts, `devis_ligne_estimee`) : ces devis-la
+    // restent dans leur statut et ne sont pas comptes comme mis a jour.
+    const sansEstimation = status === "accepte"
+      ? sql`NOT (coalesce(${devisTable.items}, '[]'::jsonb) @> '[{"estimate": true}]'::jsonb)`
+      : sql`true`;
+    const maj = await db.update(devisTable).set({ status, updatedAt: new Date() }).where(and(eq(devisTable.organisationId, orgId), inArray(devisTable.id, ids), sansEstimation));
     res.json({ success: true, updated: affectees(maj, ids) });
   } catch (err: any) {
     logger.error({ err }, "Bulk devis status error");

@@ -108,6 +108,49 @@ function labelOf(row: Record<string, unknown>): string | null {
 }
 
 /**
+ * Les entrees de corbeille d'un lot de lignes, SANS les ecrire.
+ *
+ * Separee d'`archiveDeletedRows` pour la fusion de contacts : la, l'archivage
+ * doit se faire DANS la transaction qui supprime la fiche absorbee. Si la
+ * corbeille echoue, la suppression doit echouer avec elle — archiver apres
+ * coup, comme le fait une suppression ordinaire, laisserait une fenetre ou la
+ * fiche n'existe plus nulle part.
+ */
+export function entreesCorbeille(
+  table: PgTable,
+  rows: Array<Record<string, unknown>>,
+  ctx: DeletionContext,
+): Array<typeof deletedRowsTable.$inferInsert> {
+  const tableName = getTableName(table);
+  if (!isRestorableTable(tableName)) return [];
+  // Nom JavaScript -> nom de colonne, tel que la table le declare.
+  const columns = getTableColumns(table) as Record<string, { name: string }>;
+  const toColumnNames = (row: Record<string, unknown>) => {
+    const out: Record<string, unknown> = {};
+    for (const [prop, value] of Object.entries(row)) {
+      const column = columns[prop];
+      // Un champ inconnu de la table ne peut pas etre reinsere: le garder
+      // ferait echouer l'INSERT entier au moment ou l'utilisateur en a le
+      // plus besoin.
+      if (column) out[column.name] = value;
+    }
+    return out;
+  };
+
+  return rows
+    .filter((row) => row && row.id != null)
+    .map((row) => ({
+      organisationId: ctx.orgId,
+      tableName,
+      rowId: Number(row.id),
+      label: labelOf(row),
+      payload: toColumnNames(row),
+      deletedByUserId: ctx.userId ?? null,
+      deletedByName: ctx.userName ?? null,
+    }));
+}
+
+/**
  * Consigne des lignes supprimees.
  *
  * Ne leve JAMAIS: la suppression demandee par l'utilisateur a deja eu lieu
@@ -145,31 +188,7 @@ export async function archiveDeletedRows(
     return 0;
   }
   try {
-    // Nom JavaScript -> nom de colonne, tel que la table le declare.
-    const columns = getTableColumns(table) as Record<string, { name: string }>;
-    const toColumnNames = (row: Record<string, unknown>) => {
-      const out: Record<string, unknown> = {};
-      for (const [prop, value] of Object.entries(row)) {
-        const column = columns[prop];
-        // Un champ inconnu de la table ne peut pas etre reinsere: le garder
-        // ferait echouer l'INSERT entier au moment ou l'utilisateur en a le
-        // plus besoin.
-        if (column) out[column.name] = value;
-      }
-      return out;
-    };
-
-    const values = rows
-      .filter((row) => row && row.id != null)
-      .map((row) => ({
-        organisationId: ctx.orgId,
-        tableName,
-        rowId: Number(row.id),
-        label: labelOf(row),
-        payload: toColumnNames(row),
-        deletedByUserId: ctx.userId ?? null,
-        deletedByName: ctx.userName ?? null,
-      }));
+    const values = entreesCorbeille(table, rows, ctx);
     if (values.length === 0) return 0;
     await db.insert(deletedRowsTable).values(values);
     return values.length;

@@ -9911,7 +9911,9 @@
       "ajan_calisiyor": "Läuft",
       "baglanti_telefon": "Verbindung fehlt",
       "baglanti_google": "Verbindung fehlt",
-      "baglanti_ia": "Verbindung fehlt"
+      "baglanti_ia": "Verbindung fehlt",
+      "sonraki_adim_gecikti": "Überfällige Nachfassaktion",
+      "sonraki_adim_bugun": "Nachfassen heute"
     },
     "baglanti": {
       "baglanti_telefon": "Keine Telefonleitung – der Telefonagent kann keine Anrufe annehmen",
@@ -10385,5 +10387,86 @@
     "essai_echoue": "Der Testlauf ist fehlgeschlagen: Das Modell hat nicht geantwortet.",
     "action_anterieure_profils": "Diese Aktion wurde vor Einführung der Agentenprofile vorgeschlagen: Sie wurde nicht ausgeführt. Stellen Sie die Anfrage unter dem passenden Profil erneut.",
     "generic": "Die Anfrage ist fehlgeschlagen (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "Kundenverlauf",
+      "onglet": "Verlauf",
+      "vide": "Für diesen Kunden ist keine Aktivität erfasst.",
+      "erreur": "Der Verlauf konnte nicht geladen werden.",
+      "reessayer": "Erneut versuchen",
+      "plus": "Mehr anzeigen",
+      "chargement": "Verlauf wird geladen",
+      "type": {
+        "appel": "Anruf",
+        "message": "Nachricht",
+        "note": "Notiz",
+        "whatsapp": "WhatsApp",
+        "devis": "Angebot",
+        "facture": "Rechnung",
+        "rendez_vous": "Termin",
+        "offre_rdv": "Terminvorschlag",
+        "tache": "Aufgabe",
+        "chantier": "Baustelle",
+        "opportunite": "Verkaufschance"
+      }
+    },
+    "doublons": {
+      "titre": "Mögliche Dublette",
+      "description": "Diese Einträge scheinen denselben Kunden zu bezeichnen.",
+      "motif": {
+        "telephone": "gleiche Telefonnummer",
+        "email": "gleiche E-Mail",
+        "nom_societe": "gleicher Name und Firma"
+      },
+      "lignes": "{{count}} verknüpfte Einträge",
+      "fusionner": "In diesen Eintrag zusammenführen",
+      "confirmTitre": "{{nom}} in diesen Eintrag zusammenführen?",
+      "confirmDesc": "Anrufe, Nachrichten, Angebote, Rechnungen, Termine, Aufgaben und Baustellen werden mit diesem Eintrag verknüpft. Der übernommene Eintrag kommt in den Papierkorb und kann wiederhergestellt werden.",
+      "confirmAction": "Zusammenführen",
+      "succes": "Einträge zusammengeführt",
+      "succesDesc": "{{count}} Einträge verschoben.",
+      "erreur": "Zusammenführen fehlgeschlagen",
+      "erreurChargement": "Die Dublettensuche ist fehlgeschlagen."
+    },
+    "suivi": {
+      "titre": "Nächster Schritt",
+      "libelle": "Schritt",
+      "date": "Datum",
+      "responsable": "Verantwortlich",
+      "aucun": "Niemand",
+      "enregistrer": "Speichern",
+      "enregistre": "Nächster Schritt gespeichert",
+      "enRetard": "Überfällig",
+      "erreur": "Speichern fehlgeschlagen"
+    },
+    "decouverte": {
+      "titre": "Erhebungsangaben",
+      "progression": "{{ok}}/{{total}} bestätigt",
+      "manquants": "Zu bestätigen: {{liste}}",
+      "complet": "Alles ist bestätigt.",
+      "valeur": "Angabe",
+      "enregistrer": "Speichern",
+      "enregistre": "Erhebung gespeichert",
+      "point": {
+        "adresse_chantier": "Baustellenadresse",
+        "type_travaux": "Art der Arbeiten",
+        "surface": "Fläche",
+        "acces": "Zugang zur Baustelle",
+        "photos": "Fotos",
+        "budget": "Budget",
+        "delai": "Gewünschter Termin",
+        "decideur": "Entscheider"
+      },
+      "devisAvertTitre": "Erhebung unvollständig",
+      "devisAvertDesc": "Nicht bestätigte Punkte: {{liste}}. Das Angebot könnte auf Annahmen beruhen.",
+      "devisAvertAction": "Trotzdem erstellen"
+    },
+    "estimation": {
+      "badge": "Schätzung",
+      "aide": "Geschätzter, nicht kalkulierter Preis: Überarbeiten Sie diese Zeile, bevor Sie das Angebot annehmen.",
+      "devisCree": "Das Angebot enthält die Schätzung als zu kalkulierende Zeile.",
+      "listeBadge": "Enthält eine Schätzung"
+    }
   }
 }

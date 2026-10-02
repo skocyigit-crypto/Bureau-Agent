@@ -11,6 +11,9 @@ import { archiveDeletedRows, deletionContext } from "../services/trash";
 import { celluleCsv, SEPARATEUR_CSV } from "../lib/csv";
 import { datesEtape, pagination, validerSaisieProspect } from "../services/prospect-saisie";
 import { contactDeLOrganisation } from "../services/contact-organisation";
+import { PREFIXE_ESTIMATION, pointsManquants, validerListeDecouverte } from "../services/crm-decouverte";
+import { logAudit } from "./audit";
+import { usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -95,6 +98,42 @@ router.get("/prospects/stats", async (req: Request, res: Response): Promise<void
   } catch (err: any) {
     req.log.error({ err }, "Erreur stats prospects");
     res.status(500).json({ error: "Erreur lors des statistiques." });
+  }
+});
+
+/**
+ * Prochaines actions echues ou du jour (avant /prospects/:id : sinon Express
+ * lirait « next-actions » comme un identifiant).
+ *
+ * `scope=me` : celles dont la session est responsable. Les opportunites
+ * gagnees ou perdues n'ont plus de prochaine action qui compte.
+ */
+router.get("/prospects/next-actions", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const finDuJour = new Date();
+  finDuJour.setHours(23, 59, 59, 999);
+  const conditions = [
+    eq(prospectsTable.organisationId, orgId),
+    sql`${prospectsTable.nextActionAt} IS NOT NULL`,
+    sql`${prospectsTable.nextActionAt} <= ${finDuJour}`,
+    sql`${prospectsTable.stage} NOT IN ('gagne', 'perdu')`,
+  ];
+  if (req.query.scope === "me") {
+    const uid = req.session?.userId;
+    if (!uid) { res.json({ actions: [] }); return; }
+    conditions.push(eq(prospectsTable.nextActionOwnerId, uid));
+  }
+  try {
+    const actions = await db.select({
+      id: prospectsTable.id, title: prospectsTable.title, contactName: prospectsTable.contactName,
+      nextActionLabel: prospectsTable.nextActionLabel, nextActionAt: prospectsTable.nextActionAt,
+      nextActionOwnerId: prospectsTable.nextActionOwnerId,
+    }).from(prospectsTable).where(and(...conditions)).orderBy(asc(prospectsTable.nextActionAt)).limit(100);
+    const maintenant = Date.now();
+    res.json({ actions: actions.map((a) => ({ ...a, enRetard: a.nextActionAt != null && a.nextActionAt.getTime() < maintenant })) });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur prochaines actions");
+    res.status(500).json({ error: "Erreur lors de la recuperation." });
   }
 });
 
@@ -189,7 +228,52 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
     }
     if (lostReason !== undefined) updates.lostReason = lostReason;
 
+    // Prochaine action : le responsable doit etre un utilisateur de LA MEME
+    // organisation — sinon « Aujourd'hui » nommerait quelqu'un d'un autre
+    // client, et l'identifiant revelerait qu'il existe.
+    const b = req.body ?? {};
+    const champsSuivis: string[] = [];
+    if (b.nextActionLabel !== undefined) {
+      if (b.nextActionLabel !== null && typeof b.nextActionLabel !== "string") { res.status(400).json({ error: "Prochaine action invalide." }); return; }
+      updates.nextActionLabel = typeof b.nextActionLabel === "string" && b.nextActionLabel.trim() ? b.nextActionLabel.trim().slice(0, 500) : null;
+      champsSuivis.push("nextActionLabel");
+    }
+    if (b.nextActionAt !== undefined) {
+      if (b.nextActionAt === null || b.nextActionAt === "") updates.nextActionAt = null;
+      else {
+        const d = new Date(b.nextActionAt);
+        if (Number.isNaN(d.getTime())) { res.status(400).json({ error: "Date de prochaine action invalide." }); return; }
+        updates.nextActionAt = d;
+      }
+      champsSuivis.push("nextActionAt");
+    }
+    if (b.nextActionOwnerId !== undefined) {
+      if (b.nextActionOwnerId === null || b.nextActionOwnerId === "") updates.nextActionOwnerId = null;
+      else {
+        const uid = Number(b.nextActionOwnerId);
+        const [u] = Number.isInteger(uid)
+          ? await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, uid), eq(usersTable.organisationId, orgId)))
+          : [];
+        if (!u) { res.status(400).json({ error: "Responsable introuvable.", code: "responsable_inconnu" }); return; }
+        updates.nextActionOwnerId = u.id;
+      }
+      champsSuivis.push("nextActionOwnerId");
+    }
+    if (b.discoveryChecklist !== undefined) {
+      const liste = validerListeDecouverte(b.discoveryChecklist);
+      if (!liste.ok) { res.status(400).json({ error: liste.erreur, code: "decouverte_invalide" }); return; }
+      updates.discoveryChecklist = liste.valeur;
+      champsSuivis.push("discoveryChecklist");
+    }
+
     const [row] = await db.update(prospectsTable).set(updates).where(owned).returning();
+    if (champsSuivis.length) {
+      void logAudit(
+        req.session?.userId, req.session?.userEmail, "prospect.suivi_modifie", "prospect", String(id),
+        { champs: champsSuivis, nextActionAt: row?.nextActionAt ?? null, nextActionOwnerId: row?.nextActionOwnerId ?? null, manquants: pointsManquants(row?.discoveryChecklist) },
+        req.ip, req.get("user-agent"), orgId,
+      ).catch(() => {});
+    }
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour prospect");
@@ -329,10 +413,18 @@ router.post("/prospects/:id/create-devis", async (req: Request, res: Response): 
 
     // La valeur estimee devient une ligne de depart (TVA 20% par defaut), de
     // sorte que le montant se propage. Si aucune valeur, devis vide a completer.
+    //
+    // Mais cette valeur est une ESTIMATION commerciale, pas un chiffrage : la
+    // ligne le dit (libelle + `estimate: true`), l'ecran du devis la montre a
+    // part, et l'acceptation est refusee tant qu'elle n'a pas ete reprise
+    // (routes/devis.ts, code `devis_ligne_estimee`).
     const estimate = Number(prospect.value ?? 0);
     const seedItems = estimate > 0
-      ? [{ description: prospect.title, quantity: 1, unitPrice: estimate, taxRate: 20 }]
+      ? [{ description: `${PREFIXE_ESTIMATION}${prospect.title}`, quantity: 1, unitPrice: estimate, taxRate: 20, estimate: true }]
       : [];
+    // Ce que la decouverte n'a pas confirme : le devis est cree quand meme
+    // (l'utilisateur peut chiffrer avec des hypotheses), mais il le sait.
+    const manquants = pointsManquants(prospect.discoveryChecklist);
     const totals = computeInvoiceTotals(seedItems);
 
     const [devis] = await db.insert(devisTable).values({
@@ -358,7 +450,13 @@ router.post("/prospects/:id/create-devis", async (req: Request, res: Response): 
       await db.update(prospectsTable).set({ stage: "proposition", updatedAt: new Date() }).where(ownedById(id, orgId));
     }
 
-    res.status(201).json({ devis });
+    res.status(201).json({
+      devis,
+      avertissements: {
+        decouverteManquante: manquants,
+        ligneEstimee: seedItems.length > 0,
+      },
+    });
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation devis depuis prospect");
     res.status(500).json({ error: "Erreur lors de la creation du devis." });

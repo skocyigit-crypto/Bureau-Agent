@@ -9911,7 +9911,9 @@
       "ajan_calisiyor": "En curso",
       "baglanti_telefon": "Conexión ausente",
       "baglanti_google": "Conexión ausente",
-      "baglanti_ia": "Conexión ausente"
+      "baglanti_ia": "Conexión ausente",
+      "sonraki_adim_gecikti": "Seguimiento atrasado",
+      "sonraki_adim_bugun": "Seguimiento de hoy"
     },
     "baglanti": {
       "baglanti_telefon": "Sin línea telefónica: el agente telefónico no puede atender llamadas",
@@ -10385,5 +10387,86 @@
     "essai_echoue": "La prueba ha fallado: el modelo no ha respondido.",
     "action_anterieure_profils": "Esta acción se propuso antes de los perfiles de agentes: no se ha ejecutado. Vuelva a abrir la solicitud con el perfil adecuado.",
     "generic": "La solicitud ha fallado (HTTP {{status}})."
+  },
+  "crm": {
+    "chronologie": {
+      "titre": "Historial del cliente",
+      "onglet": "Historial",
+      "vide": "No hay actividad registrada para este cliente.",
+      "erreur": "No se pudo cargar el historial.",
+      "reessayer": "Reintentar",
+      "plus": "Mostrar más",
+      "chargement": "Cargando historial",
+      "type": {
+        "appel": "Llamada",
+        "message": "Mensaje",
+        "note": "Nota",
+        "whatsapp": "WhatsApp",
+        "devis": "Presupuesto",
+        "facture": "Factura",
+        "rendez_vous": "Cita",
+        "offre_rdv": "Propuesta de cita",
+        "tache": "Tarea",
+        "chantier": "Obra",
+        "opportunite": "Oportunidad"
+      }
+    },
+    "doublons": {
+      "titre": "Posible duplicado",
+      "description": "Estas fichas parecen designar al mismo cliente.",
+      "motif": {
+        "telephone": "mismo teléfono",
+        "email": "mismo correo",
+        "nom_societe": "mismo nombre y empresa"
+      },
+      "lignes": "{{count}} elemento(s) vinculado(s)",
+      "fusionner": "Fusionar en esta ficha",
+      "confirmTitre": "¿Fusionar {{nom}} en esta ficha?",
+      "confirmDesc": "Sus llamadas, mensajes, presupuestos, facturas, citas, tareas y obras se vincularán a esta ficha. La ficha absorbida va a la papelera y puede restaurarse.",
+      "confirmAction": "Fusionar",
+      "succes": "Fichas fusionadas",
+      "succesDesc": "{{count}} elemento(s) movido(s).",
+      "erreur": "No se pudo fusionar",
+      "erreurChargement": "La búsqueda de duplicados falló."
+    },
+    "suivi": {
+      "titre": "Próxima acción",
+      "libelle": "Acción",
+      "date": "Fecha",
+      "responsable": "Responsable",
+      "aucun": "Ninguno",
+      "enregistrer": "Guardar",
+      "enregistre": "Próxima acción guardada",
+      "enRetard": "Atrasada",
+      "erreur": "No se pudo guardar"
+    },
+    "decouverte": {
+      "titre": "Información de descubrimiento",
+      "progression": "{{ok}}/{{total}} confirmados",
+      "manquants": "Por confirmar: {{liste}}",
+      "complet": "Todo está confirmado.",
+      "valeur": "Detalle",
+      "enregistrer": "Guardar",
+      "enregistre": "Descubrimiento guardado",
+      "point": {
+        "adresse_chantier": "Dirección de la obra",
+        "type_travaux": "Tipo de trabajos",
+        "surface": "Superficie",
+        "acces": "Acceso a la obra",
+        "photos": "Fotos",
+        "budget": "Presupuesto disponible",
+        "delai": "Plazo deseado",
+        "decideur": "Responsable de la decisión"
+      },
+      "devisAvertTitre": "Descubrimiento incompleto",
+      "devisAvertDesc": "Puntos sin confirmar: {{liste}}. El presupuesto puede basarse en suposiciones.",
+      "devisAvertAction": "Crear de todos modos"
+    },
+    "estimation": {
+      "badge": "Estimación",
+      "aide": "Precio estimado, no calculado: revise esta línea antes de aceptar el presupuesto.",
+      "devisCree": "El presupuesto incluye la estimación en una línea por calcular.",
+      "listeBadge": "Contiene una estimación"
+    }
   }
 }

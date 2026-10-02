@@ -23,6 +23,8 @@ export const devisTable = pgTable("devis", {
     unitPrice: number;
     taxRate: number;
     total: number;
+    // Ligne reprise d'une estimation commerciale, a chiffrer avant acceptation.
+    estimate?: true;
   }[]>().default([]),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
   taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }).notNull().default("0"),

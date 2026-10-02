@@ -18,6 +18,12 @@ export interface LineItem {
   quantity: number;
   unitPrice: number;
   taxRate: number;
+  /**
+   * Ligne reprise d une estimation commerciale (devis cree depuis une
+   * opportunite). Le serveur refuse l acceptation tant qu elle existe ; la
+   * modifier (designation, quantite, prix) vaut reprise et retire le drapeau.
+   */
+  estimate?: boolean;
 }
 
 function round2(n: number): number {
@@ -57,7 +63,15 @@ export function LineItemsEditor({
   const totals = useMemo(() => computePreview(items, autoliquidation), [items, autoliquidation]);
 
   const update = (i: number, patch: Partial<LineItem>) => {
-    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+    // Changer la TVA seule ne chiffre rien : seuls designation, quantite et
+    // prix valent reprise de l estimation.
+    const reprise = "description" in patch || "quantity" in patch || "unitPrice" in patch;
+    onChange(items.map((it, idx) => {
+      if (idx !== i) return it;
+      const suivant = { ...it, ...patch };
+      if (reprise && suivant.estimate) delete suivant.estimate;
+      return suivant;
+    }));
   };
   const add = () => onChange([...items, { description: "", quantity: 1, unitPrice: 0, taxRate: 20 }]);
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
@@ -79,13 +93,21 @@ export function LineItemsEditor({
             <span>{t("lineItemsEditor.colDesignation")}</span><span>{t("lineItemsEditor.colQty")}</span><span>{t("lineItemsEditor.colUnitPrice")}</span><span>{t("lineItemsEditor.colVat")}</span><span className="text-right">{t("lineItemsEditor.colTotal")}</span><span />
           </div>
           {items.map((it, i) => (
-            <div key={i} className="grid grid-cols-[1fr_70px_90px_70px_90px_32px] gap-2 items-center">
+            <div key={i} className={it.estimate ? "rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-1 space-y-1" : undefined} data-testid={it.estimate ? `ligne-estimee-${i}` : undefined}>
+            {it.estimate && (
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                <span className="rounded bg-amber-200 dark:bg-amber-800 px-1.5 py-0.5 font-semibold">{t("crm.estimation.badge")}</span>
+                {t("crm.estimation.aide")}
+              </p>
+            )}
+            <div className="grid grid-cols-[1fr_70px_90px_70px_90px_32px] gap-2 items-center">
               <Input aria-label={t("lineItemsEditor.colDesignation")} value={it.description} onChange={(e) => update(i, { description: e.target.value })} placeholder={t("lineItemsEditor.placeholder")} className="h-8 text-sm" />
               <Input aria-label={t("lineItemsEditor.colQty")} type="number" value={it.quantity} onChange={(e) => update(i, { quantity: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <Input aria-label={t("lineItemsEditor.colUnitPrice")} type="number" step="0.01" value={it.unitPrice} onChange={(e) => update(i, { unitPrice: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <Input aria-label={t("lineItemsEditor.colVat")} type="number" value={autoliquidation ? 0 : it.taxRate} disabled={autoliquidation} onChange={(e) => update(i, { taxRate: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
               <span className="text-sm text-right tabular-nums pr-1">{fmt(round2((it.quantity || 0) * (it.unitPrice || 0)), currency)}</span>
               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => remove(i)} aria-label={t("common.delete")}><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /></Button>
+            </div>
             </div>
           ))}
         </div>
